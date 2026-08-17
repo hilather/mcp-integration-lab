@@ -122,12 +122,12 @@ func (r *Runner) stageLabinfoCreds() error {
 		return err
 	}
 	for src, dst := range map[string]string{
-		"secrets/labinfo-token":                          "labinfo-token",
-		"secrets/labdns-token":                           "labdns-token",
-		"secrets/mcp-client-token":                       "mcp-client-token",
-		"secrets/maildev-web-password":                   "maildev-web-password",
-		"third_party/go-lab-ldap-mcp/secrets/token-admin": "labldap-token-admin",
-		"third_party/go-lab-ldap-mcp/secrets/user-alice":  "labldap-user-alice",
+		"secrets/labinfo-token":                                               "labinfo-token",
+		"secrets/labdns-token":                                                "labdns-token",
+		"secrets/mcp-client-token":                                            "mcp-client-token",
+		"secrets/maildev-web-password":                                        "maildev-web-password",
+		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "labldap-token-admin",
+		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "labldap-user-alice",
 		taclabDir + "/deployments/compose/secrets/api_admin_token":            "labtacacs-token-admin",
 		taclabDir + "/deployments/compose/secrets/lab_switches_radius_secret": "labtacacs-radius-secret",
 	} {

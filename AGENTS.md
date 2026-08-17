@@ -155,6 +155,11 @@ we work by.
   for project"; `LabLDAPUp` runs them in the foreground
   (`--exit-code-from`) instead.
 - ratarmount NFSv3 needs `nolock,port=...,mountport=...`; it writes archive
-  indexes to `$HOME`, which we point at the `NFS_DATA_DIR` bind mount.
+  indexes to `$HOME`, which we point at the `NFS_DATA_DIR` bind mount. Live
+  overlay commit (`--commit-overlay-interval` / `--commit-overlay-on-exit`)
+  requires uncompressed TAR or `.tar.zst` (gzip is rejected) and a durable
+  `-w` dir (not `:temp:`). The fixture is an empty-root `.tar.zst` (`./`
+  only). Zstd commit rewrites the last frame and still copies the compressed
+  file; the archive bind mount must be writable (plan 2× compressed headroom).
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).

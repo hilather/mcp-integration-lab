@@ -187,14 +187,7 @@ func (s *smokeState) ldapScenario() {
 }
 
 func (s *smokeState) nfsScenario() {
-	s.step("NFS scenario: kernel client mounts the ratarmount export and reads bytes")
-
-	want, err := tarGzMemberMD5(filepath.Join(
-		s.r.path(s.r.Prof.Get("NFS_ARCHIVE_DIR", ".data/nfs")), "fixtures.tar.gz"),
-		"fixtures/random-1mib.bin")
-	if !s.check(err == nil, "checksum source archive member") {
-		return
-	}
+	s.step("NFS scenario: kernel client mounts the empty-root tar.zst export and writes via the overlay")
 
 	if _, err := s.r.capture(".", "docker", "build", "-q", "-t", "mcplab-nfs-client", "docker/nfs-client"); err != nil {
 		s.check(false, "build nfs client image: "+err.Error())
@@ -202,9 +195,12 @@ func (s *smokeState) nfsScenario() {
 	}
 	out, err := s.r.capture(".", "docker", "run", "--rm", "--privileged", "--network", "mcplab_default",
 		"mcplab-nfs-client", "bash", "-c",
-		`mkdir -p /m && mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 nfs:/ /m >/dev/null 2>&1 && md5sum /m/fixtures/random-1mib.bin | cut -d" " -f1 && umount /m`)
-	got := strings.TrimSpace(strings.Split(out, "\n")[0])
-	s.check(err == nil && got == want, fmt.Sprintf("NFS mount + byte-exact read (%s)", got))
+		`mkdir -p /m && mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 nfs:/ /m >/dev/null 2>&1 && echo nfs-write-ok > /m/smoke-write.txt && cat /m/smoke-write.txt && umount /m`)
+	wrote := strings.TrimSpace(out)
+	if i := strings.LastIndex(wrote, "\n"); i >= 0 {
+		wrote = strings.TrimSpace(wrote[i+1:])
+	}
+	s.check(err == nil && wrote == "nfs-write-ok", fmt.Sprintf("NFS overlay write (%s)", wrote))
 }
 
 func (s *smokeState) tacacsScenario() {

@@ -171,7 +171,7 @@ services:
 
   - id: nfs
     name: NFS export (ratarmount-rs)
-    description: Read-only archive-backed userspace NFSv3 export. No credential (AUTH_SYS).
+    description: Writable archive-backed userspace NFSv3 export (write overlay; live commit into the fixture TAR). No credential (AUTH_SYS).
     urls:
       - name: NFS endpoint
         url: nfs://${LAB_PUBLIC_HOST}:${NFS_PORT}/
@@ -183,7 +183,8 @@ services:
           address: ${LAB_PUBLIC_HOST}:${NFS_PORT}
       parameters:
         version: "3"
-        export: "/ (read-only contents of the profile's fixtures archive)"
+        export: "/ (writable overlay on the profile's empty-root fixtures.tar.zst)"
         mount_options: "vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT}"
         mount_example: "mount -t nfs -o vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT} ${LAB_PUBLIC_HOST}:/ /mnt"
         auth: AUTH_SYS (no credential)
+        writable: "true — writes go to a durable overlay and are committed into the .tar.zst every ${NFS_COMMIT_OVERLAY_INTERVAL} and on process exit (gzip is not supported)"

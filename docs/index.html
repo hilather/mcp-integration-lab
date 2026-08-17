@@ -34,7 +34,7 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <div class="eyebrow">v0.1.0 · integration laboratory</div>
+          <div class="eyebrow">v0.2.0 · integration laboratory</div>
           <h1>One gateway.<br />Every lab protocol.</h1>
           <p class="lead">
             MCP Integration Lab stands up DNS, LDAP, TACACS+, RADIUS, mail, and
@@ -139,7 +139,7 @@
           </article>
           <article class="card">
             <h3>ratarmount-rs</h3>
-            <p>Archive-backed userspace NFSv3 export. No FUSE device, no privileges. Indexes live on a host bind mount.</p>
+            <p>Archive-backed userspace NFSv3 export with a write overlay. Empty-root <code>.tar.zst</code>; commits every 15m.</p>
             <div class="meta"><span>20490</span><a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></div>
           </article>
           <article class="card">
@@ -200,7 +200,7 @@ make smoke
             <tr><td>RADIUS access / acct</td><td>1812 / 1813</td><td>udp; Message-Authenticator required</td></tr>
             <tr><td>TacLab control</td><td>18049</td><td>UI + REST + MCP</td></tr>
             <tr><td>SMTP / maildev web</td><td>1025 / 1080</td><td>receive-only sink</td></tr>
-            <tr><td>NFS export</td><td>20490</td><td>userspace NFSv3, nolock</td></tr>
+            <tr><td>NFS export</td><td>20490</td><td>userspace NFSv3, writable overlay, nolock</td></tr>
             <tr><td>labinfo</td><td>18090</td><td>service-directory MCP</td></tr>
           </tbody>
         </table>

@@ -2,84 +2,87 @@ package lab
 
 import (
 	"archive/tar"
-	"compress/gzip"
-	"crypto/rand"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
 )
 
-// Fixtures prepares the NFS container's storage: the read-only fixture
-// archive it serves and the writable work directory (indexes, scratch disk).
-// Both locations are profile-definable (NFS_ARCHIVE_DIR / NFS_DATA_DIR).
+// nfsFixtureArchive is the empty-root .tar.zst ratarmount serves. Live overlay
+// commit accepts uncompressed TAR or .tar.zst; gzip is rejected. An archive
+// that contains only the root directory (`./`) is the writable starting point.
+const nfsFixtureArchive = "fixtures.tar.zst"
+
+// rootDirMember is the TAR directory entry for the archive/NFS root. TAR
+// members must be relative; an absolute "/" would be skipped by many readers.
+const rootDirMember = "./"
+
+// Fixtures prepares the NFS container's storage: the fixture archive it
+// serves, the writable work directory (indexes, overlay), and the durable
+// write-overlay folder live commit requires (not :temp:). Both locations are
+// profile-definable (NFS_ARCHIVE_DIR / NFS_DATA_DIR).
 func (r *Runner) Fixtures() error {
 	archiveDir := r.path(r.Prof.Get("NFS_ARCHIVE_DIR", ".data/nfs"))
 	workDir := r.path(r.Prof.Get("NFS_DATA_DIR", ".data/nfs-work"))
+	overlayDir := filepath.Join(workDir, "overlay")
 
-	if err := os.MkdirAll(workDir, 0o777); err != nil {
-		return err
-	}
-	// The container runs unprivileged (uid 65532) and must write indexes here.
-	if err := os.Chmod(workDir, 0o777); err != nil {
-		return err
+	// The container runs unprivileged (uid 65532) and must write indexes,
+	// overlay files, and (on commit) a sibling copy of the archive.
+	for _, dir := range []string{workDir, overlayDir, archiveDir} {
+		if err := os.MkdirAll(dir, 0o777); err != nil {
+			return err
+		}
+		if err := os.Chmod(dir, 0o777); err != nil {
+			return err
+		}
 	}
 
-	target := filepath.Join(archiveDir, "fixtures.tar.gz")
+	target := filepath.Join(archiveDir, nfsFixtureArchive)
 	if _, err := os.Stat(target); err == nil {
 		fmt.Printf("fixtures: %s already present\n", target)
 		return nil
 	}
-	if err := os.MkdirAll(archiveDir, 0o755); err != nil {
+	if err := writeEmptyRootTarZst(target); err != nil {
 		return err
 	}
-	if err := writeFixtureArchive(target); err != nil {
+	if err := os.Chmod(target, 0o666); err != nil {
 		return err
 	}
 	fmt.Printf("wrote %s\n", target)
 	return nil
 }
 
-func writeFixtureArchive(path string) error {
-	random := make([]byte, 1<<20)
-	if _, err := rand.Read(random); err != nil {
-		return err
-	}
-	members := []struct {
-		Name string
-		Body []byte
-	}{
-		{"fixtures/hello.txt", []byte("Hello from the MCP integration lab NFS fixture.\n")},
-		{"fixtures/nested/notes.md", []byte("# NFS fixture\n\nServed by ratarmount-rs (userspace NFSv3) from a read-only tar.gz archive.\n")},
-		{"fixtures/random-1mib.bin", random},
-	}
-
+// writeEmptyRootTarZst writes a zstd-compressed TAR whose only member is the
+// root directory. That is the starting tree the NFS export presents at `/`.
+func writeEmptyRootTarZst(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	gz := gzip.NewWriter(f)
-	tw := tar.NewWriter(gz)
-	now := time.Now()
-	for _, m := range members {
-		hdr := &tar.Header{
-			Name:    m.Name,
-			Mode:    0o644,
-			Size:    int64(len(m.Body)),
-			ModTime: now,
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return err
-		}
-		if _, err := tw.Write(m.Body); err != nil {
-			return err
-		}
-	}
-	if err := tw.Close(); err != nil {
+
+	enc, err := zstd.NewWriter(f)
+	if err != nil {
 		return err
 	}
-	if err := gz.Close(); err != nil {
+	tw := tar.NewWriter(enc)
+	hdr := &tar.Header{
+		Typeflag: tar.TypeDir,
+		Name:     rootDirMember,
+		Mode:     0o755,
+		ModTime:  time.Now(),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		_ = enc.Close()
+		return err
+	}
+	if err := tw.Close(); err != nil {
+		_ = enc.Close()
+		return err
+	}
+	if err := enc.Close(); err != nil {
 		return err
 	}
 	return f.Close()

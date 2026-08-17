@@ -1,35 +1,48 @@
 package lab
 
 import (
+	"bytes"
+	"compress/gzip"
+	"os"
 	"path/filepath"
 	"testing"
 )
 
-// Regression: the fixture archive we generate must contain the members the
-// NFS smoke test depends on, and member checksums must be recoverable so the
-// byte-exact NFS comparison stays meaningful.
-func TestFixtureArchiveRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "fixtures.tar.gz")
-	if err := writeFixtureArchive(path); err != nil {
+// zstd magic: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
+var zstdMagic = []byte{0x28, 0xb5, 0x2f, 0xfd}
+
+// Regression: the NFS starting archive must be zstd (gzip is rejected for
+// live overlay commit) and contain only the root directory so the export
+// presents an empty `/` for clients to write into.
+func TestEmptyRootTarZst(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fixtures.tar.zst")
+	if err := writeEmptyRootTarZst(path); err != nil {
 		t.Fatal(err)
 	}
 
-	for _, member := range []string{
-		"fixtures/hello.txt",
-		"fixtures/nested/notes.md",
-		"fixtures/random-1mib.bin",
-	} {
-		sum, err := tarGzMemberMD5(path, member)
-		if err != nil {
-			t.Errorf("%s: %v", member, err)
-			continue
-		}
-		if len(sum) != 32 {
-			t.Errorf("%s: md5 hex length = %d, want 32", member, len(sum))
-		}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) < 4 || !bytes.Equal(raw[:4], zstdMagic) {
+		t.Fatalf("missing zstd magic, got %x", raw[:min(4, len(raw))])
+	}
+	if _, err := gzip.NewReader(bytes.NewReader(raw)); err == nil {
+		t.Fatal("fixture archive is gzip-compressed; live overlay commit rejects gzip")
 	}
 
-	if _, err := tarGzMemberMD5(path, "fixtures/does-not-exist"); err == nil {
-		t.Error("expected error for missing member")
+	names, err := tarZstMembers(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 || names[0] != rootDirMember {
+		t.Fatalf("members = %v, want only %q", names, rootDirMember)
+	}
+
+	if err := tarZstContains(path, rootDirMember); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarZstContains(path, "fixtures/hello.txt"); err == nil {
+		t.Error("expected error for a member that is not in the empty-root archive")
 	}
 }

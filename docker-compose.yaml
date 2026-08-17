@@ -52,6 +52,8 @@ services:
   # ------------------------------------------- ratarmount-rs NFS export (POC)
   # Userspace NFSv3 server: no FUSE device, no privileges. Data plane only for
   # now; an MCP wrapper around its control socket is a phase-1 item.
+  # Writable overlay (-w) plus live commit into the empty-root .tar.zst
+  # (gzip is rejected; :temp: is rejected). Interval is profile-defined.
   nfs:
     build:
       context: ./docker/ratarmount
@@ -62,7 +64,12 @@ services:
       - "--nfs"
       - "--nfs-bind"
       - "0.0.0.0:20490"
-      - "/archives/fixtures.tar.gz"
+      - "-w"
+      - "/work/overlay"
+      - "--commit-overlay-on-exit"
+      - "--commit-overlay-interval"
+      - "${NFS_COMMIT_OVERLAY_INTERVAL:-15m}"
+      - "/archives/fixtures.tar.zst"
     networks: [default]
     ports:
       - "${NFS_PORT:-20490}:20490/tcp"
@@ -72,7 +79,8 @@ services:
       HOME: /work
       XDG_CACHE_HOME: /work
     volumes:
-      - ${NFS_ARCHIVE_DIR:-./.data/nfs}:/archives:ro
+      # Writable: interval/on-exit commit does a sibling copy + atomic replace.
+      - ${NFS_ARCHIVE_DIR:-./.data/nfs}:/archives
       - ${NFS_DATA_DIR:-./.data/nfs-work}:/work
     read_only: true
     tmpfs:
@@ -145,6 +153,7 @@ services:
       LABLDAP_LDAPS_PORT: ${LABLDAP_LDAPS_PORT:-3636}
       LABLDAP_HTTPS_PORT: ${LABLDAP_HTTPS_PORT:-8443}
       NFS_PORT: ${NFS_PORT:-20490}
+      NFS_COMMIT_OVERLAY_INTERVAL: ${NFS_COMMIT_OVERLAY_INTERVAL:-15m}
       TACLAB_HTTP_PORT: ${TACLAB_HTTP_PORT:-18049}
       TACLAB_LEGACY_PORT: ${TACLAB_LEGACY_PORT:-49}
       TACLAB_TLS_PORT: ${TACLAB_TLS_PORT:-300}

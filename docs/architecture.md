@@ -17,7 +17,7 @@ secrets layout, and gateway policy.
 | LabLDAP (`go-lab-ldap-mcp` **v0.2.2**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.3.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | maildev | Receive-only SMTP sink with web UI/REST for captured mail | none (off-the-shelf; cataloged in labinfo) | SMTP 1025, web 1080 |
-| ratarmount-rs | Archive-backed userspace NFSv3 export | none yet (phase 1 wrapper) | NFS 20490 |
+| ratarmount-rs | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle | MCP gateway: aggregation, tool groups, ACLs | `http://<host>:8080/mcp` | gateway 8080 |
 
@@ -70,7 +70,8 @@ flowchart LR
 Per-team configuration lives in profiles (`profiles/<name>/`), selected via
 `PROFILE` (`.env` or environment). Within the active profile:
 
-- `profile.env` — host ports, gateway mode, container storage paths.
+- `profile.env` — host ports, gateway mode, container storage paths,
+  NFS overlay-commit interval.
 - `labdns/bootstrap.yaml` — LabDNS desired state (read-only mount; MCP
   `dns_state_reset` returns to it).
 - `labldap/scenario.yaml` — LabLDAP scenario (users, groups, ACLs,
@@ -90,7 +91,11 @@ the host ports (`TACLAB_*`).
 
 Outside profiles: `secrets/`, `third_party/*/secrets/` — generated, gitignored.
 Container storage is profile-definable (`NFS_ARCHIVE_DIR`, `NFS_DATA_DIR`);
-the NFS work dir is a host bind mount so it gets real disk for indexes.
+the NFS work dir is a host bind mount so it gets real disk for indexes and
+the durable write overlay. The archive dir is also writable: live overlay
+commit (`--commit-overlay-interval` / `--commit-overlay-on-exit`) copies the
+`.tar.zst` and atomically replaces it (last-frame rewrite; plan 2× compressed
+headroom).
 
 ## Orchestration CLI
 
@@ -174,7 +179,12 @@ per-persona tool groups and OTel metrics scraping.
   web UI/REST live in the labinfo catalog and the SMTP sink is data plane.
   Captured mail sits on tmpfs and is wiped by restart/reset.
 - ratarmount NFSv3 has no locking (`nolock` required) and AUTH_SYS only; the
-  lab boundary is the docker network / host.
+  lab boundary is the docker network / host. The export is writable via `-w`
+  (durable overlay under `NFS_DATA_DIR`); live commit into the empty-root
+  `.tar.zst` is `--commit-overlay-interval` (profile
+  `NFS_COMMIT_OVERLAY_INTERVAL`, default 15m) plus `--commit-overlay-on-exit`.
+  Gzip is rejected; `:temp:` overlays are rejected. Persist copies the
+  compressed file and remount reindexes the whole TAR.
 - ratarmount image is Ubuntu-based (release .deb). Alpine/musl source build is
   a size optimization for later.
 - LabLDAP and TacLab images build locally from the vendored repos (TacLab's

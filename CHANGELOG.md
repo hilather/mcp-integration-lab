@@ -7,6 +7,18 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-17
+
+### Changed
+
+- **NFS export is writable.** ratarmount-rs serves an empty-root
+  `.tar.zst` (`fixtures.tar.zst` contains only `./`) with a durable write
+  overlay (`-w`) and live overlay commit (`--commit-overlay-interval`
+  default 15m, plus `--commit-overlay-on-exit`). Writes are visible
+  immediately; they land in the archive on that cadence and again when the
+  container stops. Gzip is rejected; persist copies the compressed file
+  (plan 2× headroom).
+
 ### Added
 
 - Project site at [hilather.github.io/mcp-integration-lab](https://hilather.github.io/mcp-integration-lab/)

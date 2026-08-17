@@ -72,7 +72,7 @@ PROFILE=default
 | `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory`. |
 | `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
 | `MCP_GATEWAY_PORT` | `8080` | MCPJungle streamable HTTP. |
-| `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3. |
+| `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3 (writable overlay). |
 | `TACLAB_LEGACY_PORT` | `49` | TACACS+ (RFC 8907). |
 | `TACLAB_TLS_PORT` | `300` | TACACS+ TLS 1.3 (RFC 9887). |
 | `TACLAB_RADIUS_ACCESS_PORT` | `1812` | RADIUS access (udp). Message-Authenticator required. |
@@ -87,8 +87,9 @@ PROFILE=default
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL. Set this to the name remote testers use. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal. |
-| `NFS_ARCHIVE_DIR` | `.data/nfs` | Read-only archive tree. |
-| `NFS_DATA_DIR` | `.data/nfs-work` | Writable scratch for SQLite indexes. Give it real disk. |
+| `NFS_ARCHIVE_DIR` | `.data/nfs` | Empty-root `fixtures.tar.zst` (writable; live commit replaces it). |
+| `NFS_DATA_DIR` | `.data/nfs-work` | Indexes plus the durable write overlay. Give it real disk. |
+| `NFS_COMMIT_OVERLAY_INTERVAL` | `15m` | How often overlay writes are spliced into the `.tar.zst`. |
 
 ## LabDNS
 
@@ -238,12 +239,15 @@ Point the system under test at `<lab-host>:1025`. Read captured mail at
 
 ## NFS
 
-`NFS_ARCHIVE_DIR` is the read-only archive tree (default
-`.data/nfs/fixtures.tar.gz` after `make fixtures`). `NFS_DATA_DIR` is
-writable scratch for SQLite indexes — give it real disk.
+`NFS_ARCHIVE_DIR` holds the empty-root fixture `.tar.zst` (`fixtures.tar.zst`
+contains only `./`) after `make fixtures`. The export is writable: `-w`
+overlay plus live commit (`NFS_COMMIT_OVERLAY_INTERVAL`, default 15m, and
+on process exit). `NFS_DATA_DIR` is indexes plus the durable overlay — give
+it real disk. Plan ~2× compressed size on the archive dir during a commit.
 
 ```bash
 NFS_PORT=20490
+NFS_COMMIT_OVERLAY_INTERVAL=15m
 NFS_ARCHIVE_DIR=.data/nfs
 NFS_DATA_DIR=.data/nfs-work
 

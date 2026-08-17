@@ -93,7 +93,7 @@ PROFILE=default
             <tr><td><code>LABLDAP_LDAPS_PORT</code></td><td>3636</td><td>LDAPS. Cert SAN is <code>directory</code>.</td></tr>
             <tr><td><code>LABLDAP_HTTPS_PORT</code></td><td>8443</td><td>LabLDAP UI + REST + MCP, lab TLS.</td></tr>
             <tr><td><code>MCP_GATEWAY_PORT</code></td><td>8080</td><td>MCPJungle streamable HTTP.</td></tr>
-            <tr><td><code>NFS_PORT</code></td><td>20490</td><td>ratarmount-rs userspace NFSv3.</td></tr>
+            <tr><td><code>NFS_PORT</code></td><td>20490</td><td>ratarmount-rs userspace NFSv3 (writable overlay).</td></tr>
             <tr><td><code>TACLAB_LEGACY_PORT</code></td><td>49</td><td>TACACS+ (RFC 8907).</td></tr>
             <tr><td><code>TACLAB_TLS_PORT</code></td><td>300</td><td>TACACS+ TLS 1.3 (RFC 9887).</td></tr>
             <tr><td><code>TACLAB_RADIUS_ACCESS_PORT</code></td><td>1812</td><td>RADIUS access (udp). Message-Authenticator required.</td></tr>
@@ -107,8 +107,9 @@ PROFILE=default
             <tr><td><code>LABINFO_PORT</code></td><td>18090</td><td>Service-directory MCP.</td></tr>
             <tr><td><code>LAB_PUBLIC_HOST</code></td><td>localhost</td><td>Hostname labinfo puts in every URL.</td></tr>
             <tr><td><code>LAB_DEV_MODE</code></td><td>false</td><td>Single security knob.</td></tr>
-            <tr><td><code>NFS_ARCHIVE_DIR</code></td><td>.data/nfs</td><td>Read-only archive tree.</td></tr>
-            <tr><td><code>NFS_DATA_DIR</code></td><td>.data/nfs-work</td><td>Writable scratch for SQLite indexes.</td></tr>
+            <tr><td><code>NFS_ARCHIVE_DIR</code></td><td>.data/nfs</td><td>Empty-root fixtures.tar.zst (writable; live commit replaces it).</td></tr>
+            <tr><td><code>NFS_DATA_DIR</code></td><td>.data/nfs-work</td><td>Indexes plus the durable write overlay. Give it real disk.</td></tr>
+            <tr><td><code>NFS_COMMIT_OVERLAY_INTERVAL</code></td><td>15m</td><td>How often overlay writes are spliced into the .tar.zst.</td></tr>
           </tbody>
         </table>
 
@@ -203,8 +204,9 @@ flags: {}
         <p>Point the system under test at <code><lab-host>:1025</code>. Read captured mail at <code>:1080</code>. Nothing is relayed.</p>
 
         <h2 id="nfs">NFS</h2>
-        <p><code>NFS_ARCHIVE_DIR</code> is the read-only archive tree. <code>NFS_DATA_DIR</code> is writable scratch for SQLite indexes — give it real disk.</p>
+        <p><code>NFS_ARCHIVE_DIR</code> holds the empty-root fixture <code>.tar.zst</code> (<code>fixtures.tar.zst</code> contains only <code>./</code>) after <code>make fixtures</code>. The export is writable: <code>-w</code> overlay plus live commit (<code>NFS_COMMIT_OVERLAY_INTERVAL</code>, default 15m, and on process exit). <code>NFS_DATA_DIR</code> is indexes plus the durable overlay. Plan ~2× compressed size on the archive dir during a commit.</p>
         <pre><code>NFS_PORT=20490
+NFS_COMMIT_OVERLAY_INTERVAL=15m
 NFS_ARCHIVE_DIR=.data/nfs
 NFS_DATA_DIR=.data/nfs-work
 

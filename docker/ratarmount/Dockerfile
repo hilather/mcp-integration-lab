@@ -1,8 +1,9 @@
 # ratarmount-rs as a userspace NFSv3 server.
 #
 # Uses the signed release .deb so apt resolves runtime deps (libarchive, fuse3
-# libs). A musl/Alpine source build is a future size optimization; this stays
-# a lab-grade single-purpose image.
+# libs). Live overlay commit into .tar.zst rewrites the last zstd frame
+# in-process. A musl/Alpine source build is a future size optimization; this
+# stays a lab-grade single-purpose image.
 FROM ubuntu:24.04
 
 ARG RATARMOUNT_VERSION=0.1.22
@@ -15,7 +16,7 @@ RUN apt-get update \
     && ratarmount --version
 
 # Unprivileged: userspace NFS needs no root, no FUSE device. SQLite indexes
-# land under $HOME, which we point at tmpfs.
+# and the write overlay land under $HOME, which we point at the work bind mount.
 USER 65532:65532
 ENV HOME=/tmp \
     XDG_CACHE_HOME=/tmp
@@ -23,4 +24,4 @@ ENV HOME=/tmp \
 EXPOSE 20490/tcp
 
 ENTRYPOINT ["ratarmount"]
-CMD ["--nfs", "--nfs-bind", "0.0.0.0:20490", "/archives/fixtures.tar.gz"]
+CMD ["--nfs", "--nfs-bind", "0.0.0.0:20490", "-w", "/work/overlay", "--commit-overlay-on-exit", "--commit-overlay-interval", "15m", "/archives/fixtures.tar.zst"]

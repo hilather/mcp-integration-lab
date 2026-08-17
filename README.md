@@ -73,7 +73,7 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 | **LabLDAP** | Native Go directory (`labldapd`) + control plane | 3389 / 3636 · HTTPS 8443 |
 | **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 · HTTP 18049 |
 | **maildev** | Receive-only SMTP sink + web UI | 1025 · 1080 |
-| **ratarmount-rs** | Archive-backed userspace NFSv3 | 20490 |
+| **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 |
 | **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
 | **MCPJungle** | Single MCP gateway, tool groups, optional ACLs | 8080 |
 
@@ -177,7 +177,7 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, and bounded chaos. YAML desired state, REST + MCP. |
 | [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine, REST, MCP, and a browser UI. Pinned **v0.2.2**. |
 | [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.3.0**. |
-| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. |
+| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. |
 | [maildev/maildev](https://github.com/maildev/maildev) | SMTP testing server with a web UI. Used strictly as a receive-only sink. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
@@ -208,8 +208,9 @@ ldapsearch -H ldaps://<lab-host>:3636 \
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
+# writable empty root; overlay commits into fixtures.tar.zst every 15m
 ```
 
 ## Status
 
-POC. v0.1.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.
+POC. v0.2.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.
