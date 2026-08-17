@@ -1,0 +1,189 @@
+# labinfo service catalog: everything agents need to hand users a URL or to
+# configure a client against this lab. Served via two labinfo MCP tools:
+#   endpoints_list    user-facing web/REST URLs per service
+#   connections_list  protocol-level client config per service (the required
+#                     `connection` block: endpoints, parameters, credentials)
+# ${VAR} references expand from the profile environment. Credential `file`
+# paths point at secrets staged by `mcplab secrets` into secrets/labinfo-creds/
+# (mounted at /run/lab-secrets); secrets are only revealed when the profile
+# enables LAB_DEV_MODE.
+#
+# Every service MUST have a `connection` block with at least one endpoint —
+# labinfo refuses to start without it. When adding a service, include the
+# details an agent needs to configure a client from scratch: host:port per
+# protocol, client parameters (DNs, zones, mount options, ...), and any
+# on-the-wire credentials (bind passwords, shared secrets) staged for dev-mode
+# reveal.
+services:
+  - id: gateway
+    name: MCP gateway (MCPJungle)
+    description: Single MCP endpoint aggregating every lab tool; use the integration group for the curated subset.
+    urls:
+      - name: MCP endpoint (streamable HTTP)
+        url: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/mcp
+      - name: Integration tool group
+        url: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/v0/groups/integration/mcp
+    credential:
+      file: /run/lab-secrets/mcp-client-token
+      usage: "HTTP header 'Authorization: Bearer <token>' (only needed when the gateway runs in enterprise mode)"
+    connection:
+      endpoints:
+        - name: MCP (all tools)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/mcp
+        - name: MCP (integration tool group)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/v0/groups/integration/mcp
+      parameters:
+        auth: "none in dev mode; 'Authorization: Bearer <client token>' in enterprise mode"
+      credentials:
+        - name: mcp-client-token
+          file: /run/lab-secrets/mcp-client-token
+          usage: "MCP client bearer token for enterprise mode; on the lab host: secrets/mcp-client-token"
+
+  - id: labdns
+    name: LabDNS (lab DNS server)
+    description: Lab DNS management plane — REST under /v1, MCP under /mcp. The DNS data plane itself is plain DNS.
+    urls:
+      - name: REST API
+        url: http://${LAB_PUBLIC_HOST}:${LABDNS_REST_PORT}/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${LABDNS_REST_PORT}/mcp
+    note: "DNS data plane: dig @${LAB_PUBLIC_HOST} -p ${LABDNS_DNS_PORT} <name>"
+    credential:
+      file: /run/lab-secrets/labdns-token
+      usage: "HTTP header 'Authorization: Bearer <token>'"
+    connection:
+      endpoints:
+        - name: DNS (udp)
+          protocol: dns-udp
+          address: ${LAB_PUBLIC_HOST}:${LABDNS_DNS_PORT}
+        - name: DNS (tcp)
+          protocol: dns-tcp
+          address: ${LAB_PUBLIC_HOST}:${LABDNS_DNS_PORT}
+      parameters:
+        auth: none (plain DNS; the bearer token is only for the REST/MCP management plane)
+        authoritative_zone: "lab.test. (records defined in the profile's labdns/bootstrap.yaml, mutable via the labdns MCP tools)"
+        resolver_config: "point systems under test at ${LAB_PUBLIC_HOST} port ${LABDNS_DNS_PORT} as their nameserver; example: dig @${LAB_PUBLIC_HOST} -p ${LABDNS_DNS_PORT} ldap.lab.test"
+
+  - id: labldap
+    name: LabLDAP control plane
+    description: Web UI and REST/MCP control plane of the native Go directory (labldapd, HTTPS, lab CA).
+    urls:
+      - name: Web UI
+        url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/
+      - name: REST API
+        url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/api/v1
+    note: "LDAP data plane: ldap://${LAB_PUBLIC_HOST}:${LABLDAP_LDAP_PORT} / ldaps://${LAB_PUBLIC_HOST}:${LABLDAP_LDAPS_PORT} (cert SAN is 'directory'; trust the lab CA)"
+    credential:
+      file: /run/lab-secrets/labldap-token-admin
+      usage: "Web UI login token / HTTP header 'Authorization: Bearer <token>'"
+    connection:
+      endpoints:
+        - name: LDAP (StartTLS available)
+          protocol: ldap
+          address: ldap://${LAB_PUBLIC_HOST}:${LABLDAP_LDAP_PORT}
+          note: cleartext simple bind is disabled — negotiate StartTLS before binding
+        - name: LDAPS
+          protocol: ldaps
+          address: ldaps://${LAB_PUBLIC_HOST}:${LABLDAP_LDAPS_PORT}
+          note: certificate SAN is 'directory'; trust the lab CA or relax hostname verification
+      parameters:
+        base_dn: dc=example,dc=test
+        people_ou: ou=people,dc=example,dc=test
+        groups_ou: ou=groups,dc=example,dc=test
+        bind_dn_example: uid=alice,ou=people,dc=example,dc=test
+        users: "bootstrap user 'alice' (member of group 'staff'); more users/groups via the labldap MCP tools or the profile's labldap/scenario.yaml"
+        anonymous_bind: disabled
+        lab_ca: "third_party/go-lab-ldap-mcp/secrets/tls/ca.crt on the lab host"
+      credentials:
+        - name: bind-password-alice
+          file: /run/lab-secrets/labldap-user-alice
+          usage: "simple-bind password for uid=alice,ou=people,dc=example,dc=test; on the lab host: third_party/go-lab-ldap-mcp/secrets/user-alice"
+
+  - id: labtacacs
+    name: TacLab control plane (TACACS+/RADIUS)
+    description: Web UI, REST, and MCP control plane of the TacLab AAA appliance. Data planes are TACACS+ (legacy + TLS 1.3) and a RADIUS/UDP lab profile.
+    urls:
+      - name: Web UI
+        url: http://${LAB_PUBLIC_HOST}:${TACLAB_HTTP_PORT}/
+      - name: REST API
+        url: http://${LAB_PUBLIC_HOST}:${TACLAB_HTTP_PORT}/api/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${TACLAB_HTTP_PORT}/mcp
+    note: "Data planes: TACACS+ ${LAB_PUBLIC_HOST}:${TACLAB_LEGACY_PORT} (legacy) / :${TACLAB_TLS_PORT} (TLS 1.3), RADIUS udp/${TACLAB_RADIUS_ACCESS_PORT} (access) + udp/${TACLAB_RADIUS_ACCT_PORT} (accounting). RadSec tcp/${TACLAB_RADIUS_RADSEC_PORT} and dynamic-authorization udp/${TACLAB_RADIUS_DYNAUTH_PORT} are published but default off in the labgen baseline. Shared secrets and lab-user passwords: third_party/go-lab-tacacs-mcp/deployments/compose/secrets/ on the lab host."
+    credential:
+      file: /run/lab-secrets/labtacacs-token-admin
+      usage: "HTTP header 'Authorization: Bearer <token>' (REST and MCP; the web UI accepts it on its login screen)"
+    connection:
+      endpoints:
+        - name: TACACS+ (legacy)
+          protocol: tacacs+
+          address: ${LAB_PUBLIC_HOST}:${TACLAB_LEGACY_PORT}
+        - name: TACACS+ (TLS 1.3)
+          protocol: tacacs+tls
+          address: ${LAB_PUBLIC_HOST}:${TACLAB_TLS_PORT}
+        - name: RADIUS access
+          protocol: radius-udp
+          address: ${LAB_PUBLIC_HOST}:${TACLAB_RADIUS_ACCESS_PORT}
+          note: Access-Requests must carry a Message-Authenticator attribute (RFC 3579) or they are dropped
+        - name: RADIUS accounting
+          protocol: radius-udp
+          address: ${LAB_PUBLIC_HOST}:${TACLAB_RADIUS_ACCT_PORT}
+        - name: RADIUS/TLS (RadSec)
+          protocol: radius-tls
+          address: ${LAB_PUBLIC_HOST}:${TACLAB_RADIUS_RADSEC_PORT}
+          note: Published; listener is default off in the labgen baseline (TacLab 1.3)
+        - name: RADIUS dynamic authorization (CoA/Disconnect echo)
+          protocol: radius-udp
+          address: ${LAB_PUBLIC_HOST}:${TACLAB_RADIUS_DYNAUTH_PORT}
+          note: Published; inbound DAS listener is default off (echo fixture, not a NAS kick)
+      parameters:
+        lab_users: "generated lab users (e.g. lab-admin); plaintext passwords in third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt on the lab host"
+        tacacs_shared_secrets: "per-device-group secrets generated by labgen under third_party/go-lab-tacacs-mcp/deployments/compose/secrets/ on the lab host"
+      credentials:
+        - name: radius-shared-secret
+          file: /run/lab-secrets/labtacacs-radius-secret
+          usage: "RADIUS shared secret for the 'lab_switches' client profile (access + accounting); on the lab host: third_party/go-lab-tacacs-mcp/deployments/compose/secrets/lab_switches_radius_secret"
+
+  - id: maildev
+    name: Mail sink (maildev, receive-only)
+    description: Receive-only SMTP sink with a web UI and REST API for inspecting captured mail. It never relays or sends mail outward; captured mail is wiped on restart.
+    urls:
+      - name: Web UI
+        url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/
+      - name: REST API (list mail)
+        url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/email
+    note: "SMTP ingest (no auth, no TLS required): ${LAB_PUBLIC_HOST}:${MAILDEV_SMTP_PORT}. Point systems under test at it as their outbound SMTP server."
+    credential:
+      file: /run/lab-secrets/maildev-web-password
+      usage: "HTTP basic auth for the web UI and REST API, user '${MAILDEV_WEB_USER}'"
+    connection:
+      endpoints:
+        - name: SMTP ingest
+          protocol: smtp
+          address: ${LAB_PUBLIC_HOST}:${MAILDEV_SMTP_PORT}
+          note: configure as the outbound SMTP server of the system under test; all mail is captured, none is relayed
+      parameters:
+        auth: "none by default (this profile sets no incoming-user/incoming-pass in maildev/maildev.yaml)"
+        tls: "not required; plain SMTP is accepted"
+        sender_recipient: "any From/To addresses are accepted and captured"
+
+  - id: nfs
+    name: NFS export (ratarmount-rs)
+    description: Read-only archive-backed userspace NFSv3 export. No credential (AUTH_SYS).
+    urls:
+      - name: NFS endpoint
+        url: nfs://${LAB_PUBLIC_HOST}:${NFS_PORT}/
+    note: "mount -t nfs -o vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT} ${LAB_PUBLIC_HOST}:/ /mnt"
+    connection:
+      endpoints:
+        - name: NFSv3 (nfsd + mountd on one port)
+          protocol: nfs-tcp
+          address: ${LAB_PUBLIC_HOST}:${NFS_PORT}
+      parameters:
+        version: "3"
+        export: "/ (read-only contents of the profile's fixtures archive)"
+        mount_options: "vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT}"
+        mount_example: "mount -t nfs -o vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT} ${LAB_PUBLIC_HOST}:/ /mnt"
+        auth: AUTH_SYS (no credential)

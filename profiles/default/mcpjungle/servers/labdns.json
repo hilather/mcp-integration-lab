@@ -1,0 +1,7 @@
+{
+  "name": "labdns",
+  "transport": "streamable_http",
+  "description": "Laboratory DNS: overrides, wildcards, suffix forwarding, bounded chaos. Plan/apply/reset ephemeral state.",
+  "url": "http://labdns:8080/mcp",
+  "bearer_token": "${LABDNS_TOKEN}"
+}

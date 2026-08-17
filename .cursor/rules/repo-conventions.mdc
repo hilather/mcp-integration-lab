@@ -1,0 +1,40 @@
+---
+description: Core conventions for the MCP integration lab
+alwaysApply: true
+---
+
+# MCP Integration Lab conventions
+
+Read `AGENTS.md` for the full rules. Non-negotiables:
+
+- Team-variable config (ports, mode, storage, service YAML/JSON) lives in
+  `profiles/<name>/`, never hardcoded in compose files. `.env` selects the
+  profile; process env > `.env` > `profile.env`.
+- Runtime state is ephemeral: `make reset` must wipe it; the profile is the
+  source of truth (`make register` reapplies gateway config).
+- Orchestration lives in the Go CLI (`cmd/mcplab` + `internal/`). No new bash
+  lifecycle scripts.
+- Service ports publish on all interfaces (remote systems test against this
+  lab); host ports are profile-defined and auth stays on (bearer/TLS).
+- Never commit `secrets/` or edit `third_party/` directly — vendored changes go in
+  `patches/` (applied by `mcplab vendor`) and get PR'd upstream.
+- Every service must be listed in the profile's `labinfo/services.yaml` with
+ its web/REST URLs *and* a `connection` block (protocol endpoints, client
+ parameters like DNs/zones/mount options, on-the-wire credentials) — the
+ labinfo MCP tools `endpoints_list`/`connections_list` are how agents hand
+ users URLs and configure clients, and labinfo refuses to start without the
+ connection block. Credentials in that catalog are revealed only when the
+ profile sets `LAB_DEV_MODE=true`, which also opens the gateway — never
+ default a shared profile to dev mode.
+- The maildev sink is receive-only: relay/outbound flags in a profile's
+  `maildev/maildev.yaml` are rejected by `internal/maildev` — keep that guard
+  fail-closed and tested.
+- Docs ship with the change: README, architecture doc, AGENTS.md, CLI usage
+  text, and the labinfo catalog must be updated in the same change that
+  alters behavior — sweep for stale mentions before finishing.
+- Every user-visible change lands with a high-level `CHANGELOG.md` entry
+  under `[Unreleased]`; releases promote that section, so each release
+  summarizes all changes since the last one.
+- CI/test failures are investigated to root cause and hardened (regression
+  test, fail-closed guard, or wait condition) — never just rerun until green.
+- Acceptance gate: `make test` and `make up && make smoke` all green.

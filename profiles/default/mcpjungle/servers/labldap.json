@@ -1,0 +1,7 @@
+{
+  "name": "labldap",
+  "transport": "streamable_http",
+  "description": "Native Go directory lab (labldapd): users, groups, ACLs, search, mutations over MCP.",
+  "url": "https://control:8443/mcp",
+  "bearer_token": "${LABLDAP_TOKEN}"
+}

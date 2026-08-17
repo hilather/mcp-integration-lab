@@ -1,0 +1,16 @@
+# Overlay applied on top of the vendored TacLab compose bundle
+# (deployments/compose/compose.yaml + compose.combined.yaml).
+#
+# Rewires the project's default network onto the shared external network so
+# the MCP gateway (separate compose project) can reach `taclab:8080`.
+#
+# Published host ports need no overlay: upstream's compose already
+# interpolates TACLAB_LEGACY_PORT / TACLAB_TLS_PORT / TACLAB_HTTP_PORT /
+# TACLAB_RADIUS_ACCESS_PORT / TACLAB_RADIUS_ACCT_PORT /
+# TACLAB_RADIUS_RADSEC_PORT / TACLAB_RADIUS_DYNAUTH_PORT, which the mcplab
+# CLI exports from the active profile. RadSec and dynauth listeners stay
+# default-off in the labgen baseline.
+networks:
+  default:
+    external: true
+    name: mcplab-shared

@@ -1,0 +1,56 @@
+# LabDNS desired state for the MCP integration lab.
+# Read-only bootstrap: runtime mutations (REST /v1, MCP /mcp) are ephemeral
+# and `dns_state_reset` returns the service to this file.
+apiVersion: labdns.dev/v1alpha1
+kind: LabDNS
+metadata:
+  name: mcp-integration-lab
+spec:
+  listeners:
+    dns:
+      address: ":5353"
+      protocols: [udp, tcp]
+    management:
+      address: ":8080"
+      restPath: /v1
+      mcpPath: /mcp
+  management:
+    auth:
+      # Non-loopback peers (the MCP gateway) must present this bearer token.
+      profile: bearer
+      secretRef: /etc/labdns/token
+  access:
+    clientGroups: []
+  defaults:
+    ttl: 30s
+    negativeTTL: 10s
+  zones:
+    - id: lab-zone
+      name: lab.test.
+      mode: authoritative
+      soa:
+        primary: ns1.lab.test.
+        administrator: hostmaster.lab.test.
+        serial: auto
+        refresh: 1h
+        retry: 5m
+        expire: 24h
+      nameservers: [ns1.lab.test.]
+      records:
+        - id: ns1-a
+          owner: ns1
+          type: A
+          values: [10.42.0.53]
+        - id: nfs-a
+          owner: nfs
+          type: A
+          values: [10.42.0.30]
+        - id: ldap-a
+          owner: ldap
+          type: A
+          values: [10.42.0.40]
+        # Everything under *.tools.lab.test lands on one fixture box.
+        - id: tools-wildcard-a
+          owner: "*.tools"
+          type: A
+          values: [10.42.0.20]

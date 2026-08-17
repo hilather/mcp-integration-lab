@@ -1,0 +1,7 @@
+# Keep the labinfo build context (repo root) small and secret-free.
+third_party/
+.data/
+secrets/
+.git/
+docs/
+patches/

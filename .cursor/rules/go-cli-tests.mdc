@@ -1,0 +1,16 @@
+---
+description: Test requirements for the mcplab orchestration CLI
+globs: **/*.go
+alwaysApply: false
+---
+
+# mcplab CLI changes require regression tests
+
+- Keep pure logic (parsing, env precedence, file/archive generation) in
+  `internal/` packages, separate from the docker exec layer (`internal/lab`
+  runner), so it is testable without docker.
+- Any change to testable logic needs a unit/regression test beside it. Pin
+  external output formats with verbatim fixtures (see
+  `internal/mcpout/mcpout_test.go` for the `mcpjungle invoke` framing).
+- Run `make test` (go vet + go test) before finishing; run `make smoke` when
+  behavior touching the running stack changed.

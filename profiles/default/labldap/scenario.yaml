@@ -1,0 +1,124 @@
+# LabLDAP scenario for the MCP integration lab.
+# Based on upstream deploy/compose/scenario.native.yaml with lab-specific
+# changes:
+#   - directory.engine: native (labldapd, not 389 DS)
+#   - management TLS uses lab-CA-signed files (staged by secret-prep) so the
+#     MCP gateway can verify the control plane's certificate
+#   - MCP mutation + password tools are registered for AI-driven scenarios
+#     (includes v0.2+ account-workflow tools: ldap_get_account_state,
+#     expire/lock/enable, etc.)
+apiVersion: labldap.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: mcp-integration-lab
+spec:
+  directory:
+    engine: native
+    suffix: "dc=example,dc=test"
+    peopleRDN: "ou=people"
+    groupsRDN: "ou=groups"
+    nestedGroups: false
+    allowRawACI: false
+  lifecycle:
+    storageMode: ephemeral
+    startupMode: merge
+    softReset: true
+  transport:
+    insecureLabMode: false
+    ldap:
+      enabled: true
+      port: 3389
+    ldaps:
+      enabled: true
+      port: 3636
+    startTLS: true
+    allowCleartextBind: false
+    allowAnonymousBind: false
+  management:
+    listen: "0.0.0.0:8443"
+    tls:
+      mode: files
+      certFile: /run/secrets/management.crt
+      keyFile: /run/secrets/management.key
+    cors:
+      allowedOrigins: []
+    session:
+      idleTimeout: 30m
+      absoluteTimeout: 8h
+      maxSessions: 64
+    mcp:
+      enabled: true
+      registerMutations: true
+      registerPassword: true
+      registerReset: false
+      registerExport: false
+    metrics:
+      enabled: true
+      requireAuth: false
+  limits:
+    requestTimeout: 30s
+    shutdownTimeout: 15s
+    maxRequestBodyBytes: 1048576
+    pageSizeDefault: 50
+    pageSizeMax: 500
+    searchTimeLimit: 10s
+    searchSizeLimit: 1000
+    maxFilterDepth: 16
+    maxFilterLength: 4096
+    exportMaxEntries: 20000
+    exportMaxBytes: 67108864
+    ldapPoolSize: 16
+    ldapMaxIdle: 60s
+    ldapMaxLifetime: 15m
+    ldapDialTimeout: 5s
+    concurrentMutations: 8
+    rateLimit:
+      requestsPerMinute: 600
+      passwordPerMinute: 10
+      bindTestPerMinute: 10
+      resetPerHour: 6
+  runtimeAccount:
+    id: labldap-runtime
+    passwordFile: /run/secrets/runtime-ldap
+  users:
+    - id: alice
+      uid: alice
+      passwordFile: /run/secrets/user-alice
+      enabled: true
+      attributes: {}
+  groups:
+    - id: staff
+      members:
+        - user: alice
+  passwordPolicy:
+    minLength: 12
+    historyCount: 0
+    maxAge: 0s
+    warningAge: 0s
+    lockout:
+      enabled: false
+      maxFailures: 0
+      lockoutDuration: 0s
+    storageScheme: PBKDF2-SHA256
+  acls:
+    - id: staff-read
+      principal:
+        kind: group
+        ref: staff
+      target:
+        kind: suffix
+      permissions: [read, search, compare]
+      attributes:
+        allow: ["*"]
+        deny: [userPassword]
+  tokens:
+    - id: admin
+      secretFile: /run/secrets/token-admin
+      scopes:
+        - directory:read
+        - directory:write
+        - directory:password
+        - lab:reset
+        - lab:export
+        - schema:read
+        - audit:read

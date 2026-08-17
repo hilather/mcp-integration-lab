@@ -1,0 +1,13 @@
+# Generated secrets (bearer tokens, lab CA/keys)
+secrets/
+
+# Vendored service checkouts (cloned by `make vendor`)
+third_party/
+
+# Generated NFS fixture archives and scratch data
+.data/
+
+# Local state
+*.db
+mnt/
+.env
