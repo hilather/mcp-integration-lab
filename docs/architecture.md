@@ -1,9 +1,13 @@
 # MCP Integration Lab — Architecture
 
+Published overview: [hilather.github.io/mcp-integration-lab](https://hilather.github.io/mcp-integration-lab/).
+Guides: [quickstart](guides/quickstart.md), [configuration](guides/configuration.md).
+
 A docker-compose orchestrated suite of AI-ready lab services behind a single
 MCP gateway endpoint. Services are YAML-configured for permanence; runtime
 state is ephemeral and wiped on restart. This repo owns all configuration,
 secrets layout, and gateway policy.
+
 
 ## Services (POC)
 

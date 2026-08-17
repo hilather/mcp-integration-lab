@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Architecture — MCP Integration Lab</title>
+  <meta name="description" content="Three compose projects, one shared network, ephemeral runtime, one security knob." />
+  <meta name="theme-color" content="#0b0c0e" />
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="./"><img src="assets/mark.svg" alt="" />MCP Lab</a>
+      <button class="menu-btn" type="button" data-menu>Menu</button>
+      <nav class="nav-links" data-links>
+        <a href="./">Overview</a>
+        <a href="start.html">Quick start</a>
+        <a href="configure.html">Configure</a>
+        <a href="services.html">Services</a>
+        <a href="architecture.html" aria-current="page">Architecture</a>
+        <a href="https://github.com/hilather/mcp-integration-lab">GitHub</a>
+        <a class="nav-cta" href="start.html">Get a lab running</a>
+      </nav>
+    </div>
+  </header>
+  <main class="doc">
+    <div class="wrap" style="max-width:46rem">
+      <article class="prose">
+        <div class="eyebrow">Design</div>
+        <h1>Three compose projects. One shared network.</h1>
+        <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, and NFS at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
+        <pre><code>MCP clients  ──streamable HTTP──►  MCPJungle :8080/mcp
+                                      │
+                 ┌────────────────────┼────────────────────┐
+                 │  compose mcplab    │                    │
+                 │   labdns  labinfo  maildev  ratarmount  │
+                 └──────────┬─────────┴─────────┬──────────┘
+                            │                   │
+                 compose labldap         compose labtacacs
+                   control :8443            taclabd :49/:300
+                   labldapd                 :1812/:1813 :8080</code></pre>
+
+        <h2>Permanence vs. wipe</h2>
+        <p>Bootstrap YAML and scenario files are desired state. Anything an MCP tool mutates must come back with <code>make reset</code> or a <code>*_state_reset</code> tool. Gateway registration is tmpfs. The only durable host paths a profile may define are <code>NFS_ARCHIVE_DIR</code> and <code>NFS_DATA_DIR</code>.</p>
+
+        <h2>Security model</h2>
+        <p>Internal hops always use static bearer tokens on the isolated docker network. The single profile knob is <code>LAB_DEV_MODE</code>.</p>
+        <ul>
+          <li>Hardened: enterprise gateway, redacted labinfo.</li>
+          <li>Dev: open gateway, revealed credentials staged world-readable under <code>secrets/labinfo-creds/</code>.</li>
+          <li>Phase 1 puts OAuth 2.1 / OIDC on a proxy in front of the gateway. The tools do not change.</li>
+        </ul>
+
+        <h2>Vendoring and pins</h2>
+        <ul>
+          <li>LabLDAP <code>v0.2.2</code> — no local patch.</li>
+          <li>TacLab <code>v1.3.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob.</li>
+          <li>LabDNS tracks default branch. <code>patches/go-lab-dns-wire-mcp.patch</code> wires Streamable HTTP into <code>serve</code> and relaxes the 2026-07-28 protocol pin so MCPJungle’s client can connect.</li>
+        </ul>
+        <p class="note">Full write-up, mermaid topology, and the OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>. Configure a profile: <a href="configure.html">Configure</a>.</p>
+      </article>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap foot">
+      <div>MCP Integration Lab</div>
+      <div><a href="configure.html">Configure</a> · <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">Markdown</a></div>
+    </div>
+  </footer>
+  <script>
+    const btn = document.querySelector("[data-menu]");
+    const links = document.querySelector("[data-links]");
+    btn?.addEventListener("click", () => links.classList.toggle("open"));
+  </script>
+</body>
+</html>

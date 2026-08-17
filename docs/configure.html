@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Configure — MCP Integration Lab</title>
+  <meta name="description" content="Profiles, env precedence, and per-service YAML for the MCP Integration Lab." />
+  <meta name="theme-color" content="#0b0c0e" />
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="./"><img src="assets/mark.svg" alt="" />MCP Lab</a>
+      <button class="menu-btn" type="button" data-menu>Menu</button>
+      <nav class="nav-links" data-links>
+        <a href="./">Overview</a>
+        <a href="start.html">Quick start</a>
+        <a href="configure.html" aria-current="page">Configure</a>
+        <a href="services.html">Services</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="https://github.com/hilather/mcp-integration-lab">GitHub</a>
+        <a class="nav-cta" href="start.html">Get a lab running</a>
+      </nav>
+    </div>
+  </header>
+  <main class="doc">
+    <div class="wrap doc-grid">
+      <aside class="toc">
+        <a href="#ownership">Who owns what</a>
+        <a href="#profile">A profile directory</a>
+        <a href="#precedence">Env precedence</a>
+        <a href="#labdns">LabDNS</a>
+        <a href="#labldap">LabLDAP</a>
+        <a href="#taclab">TacLab</a>
+        <a href="#mail">maildev</a>
+        <a href="#nfs">NFS</a>
+        <a href="#labinfo">labinfo catalog</a>
+        <a href="#gateway">MCPJungle</a>
+        <a href="#security">Dev mode</a>
+      </aside>
+      <article class="prose">
+        <div class="eyebrow">Guide 02</div>
+        <h1>Configure the lab</h1>
+        <p>Everything a team varies lives in a profile. Compose files stay generic. Secrets are generated and gitignored. Runtime mutations are wipeable.</p>
+
+        <h2 id="ownership">Who owns what</h2>
+        <ul>
+          <li><strong>This repo</strong> owns profiles, secrets layout, compose overlays, the <code>mcplab</code> CLI, and gateway policy.</li>
+          <li><strong>Vendored repos</strong> own the appliances. Do not edit <code>third_party/</code> in place — add a patch under <code>patches/</code> and send it upstream.</li>
+          <li><strong>Generated files</strong> — <code>secrets/</code> and <code>third_party/*/secrets/</code> — are produced by <code>mcplab secrets</code> and never committed.</li>
+        </ul>
+
+        <h2 id="profile">A profile directory</h2>
+        <pre><code>profiles/<name>/
+  profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  labdns/bootstrap.yaml    permanent DNS zones and records
+  labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
+  labinfo/services.yaml    endpoint + connection catalog
+  maildev/maildev.yaml     maildev flags (relay flags rejected)
+  mcpjungle/
+    servers/*.json         upstream MCP registrations
+    groups/integration.json curated tool group</code></pre>
+        <p>TacLab’s baseline is generated, not hand-written. <code>labgen</code> materializes users, groups, clients, policies, PKI, and shared secrets into <code>third_party/go-lab-tacacs-mcp/deployments/compose/</code> on first <code>make up</code>. The profile only owns the host ports (<code>TACLAB_*</code>).</p>
+        <p>To create a team profile, copy <code>profiles/default</code> and edit. Never hardcode a port in <code>docker-compose.yaml</code> — add a variable to <code>profile.env</code> with a compose default.</p>
+
+        <h2 id="precedence">Env precedence</h2>
+        <p>Highest wins:</p>
+        <ol>
+          <li>Process environment</li>
+          <li><code>.env</code> at the repo root (selects <code>PROFILE=</code> and may override any value)</li>
+          <li><code>profiles/<name>/profile.env</code></li>
+          <li>Compose-file defaults (match the default profile)</li>
+        </ol>
+        <pre><code># .env
+PROFILE=default
+# LABDNS_DNS_PORT=53   # uncomment to override the profile</code></pre>
+
+        <h2 id="labdns">LabDNS</h2>
+        <p><code>labdns/bootstrap.yaml</code> is the desired state, mounted read-only. MCP <code>dns_state_reset</code> returns the service to this file. The default profile is authoritative for <code>lab.test.</code> with <code>ns1</code>, <code>nfs</code>, <code>ldap</code>, and a <code>*.tools</code> wildcard.</p>
+        <p>Host ports: <code>LABDNS_DNS_PORT</code> (data plane) and <code>LABDNS_REST_PORT</code> (REST <code>/v1</code> + MCP <code>/mcp</code>). Non-loopback peers present the bearer in <code>secrets/labdns-token</code>.</p>
+
+        <h2 id="labldap">LabLDAP</h2>
+        <p><code>labldap/scenario.yaml</code> is a LabScenario. This lab pins <code>directory.engine: native</code> (labldapd, not 389 DS), management TLS from lab-CA files, and <code>registerMutations</code> / <code>registerPassword</code> so account-workflow tools are live.</p>
+        <ul>
+          <li>Suffix: <code>dc=example,dc=test</code></li>
+          <li>Seed user: <code>alice</code> in group <code>staff</code></li>
+          <li>Cleartext simple bind: disabled. StartTLS or LDAPS.</li>
+          <li>LDAPS cert SAN is <code>directory</code>. Trust <code>third_party/go-lab-ldap-mcp/secrets/tls/ca.crt</code>.</li>
+        </ul>
+
+        <h2 id="taclab">TacLab</h2>
+        <p>Do not hand-write TacLab configs. <code>mcplab secrets</code> runs <code>labgen</code> and sets <code>api.mcp.allow_legacy_clients: true</code> so the gateway’s older MCP client can connect. Lab-user passwords land in <code>secrets/PASSWORDS.txt</code> under the TacLab compose tree. RADIUS Access-Requests must carry Message-Authenticator (RFC 3579). RadSec (2083) and DAS (3799) are published but default off.</p>
+
+        <h2 id="mail">maildev</h2>
+        <p>Any maildev long flag can go under <code>flags:</code> in <code>maildev/maildev.yaml</code>. The CLI renders it onto the container command line and <strong>rejects</strong> every <code>outgoing-*</code> and <code>auto-relay*</code> flag. Host ports and web basic-auth are lab-managed.</p>
+        <pre><code>flags: {}
+  # verbose: true
+  # incoming-user: smtp-user
+  # incoming-pass: smtp-pass</code></pre>
+
+        <h2 id="nfs">NFS</h2>
+        <p><code>NFS_ARCHIVE_DIR</code> is the read-only archive tree. <code>NFS_DATA_DIR</code> is writable scratch for SQLite indexes — give it real disk. Mount with <code>vers=3,tcp,nolock,port=…,mountport=…</code>. AUTH_SYS only. No MCP wrapper yet (phase 1).</p>
+
+        <h2 id="labinfo">labinfo catalog</h2>
+        <p>Every service in <code>labinfo/services.yaml</code> must carry a <code>connection</code> block — labinfo refuses to start without one. URLs are <code>${VAR}</code> templates over the profile env. Host comes from <code>LAB_PUBLIC_HOST</code>. Credentials point at staged copies under <code>secrets/labinfo-creds/</code> and are revealed only when <code>LAB_DEV_MODE=true</code>.</p>
+        <p>Adding a service: write the compose service, add a <code>mcpjungle/servers/<name>.json</code> (filename must match JSON <code>name</code>), and add the catalog entry. New ports must be exported into the labinfo container environment so expansion sees them.</p>
+
+        <h2 id="gateway">MCPJungle</h2>
+        <p><code>mcpjungle/servers/*.json</code> register upstreams with <code>${ENV}</code> token injection. <code>groups/integration.json</code> is the curated subset (labdns, labldap, labtacacs, labinfo). Gateway SQLite sits on tmpfs; <code>make register</code> reapplies the JSON. Mode follows <code>LAB_DEV_MODE</code> unless you pin <code>MCPJUNGLE_MODE</code>.</p>
+
+        <h2 id="security">One knob: LAB_DEV_MODE</h2>
+        <ul>
+          <li><strong>false (default)</strong> — enterprise gateway. Clients send <code>Authorization: Bearer $(cat secrets/mcp-client-token)</code>. labinfo describes auth and never reveals secrets.</li>
+          <li><strong>true</strong> — open gateway, and labinfo reveals web tokens and connection secrets (LDAP bind password, RADIUS shared secret). Never default a shared team profile to dev mode.</li>
+        </ul>
+        <p class="note">Markdown twin: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/guides/configuration.md">docs/guides/configuration.md</a>. Design and phase-1 OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>.</p>
+      </article>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap foot">
+      <div>MCP Integration Lab</div>
+      <div><a href="start.html">Quick start</a> · <a href="architecture.html">Architecture</a></div>
+    </div>
+  </footer>
+  <script>
+    const btn = document.querySelector("[data-menu]");
+    const links = document.querySelector("[data-links]");
+    btn?.addEventListener("click", () => links.classList.toggle("open"));
+  </script>
+</body>
+</html>

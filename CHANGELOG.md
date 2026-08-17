@@ -7,6 +7,12 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Added
+
+- Project site at [hilather.github.io/mcp-integration-lab](https://hilather.github.io/mcp-integration-lab/)
+  (overview, quick start, configuration, services, architecture) with a
+  first-class README, logo, and guides under `docs/guides/`.
+
 ## [0.1.0] - 2026-08-17
 
 ### Changed
@@ -33,11 +39,11 @@ changes since the previous one (AGENTS.md rule 13).
 - **labinfo `connections_list` tool**: agents can now fetch the protocol-level
   connection details of every lab service (optionally filtered by service) —
   endpoints per protocol (SMTP, LDAP/LDAPS, DNS, NFS, TACACS+, RADIUS, MCP),
-  client parameters (LDAP base/bind DNs and OUs, DNS zones, NFS mount
-  options, SMTP auth/TLS posture, AAA specifics), and connection credentials
-  (LDAP bind password, RADIUS shared secret) revealed only in dev mode. The
-  catalog now requires a `connection` block per service (fail-closed), so
-  future services can't ship without connection details.
+  client parameters (LDAP DNs, DNS zones, NFS mount options, SMTP posture,
+  AAA specifics), and connection credentials (LDAP bind password, RADIUS
+  shared secret) revealed only in dev mode. The catalog now requires a
+  `connection` block per service (fail-closed), so future services can't
+  ship without connection details.
 - **TacLab (TACACS+/RADIUS)** integration: the `go-lab-tacacs-mcp` appliance
   runs as its own compose project on the shared network, with its `labgen`
   baseline generated on first `make up`, TacLab MCP tools behind the

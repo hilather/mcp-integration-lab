@@ -116,8 +116,11 @@ we work by.
   checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
+- `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
+- `docs/index.html` and siblings — GitHub Pages site
 - `CHANGELOG.md` — high-level change summaries; releases promote
   `[Unreleased]` (rule 13)
+
 
 ## Known quirks (learned the hard way)
 

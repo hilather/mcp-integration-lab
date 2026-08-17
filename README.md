@@ -1,53 +1,47 @@
-# MCP Integration Lab
+<p align="center">
+  <img src="docs/assets/mark.svg" width="88" alt="MCP Integration Lab" />
+</p>
 
-A suite of AI-ready lab services for (usually manual) integration testing,
-orchestrated with docker compose and exposed through a single MCP gateway.
-Agents connect to one endpoint and can configure DNS, LDAP, TACACS+/RADIUS,
-mail, and NFS scenarios on the fly; every service is YAML-configured for
-permanence with ephemeral runtime state that a restart wipes away.
+<h1 align="center">MCP Integration Lab</h1>
 
-## Services
+<p align="center">
+  One gateway. Every lab protocol.<br />
+  DNS, LDAP, TACACS+, RADIUS, mail, and NFS — YAML-configured, ephemeral, ready for integration tests.
+</p>
 
-- **LabDNS** ([go-lab-dns](https://github.com/hilather/go-lab-dns)) — lab DNS
-  with overrides, wildcards, forwarding, and bounded chaos. MCP + REST.
-- **LabLDAP** ([go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp))
-  — native Go directory (`labldapd`) with a Go control plane. MCP + REST + UI.
-- **TacLab** ([go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp))
-  — TACACS+ (legacy + TLS 1.3) and RADIUS/UDP lab appliance. MCP + REST + UI.
-- **maildev** ([maildev](https://github.com/maildev/maildev)) — receive-only
-  SMTP sink with a web UI/REST API for inspecting captured mail. It is never
-  configured to relay or send mail; the CLI rejects relay flags outright.
-- **NFS** ([ratarmount-rs](https://github.com/hilather/ratarmount-rs)) —
-  archive-backed userspace NFSv3 export for battle-testing NFS clients.
-- **Gateway** ([MCPJungle](https://github.com/mcpjungle/MCPJungle)) — single
-  MCP endpoint aggregating everything, with tool groups and optional ACLs.
-- **labinfo** (first-party, `cmd/labinfo`) — service directory MCP tool:
-  agents call `endpoints_list` to get the web/REST URLs of every service so
-  they can direct users to the right place, and `connections_list` for the
-  protocol-level client config of each service — hosts/ports, LDAP base/bind
-  DNs, DNS zones, NFS mount options, SMTP settings, AAA shared-secret usage
-  (secrets included in dev mode).
+<p align="center">
+  <a href="https://hilather.github.io/mcp-integration-lab/">Documentation</a>
+  ·
+  <a href="https://hilather.github.io/mcp-integration-lab/start.html">Quick start</a>
+  ·
+  <a href="https://hilather.github.io/mcp-integration-lab/configure.html">Configure</a>
+  ·
+  <a href="https://github.com/hilather/mcp-integration-lab">Source</a>
+</p>
 
-See [docs/architecture.md](docs/architecture.md) for the design, security
-model, and phase-1 (OAuth) plan. Agent conventions live in
-[AGENTS.md](AGENTS.md); high-level change summaries in
-[CHANGELOG.md](CHANGELOG.md).
+<p align="center">
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.26-00ADD8?style=flat-square&logo=go&logoColor=white" />
+  <img alt="Docker Compose" src="https://img.shields.io/badge/Compose-v2.24.4+-2496ED?style=flat-square&logo=docker&logoColor=white" />
+  <img alt="MCP" src="https://img.shields.io/badge/MCP-streamable%20HTTP-3D9B8F?style=flat-square" />
+  <img alt="License" src="https://img.shields.io/badge/license-unlicensed%20lab-111?style=flat-square" />
+</p>
 
-## Prerequisites
+A docker-compose laboratory that publishes real network protocols on the host and drives them from a single [Model Context Protocol](https://modelcontextprotocol.io) gateway. Configuration lives in a profile directory. Runtime state is tmpfs and a restart wipes it.
 
-Docker Engine 24+ with Compose v2.24.4+ (LabLDAP's native overlay uses
-`!reset`/`!override`; TacLab's vendored compose bundle uses `!override`),
-GNU make, Go 1.26+ (the orchestration CLI and the vendored repos' secret
-tools).
+This is laboratory software. It is not a production identity or mail system.
 
-## Quickstart
+## Quick start
 
 ```bash
-make up      # clone vendors, mint secrets, build images, start, register
-make smoke   # agent-style end-to-end scenario through the gateway
+git clone https://github.com/hilather/mcp-integration-lab.git
+cd mcp-integration-lab
+make up      # vendor, secrets, images, start, register
+make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail through the gateway
 ```
 
-Then point an MCP client at the gateway:
+Needs Docker Engine 24+ with Compose v2.24.4+, GNU make, and Go 1.26+. First run vendors the service repos and builds images; later runs reuse them.
+
+Point an MCP client at the gateway. The default profile runs enterprise mode, so send the minted client token:
 
 ```json
 {
@@ -62,108 +56,104 @@ Then point an MCP client at the gateway:
 }
 ```
 
-The `Authorization` header is only needed in enterprise mode (the default
-profile's setting); in development mode drop it. The curated tool group lives
-at `http://<lab-host>:8080/v0/groups/integration/mcp`.
+The curated tool group is `http://<lab-host>:8080/v0/groups/integration/mcp`. In development mode (`LAB_DEV_MODE=true`) drop the `Authorization` header.
 
-## Profiles
+Ask **labinfo** for `endpoints_list` (web/REST URLs) and `connections_list` (protocol client config) before you spelunk.
 
-All team-variable configuration — host ports, gateway mode, storage paths, and
-each service's YAML/JSON configs — lives in a profile directory:
+Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/start.html) · [docs/guides/quickstart.md](docs/guides/quickstart.md)
+
+## What you get
+
+| Service | Role | Default host ports |
+| --- | --- | --- |
+| **LabDNS** | Authoritative lab DNS: overrides, wildcards, forwarding, bounded chaos | 10053 udp/tcp · REST/MCP 18080 |
+| **LabLDAP** | Native Go directory (`labldapd`) + control plane | 3389 / 3636 · HTTPS 8443 |
+| **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 · HTTP 18049 |
+| **maildev** | Receive-only SMTP sink + web UI | 1025 · 1080 |
+| **ratarmount-rs** | Archive-backed userspace NFSv3 | 20490 |
+| **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
+| **MCPJungle** | Single MCP gateway, tool groups, optional ACLs | 8080 |
+
+Every port is published on all interfaces so remote systems can test against the lab. Values live in the active profile, not in compose files.
+
+## Configure
+
+Team-variable configuration lives in `profiles/<name>/`:
 
 ```
 profiles/<name>/
-  profile.env            ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage dirs
-  labdns/bootstrap.yaml  permanent DNS zones/records
-  labldap/scenario.yaml  directory scenario (users, ACLs, TLS, MCP features)
-  labinfo/services.yaml  endpoint + connection-details catalog served to agents
-  maildev/maildev.yaml   maildev flags (relay/outbound flags are rejected)
-  mcpjungle/             gateway server + tool-group definitions
+  profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  labdns/bootstrap.yaml    permanent DNS zones and records
+  labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
+  labinfo/services.yaml    endpoint + connection catalog
+  maildev/maildev.yaml     maildev flags (relay flags are rejected)
+  mcpjungle/servers/*.json gateway registrations
+  mcpjungle/groups/        curated tool groups
 ```
 
-TacLab's baseline (users, groups, clients, policies, PKI, shared secrets) is
-generated by its own `labgen` tool into
-`third_party/go-lab-tacacs-mcp/deployments/compose/` on first `make up`.
+Copy `profiles/default` to start a team profile. Select it with `PROFILE=` in `.env` (see [`.env.example`](.env.example)) or per invocation: `make up PROFILE=teamx`. Process env overrides `.env`, which overrides `profile.env`.
 
-Select one with `PROFILE=<name>` in `.env` (see `.env.example`) or per
-invocation: `make up PROFILE=teamx`. To create a team profile, copy
-`profiles/default` and edit; `.env` values override the profile, process env
-overrides both.
+TacLab’s users, policies, PKI, and shared secrets are generated by its `labgen` tool on first `make up`. The profile only owns the `TACLAB_*` host ports.
 
-## External access
+`LAB_DEV_MODE` is the single security knob. `false` (default) hardens the gateway and redacts credentials from labinfo. `true` opens the gateway and lets labinfo reveal tokens and connection secrets. Never default a shared team profile to dev mode.
 
-Every service is published on all interfaces so remote systems can test
-against the lab. Host ports are set in the profile (`profile.env`):
-
-| Service | Host port (default profile) | What |
-|---|---|---|
-| DNS data plane | `LABDNS_DNS_PORT` (10053) | udp+tcp; 53 usually collides with systemd-resolved |
-| LabDNS REST/MCP | `LABDNS_REST_PORT` (18080) | `/v1` REST + `/mcp`, bearer-authed |
-| LDAP / LDAPS | `LABLDAP_LDAP_PORT` / `LABLDAP_LDAPS_PORT` (3389/3636) | cleartext binds disabled by scenario |
-| LabLDAP control | `LABLDAP_HTTPS_PORT` (8443) | REST `/api/v1` + `/mcp` + web UI (HTTPS) |
-| MCP gateway | `MCP_GATEWAY_PORT` (8080) | single MCP endpoint + tool groups |
-| TACACS+ legacy / TLS | `TACLAB_LEGACY_PORT` / `TACLAB_TLS_PORT` (49/300) | RFC 8907 / RFC 9887 data planes |
-| RADIUS access / acct | `TACLAB_RADIUS_ACCESS_PORT` / `TACLAB_RADIUS_ACCT_PORT` (1812/1813) | udp lab profile |
-| RADIUS RadSec / DAS | `TACLAB_RADIUS_RADSEC_PORT` / `TACLAB_RADIUS_DYNAUTH_PORT` (2083/3799) | published; listeners default off |
-| TacLab control | `TACLAB_HTTP_PORT` (18049) | web UI + REST `/api/v1` + `/mcp`, bearer-authed |
-| SMTP ingest | `MAILDEV_SMTP_PORT` (1025) | receive-only mail sink |
-| maildev web | `MAILDEV_WEB_PORT` (1080) | UI + REST `/email`, basic-auth |
-| NFS export | `NFS_PORT` (20490) | userspace NFSv3 |
-| labinfo | `LABINFO_PORT` (18090) | service-directory MCP, bearer-authed |
-
-`LAB_PUBLIC_HOST` (per profile) is the hostname baked into the URLs labinfo
-hands to agents — set it to the lab host's DNS name for your team.
-
-Examples against the data planes (agents get all of this, expanded for the
-active profile, from labinfo's `connections_list` tool):
-
-- DNS: `dig @<lab-host> -p 10053 ns1.lab.test`
-- LDAP: `ldapsearch -H ldaps://<lab-host>:3636 ...` — trust
-  `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt`; the cert SAN is
-  `directory`, so use a hosts entry (or test from a container on the
-  `mcplab-shared` network)
-- RADIUS: PAP `Access-Request` with the shared secret from
-  `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/` (lab-user
-  passwords are in `secrets/PASSWORDS.txt` there)
-- SMTP: point the system under test at `<lab-host>:1025` as its outbound SMTP
-  server, then read captured mail in the maildev UI — nothing is relayed
-- NFS: `mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 <lab-host>:/ /mnt`
-
-## Storage
-
-Container storage is host-definable per profile: `NFS_ARCHIVE_DIR` (read-only
-archives served over NFS) and `NFS_DATA_DIR` (the NFS container's writable
-work disk — archive indexes land there, so point it at a filesystem with room
-to work). Everything else is ephemeral by design (tmpfs), including the
-gateway's registration database.
+Configuration reference: [Configure](https://hilather.github.io/mcp-integration-lab/configure.html) · [docs/guides/configuration.md](docs/guides/configuration.md)
 
 ## Everyday commands
 
-The orchestrator is a Go CLI (`cmd/mcplab`); make targets are thin wrappers.
+`make` targets are thin wrappers over `cmd/mcplab`.
+
+| Command | What it does |
+| --- | --- |
+| `make up` | Vendor, secrets, fixtures, full stack, gateway registration (idempotent) |
+| `make down` | Stop. Bind-mounted storage survives. |
+| `make reset` | Stop and wipe all runtime state |
+| `make register` | Reapply gateway JSON from the active profile |
+| `make smoke` | End-to-end scenario through the gateway |
+| `make test` | `go vet` + unit/regression tests for the CLI |
+
+## Projects in this lab
+
+This repository owns orchestration, profiles, secrets layout, and gateway policy. The appliances are separate projects:
+
+| Project | What it is |
+| --- | --- |
+| [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, and bounded chaos. YAML desired state, REST + MCP. |
+| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine, REST, MCP, and a browser UI. |
+| [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.3.0**. |
+| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. |
+| [maildev/maildev](https://github.com/maildev/maildev) | SMTP testing server with a web UI. Used strictly as a receive-only sink. |
+| [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. |
+| [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
+
+Vendored checkouts live in `third_party/` (cloned by `mcplab vendor`). Do not edit them in place — add a patch under `patches/` and send it upstream.
+
+## Architecture and security
+
+Three compose projects (`mcplab`, `labldap`, `labtacacs`) meet on the external docker network `mcplab-shared`. Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
+
+Design, topology, and the phase-1 OAuth plan: [docs/architecture.md](docs/architecture.md).
+
+Agent working rules (profiles, tests, fail-closed catalog): [AGENTS.md](AGENTS.md). Change summaries: [CHANGELOG.md](CHANGELOG.md).
+
+## Data-plane examples
 
 ```bash
-make up        # bring everything up under the active profile (idempotent)
-make down      # stop (bind-mounted storage survives)
-make reset     # stop and wipe all runtime state (ephemeral by design)
-make register  # reapply gateway config from the active profile
-make smoke     # end-to-end DNS/LDAP/NFS/AAA/mail scenario through the gateway
-make test      # vet + unit/regression tests for the CLI
+dig @<lab-host> -p 10053 ns1.lab.test
+
+# LDAPS — trust third_party/go-lab-ldap-mcp/secrets/tls/ca.crt
+# cert SAN is "directory"
+ldapsearch -H ldaps://<lab-host>:3636 \
+  -D 'uid=alice,ou=people,dc=example,dc=test' -W \
+  -b dc=example,dc=test '(uid=alice)'
+
+# SMTP sink — nothing is relayed
+# point the system under test at <lab-host>:1025, then open :1080
+
+mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
+  <lab-host>:/ /mnt
 ```
 
-## Security: one dev-mode knob
+## Status
 
-`LAB_DEV_MODE` in the profile (default `false`) is the single switch:
-
-- **`false` (hardened, default):** gateway runs in enterprise mode — clients
-  send `Authorization: Bearer $(cat secrets/mcp-client-token)` and only see
-  allow-listed servers. labinfo's `endpoints_list` and `connections_list`
-  describe how auth works but never reveal secrets.
-- **`true` (dev):** gateway runs open (no client auth) and labinfo reveals the
-  actual credentials — web tokens via `endpoints_list` and connection secrets
-  (LDAP bind passwords, RADIUS shared secrets) via `connections_list` — so
-  agents can hand users a working URL + token or configure a client outright.
-  Never default a shared profile to dev mode.
-
-Set `MCPJUNGLE_MODE` explicitly to decouple the gateway mode from dev mode.
-Phase 1 replaces the static tokens with proxy-terminated OAuth 2.1/OIDC — no
-service changes needed (see [docs/architecture.md](docs/architecture.md)).
+POC. v0.1.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.

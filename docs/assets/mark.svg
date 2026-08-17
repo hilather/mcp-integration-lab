@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#0B0C0E"/>
+  <path d="M32 8.5L52 20v24L32 55.5 12 44V20L32 8.5Z" stroke="#E8EAED" stroke-width="1.5"/>
+  <circle cx="32" cy="32" r="4.4" fill="#3D9B8F"/>
+  <circle cx="32" cy="16.2" r="2.05" fill="#E8EAED"/>
+  <circle cx="46.2" cy="24.2" r="2.05" fill="#E8EAED"/>
+  <circle cx="46.2" cy="39.8" r="2.05" fill="#E8EAED"/>
+  <circle cx="32" cy="47.8" r="2.05" fill="#E8EAED"/>
+  <circle cx="17.8" cy="39.8" r="2.05" fill="#E8EAED"/>
+  <circle cx="17.8" cy="24.2" r="2.05" fill="#E8EAED"/>
+  <path d="M32 27.6V18.3M35.8 30 44.3 25.1M35.8 34l8.5 4.9M32 36.4v9.3M28.2 34l-8.5 4.9M28.2 30l-8.5-4.9" stroke="#3D9B8F" stroke-width="1.15"/>
+</svg>
