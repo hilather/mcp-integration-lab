@@ -60,6 +60,55 @@
       </div>
     </section>
 
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="eyebrow">Topology</div>
+          <h2>Agents talk to one URL. Testers talk to the wire.</h2>
+          <p>Three compose projects meet on <code>mcplab-shared</code>. Gateway registration is tmpfs. Profiles are the source of truth.</p>
+        </div>
+        <div class="topo">
+          <div class="topo-flow">
+            <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
+            <div class="topo-edge">streamable HTTP</div>
+            <div class="topo-node hub"><span>Gateway</span><strong>MCPJungle :8080</strong></div>
+            <div class="topo-edge">DNS · LDAP · TACACS+ · RADIUS · SMTP · NFS</div>
+            <div class="topo-node"><span>Data plane</span><strong>Integration testers</strong></div>
+          </div>
+          <div class="topo-projects">
+            <div class="topo-project">
+              <header>compose · mcplab</header>
+              <ul>
+                <li><strong>LabDNS</strong> — 10053 / 18080</li>
+                <li><strong>labinfo</strong> — 18090</li>
+                <li><strong>maildev</strong> — 1025 / 1080</li>
+                <li><strong>ratarmount-rs</strong> — 20490</li>
+                <li><strong>MCPJungle</strong> — 8080</li>
+              </ul>
+            </div>
+            <div class="topo-project">
+              <header>compose · labldap</header>
+              <ul>
+                <li><strong>labldapd</strong> — 3389 / 3636</li>
+                <li><strong>control plane</strong> — 8443</li>
+                <li>native engine, lab CA</li>
+                <li>pinned v0.2.2</li>
+              </ul>
+            </div>
+            <div class="topo-project">
+              <header>compose · labtacacs</header>
+              <ul>
+                <li><strong>taclabd</strong> — 49 / 300</li>
+                <li><strong>RADIUS</strong> — 1812 / 1813</li>
+                <li><strong>control</strong> — 18049</li>
+                <li>pinned v1.3.0</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="alt">
       <div class="wrap">
         <div class="sec-head">

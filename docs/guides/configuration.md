@@ -1,14 +1,21 @@
 # Configure the lab
 
-Everything a team varies lives in a profile. Compose files stay generic. Secrets are generated and gitignored. Runtime mutations are wipeable.
+Everything a team varies lives in a profile. Compose files stay generic.
+Secrets are generated and gitignored. Runtime mutations are wipeable.
 
-The same reference is published as [configure.html](https://hilather.github.io/mcp-integration-lab/configure.html).
+The same reference is published as
+[configure.html](https://hilather.github.io/mcp-integration-lab/configure.html).
+The snippets below are taken from `profiles/default` — copy that directory
+to start a team profile.
 
 ## Who owns what
 
-- **This repo** owns profiles, secrets layout, compose overlays, the `mcplab` CLI, and gateway policy.
-- **Vendored repos** own the appliances. Do not edit `third_party/` in place — add a patch under `patches/` and send it upstream.
-- **Generated files** — `secrets/` and `third_party/*/secrets/` — are produced by `mcplab secrets` and never committed.
+- **This repo** owns profiles, secrets layout, compose overlays, the
+  `mcplab` CLI, and gateway policy.
+- **Vendored repos** own the appliances. Do not edit `third_party/` in
+  place — add a patch under `patches/` and send it upstream.
+- **Generated files** — `secrets/` and `third_party/*/secrets/` — are
+  produced by `mcplab secrets` and never committed.
 
 ## A profile directory
 
@@ -24,9 +31,21 @@ profiles/<name>/
     groups/integration.json curated tool group
 ```
 
-TacLab’s baseline is generated, not hand-written. `labgen` materializes users, groups, clients, policies, PKI, and shared secrets into `third_party/go-lab-tacacs-mcp/deployments/compose/` on first `make up`. The profile only owns the host ports (`TACLAB_*`).
+TacLab’s baseline is generated, not hand-written. `labgen` materializes
+users, groups, clients, policies, PKI, and shared secrets into
+`third_party/go-lab-tacacs-mcp/deployments/compose/` on first `make up`.
+The profile only owns the host ports (`TACLAB_*`).
 
-To create a team profile, copy `profiles/default` and edit. Never hardcode a port in `docker-compose.yaml` — add a variable to `profile.env` with a compose default.
+```bash
+cp -a profiles/default profiles/teamx
+# edit profiles/teamx/profile.env and the YAML/JSON under it
+cp .env.example .env
+# PROFILE=teamx
+make up PROFILE=teamx
+```
+
+Never hardcode a port in `docker-compose.yaml` — add a variable to
+`profile.env` with a compose default.
 
 ## Env precedence
 
@@ -43,53 +62,269 @@ PROFILE=default
 # LABDNS_DNS_PORT=53   # uncomment to override the profile
 ```
 
+## profile.env — every knob
+
+| Variable | Default | What it is |
+| --- | --- | --- |
+| `LABDNS_DNS_PORT` | `10053` | DNS data plane (udp+tcp). `53` usually collides with systemd-resolved. |
+| `LABDNS_REST_PORT` | `18080` | LabDNS REST `/v1` + MCP `/mcp`. |
+| `LABLDAP_LDAP_PORT` | `3389` | LDAP (StartTLS). Cleartext simple bind is disabled. |
+| `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory`. |
+| `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
+| `MCP_GATEWAY_PORT` | `8080` | MCPJungle streamable HTTP. |
+| `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3. |
+| `TACLAB_LEGACY_PORT` | `49` | TACACS+ (RFC 8907). |
+| `TACLAB_TLS_PORT` | `300` | TACACS+ TLS 1.3 (RFC 9887). |
+| `TACLAB_RADIUS_ACCESS_PORT` | `1812` | RADIUS access (udp). Message-Authenticator required. |
+| `TACLAB_RADIUS_ACCT_PORT` | `1813` | RADIUS accounting (udp). |
+| `TACLAB_RADIUS_RADSEC_PORT` | `2083` | RadSec. Published; listener default off. |
+| `TACLAB_RADIUS_DYNAUTH_PORT` | `3799` | RADIUS DAS. Published; listener default off. |
+| `TACLAB_HTTP_PORT` | `18049` | TacLab UI + REST + MCP. |
+| `MAILDEV_SMTP_PORT` | `1025` | Receive-only SMTP ingest. |
+| `MAILDEV_WEB_PORT` | `1080` | maildev UI + REST, basic auth. |
+| `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Password is minted. |
+| `LABINFO_PORT` | `18090` | Service-directory MCP. |
+| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL. Set this to the name remote testers use. |
+| `LAB_DEV_MODE` | `false` | Single security knob. See below. |
+| `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal. |
+| `NFS_ARCHIVE_DIR` | `.data/nfs` | Read-only archive tree. |
+| `NFS_DATA_DIR` | `.data/nfs-work` | Writable scratch for SQLite indexes. Give it real disk. |
+
 ## LabDNS
 
-`labdns/bootstrap.yaml` is the desired state, mounted read-only. MCP `dns_state_reset` returns the service to this file. The default profile is authoritative for `lab.test.` with `ns1`, `nfs`, `ldap`, and a `*.tools` wildcard.
+`labdns/bootstrap.yaml` is the desired state, mounted read-only. MCP
+`dns_state_reset` returns the service to this file. Non-loopback peers
+present the bearer in `secrets/labdns-token`.
 
-Host ports: `LABDNS_DNS_PORT` (data plane) and `LABDNS_REST_PORT` (REST `/v1` + MCP `/mcp`). Non-loopback peers present the bearer in `secrets/labdns-token`.
+Default profile — authoritative for `lab.test.` with `ns1`, `nfs`,
+`ldap`, and a `*.tools` wildcard:
+
+```yaml
+apiVersion: labdns.dev/v1alpha1
+kind: LabDNS
+metadata:
+  name: mcp-integration-lab
+spec:
+  listeners:
+    dns:
+      address: ":5353"
+      protocols: [udp, tcp]
+    management:
+      address: ":8080"
+      restPath: /v1
+      mcpPath: /mcp
+  management:
+    auth:
+      profile: bearer
+      secretRef: /etc/labdns/token
+  defaults:
+    ttl: 30s
+    negativeTTL: 10s
+  zones:
+    - id: lab-zone
+      name: lab.test.
+      mode: authoritative
+      nameservers: [ns1.lab.test.]
+      records:
+        - { id: ns1-a,  owner: ns1,      type: A, values: [10.42.0.53] }
+        - { id: nfs-a,  owner: nfs,      type: A, values: [10.42.0.30] }
+        - { id: ldap-a, owner: ldap,     type: A, values: [10.42.0.40] }
+        - { id: tools-wildcard-a, owner: "*.tools", type: A, values: [10.42.0.20] }
+```
+
+Add a zone or a record here and `make up` (or restart labdns). Runtime
+records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. This lab pins `directory.engine: native` (labldapd, not 389 DS), management TLS from lab-CA files, and `registerMutations` / `registerPassword` so account-workflow tools are live.
+`labldap/scenario.yaml` is a LabScenario. This lab pins
+`directory.engine: native` (labldapd, not 389 DS), management TLS from
+lab-CA files, and `registerMutations` / `registerPassword` so
+account-workflow tools are live.
 
-- Suffix: `dc=example,dc=test`
-- Seed user: `alice` in group `staff`
-- Cleartext simple bind: disabled. StartTLS or LDAPS.
-- LDAPS cert SAN is `directory`. Trust `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt`.
+```yaml
+apiVersion: labldap.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: mcp-integration-lab
+spec:
+  directory:
+    engine: native
+    suffix: "dc=example,dc=test"
+    peopleRDN: "ou=people"
+    groupsRDN: "ou=groups"
+  lifecycle:
+    storageMode: ephemeral
+    startupMode: merge
+    softReset: true
+  transport:
+    insecureLabMode: false
+    ldap:  { enabled: true, port: 3389 }
+    ldaps: { enabled: true, port: 3636 }
+    startTLS: true
+    allowCleartextBind: false
+    allowAnonymousBind: false
+  management:
+    listen: "0.0.0.0:8443"
+    tls:
+      mode: files
+      certFile: /run/secrets/management.crt
+      keyFile: /run/secrets/management.key
+    mcp:
+      enabled: true
+      registerMutations: true
+      registerPassword: true
+      registerReset: false
+      registerExport: false
+  users:
+    - { id: alice, uid: alice, passwordFile: /run/secrets/user-alice, enabled: true }
+  groups:
+    - id: staff
+      members: [{ user: alice }]
+  acls:
+    - id: staff-read
+      principal: { kind: group, ref: staff }
+      target: { kind: suffix }
+      permissions: [read, search, compare]
+      attributes: { allow: ["*"], deny: [userPassword] }
+```
+
+- Bind as `uid=alice,ou=people,dc=example,dc=test`.
+- LDAPS cert SAN is `directory`. Trust
+  `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt`.
+- Add users, groups, and ACLs in this file. MCP mutations are ephemeral.
 
 ## TacLab
 
-Do not hand-write TacLab configs. `mcplab secrets` runs `labgen` and sets `api.mcp.allow_legacy_clients: true` so the gateway’s older MCP client can connect. Lab-user passwords land in `secrets/PASSWORDS.txt` under the TacLab compose tree. RADIUS Access-Requests must carry Message-Authenticator (RFC 3579). RadSec (2083) and DAS (3799) are published but default off.
+Do not hand-write TacLab configs. `mcplab secrets` runs `labgen` and
+sets `api.mcp.allow_legacy_clients: true` so the gateway’s older MCP
+client can connect.
+
+What you *do* own in the profile:
+
+```bash
+TACLAB_LEGACY_PORT=49
+TACLAB_TLS_PORT=300
+TACLAB_RADIUS_ACCESS_PORT=1812
+TACLAB_RADIUS_ACCT_PORT=1813
+TACLAB_HTTP_PORT=18049
+# published, listeners default off
+TACLAB_RADIUS_RADSEC_PORT=2083
+TACLAB_RADIUS_DYNAUTH_PORT=3799
+```
+
+Lab-user passwords land in
+`third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt`.
+RADIUS Access-Requests must carry Message-Authenticator (RFC 3579).
 
 ## maildev
 
-Any maildev long flag can go under `flags:` in `maildev/maildev.yaml`. The CLI renders it onto the container command line and **rejects** every `outgoing-*` and `auto-relay*` flag. Host ports and web basic-auth are lab-managed.
+Any maildev long flag can go under `flags:` in `maildev/maildev.yaml`.
+The CLI renders it onto the container command line and **rejects** every
+`outgoing-*` and `auto-relay*` flag. Host ports and web basic-auth are
+lab-managed.
 
 ```yaml
+# Full flag list: https://github.com/maildev/maildev#usage
 flags: {}
   # verbose: true
-  # incoming-user: smtp-user
+  # hide-extensions: [STARTTLS]
+  # incoming-user: smtp-user      # require SMTP AUTH on ingest
   # incoming-pass: smtp-pass
 ```
 
+Point the system under test at `<lab-host>:1025`. Read captured mail at
+`:1080`. Nothing is relayed. Captured mail lives on tmpfs.
+
 ## NFS
 
-`NFS_ARCHIVE_DIR` is the read-only archive tree. `NFS_DATA_DIR` is writable scratch for SQLite indexes — give it real disk. Mount with `vers=3,tcp,nolock,port=…,mountport=…`. AUTH_SYS only. No MCP wrapper yet (phase 1).
+`NFS_ARCHIVE_DIR` is the read-only archive tree (default
+`.data/nfs/fixtures.tar.gz` after `make fixtures`). `NFS_DATA_DIR` is
+writable scratch for SQLite indexes — give it real disk.
+
+```bash
+NFS_PORT=20490
+NFS_ARCHIVE_DIR=.data/nfs
+NFS_DATA_DIR=.data/nfs-work
+
+mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
+  <lab-host>:/ /mnt
+```
+
+AUTH_SYS only. No MCP wrapper yet (phase 1).
 
 ## labinfo catalog
 
-Every service in `labinfo/services.yaml` must carry a `connection` block — labinfo refuses to start without one. URLs are `${VAR}` templates over the profile env. Host comes from `LAB_PUBLIC_HOST`. Credentials point at staged copies under `secrets/labinfo-creds/` and are revealed only when `LAB_DEV_MODE=true`.
+Every service in `labinfo/services.yaml` must carry a `connection`
+block — labinfo refuses to start without one. URLs are `${VAR}`
+templates over the profile env. Host comes from `LAB_PUBLIC_HOST`.
+Credentials point at staged copies under `secrets/labinfo-creds/` and
+are revealed only when `LAB_DEV_MODE=true`.
 
-Adding a service: write the compose service, add a `mcpjungle/servers/<name>.json` (filename must match JSON `name`), and add the catalog entry. New ports must be exported into the labinfo container environment so expansion sees them.
+A single service, trimmed from the default catalog:
+
+```yaml
+services:
+  - id: labldap
+    name: LabLDAP control plane
+    urls:
+      - { name: Web UI,    url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/ }
+      - { name: REST API,  url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/api/v1 }
+    credential:
+      file: /run/lab-secrets/labldap-token-admin
+      usage: "HTTP header 'Authorization: Bearer <token>'"
+    connection:
+      endpoints:
+        - { name: LDAPS, protocol: ldaps, address: ldaps://${LAB_PUBLIC_HOST}:${LABLDAP_LDAPS_PORT} }
+      parameters:
+        base_dn: dc=example,dc=test
+        bind_dn_example: uid=alice,ou=people,dc=example,dc=test
+      credentials:
+        - name: bind-password-alice
+          file: /run/lab-secrets/labldap-user-alice
+          usage: "simple-bind password for alice"
+```
+
+Adding a service: write the compose service, add a
+`mcpjungle/servers/<name>.json` (filename must match JSON `name`), and
+add the catalog entry. New ports must be exported into the labinfo
+container environment so expansion sees them.
 
 ## MCPJungle
 
-`mcpjungle/servers/*.json` register upstreams with `${ENV}` token injection. `groups/integration.json` is the curated subset (labdns, labldap, labtacacs, labinfo). Gateway SQLite sits on tmpfs; `make register` reapplies the JSON. Mode follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
+`mcpjungle/servers/*.json` register upstreams with `${ENV}` token
+injection. Filename must match the JSON `name`.
+
+```json
+{
+  "name": "labldap",
+  "transport": "streamable_http",
+  "description": "Native Go directory lab (labldapd).",
+  "url": "https://control:8443/mcp",
+  "bearer_token": "${LABLDAP_TOKEN}"
+}
+```
+
+The curated tool group — this is what most agents should attach to:
+
+```json
+{
+  "name": "integration",
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo"]
+}
+```
+
+Gateway SQLite sits on tmpfs; `make register` reapplies the JSON. Mode
+follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
 
 ## One knob: LAB_DEV_MODE
 
-- **false (default)** — enterprise gateway. Clients send `Authorization: Bearer $(cat secrets/mcp-client-token)`. labinfo describes auth and never reveals secrets.
-- **true** — open gateway, and labinfo reveals web tokens and connection secrets (LDAP bind password, RADIUS shared secret). Never default a shared team profile to dev mode.
+- **false (default)** — enterprise gateway. Clients send
+  `Authorization: Bearer $(cat secrets/mcp-client-token)`. labinfo
+  describes auth and never reveals secrets.
+- **true** — open gateway, and labinfo reveals web tokens and
+  connection secrets (LDAP bind password, RADIUS shared secret). Never
+  default a shared team profile to dev mode.
 
 Design and phase-1 OAuth plan: [architecture.md](../architecture.md).

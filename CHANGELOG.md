@@ -12,6 +12,10 @@ changes since the previous one (AGENTS.md rule 13).
 - Project site at [hilather.github.io/mcp-integration-lab](https://hilather.github.io/mcp-integration-lab/)
   (overview, quick start, configuration, services, architecture) with a
   first-class README, logo, and guides under `docs/guides/`.
+- Configuration guide now includes every `profile.env` knob and working
+  YAML/JSON from `profiles/default` for LabDNS, LabLDAP, maildev, labinfo,
+  and MCPJungle.
+- CONTRIBUTING.md for humans landing changes.
 
 ## [0.1.0] - 2026-08-17
 

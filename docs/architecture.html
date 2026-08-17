@@ -31,6 +31,42 @@
         <div class="eyebrow">Design</div>
         <h1>Three compose projects. One shared network.</h1>
         <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, and NFS at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
+        <div class="topo" style="margin: 24px 0 32px">
+          <div class="topo-flow">
+            <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
+            <div class="topo-edge">streamable HTTP</div>
+            <div class="topo-node hub"><span>Gateway</span><strong>MCPJungle :8080</strong></div>
+            <div class="topo-edge">real protocols</div>
+            <div class="topo-node"><span>Data plane</span><strong>Testers</strong></div>
+          </div>
+          <div class="topo-projects">
+            <div class="topo-project">
+              <header>mcplab</header>
+              <ul>
+                <li><strong>LabDNS</strong> scratch image</li>
+                <li><strong>labinfo</strong> service directory</li>
+                <li><strong>maildev</strong> receive-only</li>
+                <li><strong>ratarmount-rs</strong> NFSv3</li>
+              </ul>
+            </div>
+            <div class="topo-project">
+              <header>labldap</header>
+              <ul>
+                <li><strong>control</strong> :8443</li>
+                <li><strong>labldapd</strong> native engine</li>
+                <li>HTTPS + bearer, lab CA</li>
+              </ul>
+            </div>
+            <div class="topo-project">
+              <header>labtacacs</header>
+              <ul>
+                <li><strong>taclabd</strong> :49 / :300</li>
+                <li>RADIUS :1812 / :1813</li>
+                <li>control :18049</li>
+              </ul>
+            </div>
+          </div>
+        </div>
         <pre><code>MCP clients  ──streamable HTTP──►  MCPJungle :8080/mcp
                                       │
                  ┌────────────────────┼────────────────────┐
