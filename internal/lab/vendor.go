@@ -15,6 +15,7 @@ var vendorRepos = []struct{ URL, Dest, Ref string }{
 	{"https://github.com/hilather/go-lab-dns", "third_party/go-lab-dns", ""},
 	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.2.2"},
 	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.3.0"},
+	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.2"},
 }
 
 // Vendor clones or updates the service repos to their pinned refs and

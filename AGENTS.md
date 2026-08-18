@@ -74,13 +74,26 @@ we work by.
     (enterprise: client tokens + ACLs) and labinfo only describes how auth
     works. `MCPJUNGLE_MODE` may still be pinned explicitly to decouple the
     two. Never default a shared/team profile to dev mode.
-11. **The mail sink never sends mail.** maildev exists to *receive* mail from
-    systems under test. Its command line is rendered from the profile's
-    `maildev/maildev.yaml` by `internal/maildev`, which rejects every relay /
-    outbound flag (`outgoing-*`, `auto-relay*`) — keep that guard fail-closed
-    and regression-tested. Host ports and web basic-auth are lab-managed
-    (profile.env + `mcplab secrets`), everything else in maildev's flag list
-    is fair game for profiles.
+11. **The mail sink never sends mail.** Compose service name and labinfo
+    catalog id stay `maildev` for the swap release (rename later, not in
+    the image-pin change). The image is LabMail (`go-lab-maildev`, pinned
+    `v1.0.0-rc.2`). Desired state is
+    `profiles/<name>/labmail/bootstrap.yaml` (`labmail.dev/v1alpha1`).
+    Receive-only is structural in LabMail: no outbound SMTP, reserved-key
+    reject, `POST /email/:id/relay` is 403. `internal/maildev` fail-closes
+    on leftover `maildev/maildev.yaml`, relay/outbound keys, and implicit
+    SMTPS — keep that guard tested. Do not reintroduce `MAILDEV_ARGS` /
+    `MAILDEV_WEB_PASS` injection in `runner.go`. Host ports stay
+    `MAILDEV_SMTP_PORT` / `MAILDEV_WEB_PORT`. Web Basic username is frozen
+    at `admin` (`MAILDEV_WEB_USER=admin`; LabMail YAML does not interpolate
+    that env — changing profile.env alone 401s smoke). Password and bearer
+    files are `secrets/maildev-web-password` and `secrets/labmail-token`,
+    both **0o644** so UID 65532 can read the bind-mounts (0o600 was only
+    safe while MAILDEV_WEB_PASS was injected). They share one principal via
+    `tokenRef`. If a profile must change the Basic user, it must also edit
+    `spec.management.auth.basic.username`. `allowLegacyClients: true` is
+    required for MCPJungle. Do not add relay/outbound keys. Implicit SMTPS
+    (`incoming-secure`) is 1.1; do not silently map it to STARTTLS.
 12. **Documentation ships with the change.** A change is not done until every
     doc surface it touches is updated in the same change: `README.md`,
     `docs/architecture.md`, this file (rules, layout, quirks), the mcplab CLI
@@ -107,13 +120,14 @@ we work by.
 - `cmd/mcplab`, `internal/` — orchestration CLI + tests
 - `cmd/labinfo`, `internal/labinfo` — first-party service-directory MCP
   service (rule 9); built by `docker/labinfo/`
-- `docker-compose.yaml` — main project (gateway, LabDNS, maildev, NFS,
-  labinfo); `compose/*.overlay.yaml` — overlays merging the vendored LabLDAP
-  and TacLab compose projects onto the shared network
+- `docker-compose.yaml` — main project (gateway, LabDNS, LabMail as compose
+  service `maildev`, NFS, labinfo); `compose/*.overlay.yaml` — overlays
+  merging the vendored LabLDAP and TacLab compose projects onto the shared
+  network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabLDAP `v0.2.2`,
-  TacLab `v1.3.0`). TacLab's generated lab baseline also lives under its
-  checkout
+  TacLab `v1.3.0`, LabMail `v1.0.0-rc.2`). TacLab's generated lab baseline
+  also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
 - `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
@@ -133,6 +147,15 @@ we work by.
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`.
+- LabMail (pinned `v1.0.0-rc.2`) also pins `2026-07-28`. Do **not** patch
+  it: `profiles/<name>/labmail/bootstrap.yaml` sets
+  `spec.management.mcp.allowLegacyClients: true`. Compose service name and
+  labinfo catalog id stay `maildev`. Bind-mounted secrets
+  (`secrets/labmail-token`, `secrets/maildev-web-password`) must be **0o644**
+  so UID 65532 can read them — 0o600 was only safe while `MAILDEV_WEB_PASS`
+  was env-injected. Healthcheck is HTTP `GET /v1/health/ready` (scratch has
+  no `node`; ready still requires SMTP bound). Leftover
+  `maildev/maildev.yaml` is rejected by `internal/maildev`.
 - TacLab is self-contained: `tools/labgen` generates its whole compose bundle
   (configs incl. the combined TACACS+RADIUS variant, PKI, shared secrets,
   plaintext lab passwords in `secrets/PASSWORDS.txt`). Don't hand-write those

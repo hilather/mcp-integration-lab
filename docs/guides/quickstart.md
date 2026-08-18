@@ -58,7 +58,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
 ```
 
-Point outbound SMTP at `<lab-host>:1025` and read captured mail in the maildev UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/` and a Message-Authenticator attribute.
+Point outbound SMTP at `<lab-host>:1025` and read captured mail in the LabMail UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/` and a Message-Authenticator attribute.
 
 ## Pick a profile
 

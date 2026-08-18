@@ -1,5 +1,5 @@
 {
   "name": "integration",
-  "description": "Curated tool subset for integration-test agents: full LabDNS, LabLDAP, and TacLab surfaces plus the labinfo service directory.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo"]
+  "description": "Curated tool subset for integration-test agents: full LabDNS, LabLDAP, TacLab, and LabMail surfaces plus the labinfo service directory.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail"]
 }

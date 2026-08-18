@@ -26,9 +26,9 @@ Read `AGENTS.md` for the full rules. Non-negotiables:
  connection block. Credentials in that catalog are revealed only when the
  profile sets `LAB_DEV_MODE=true`, which also opens the gateway — never
  default a shared profile to dev mode.
-- The maildev sink is receive-only: relay/outbound flags in a profile's
-  `maildev/maildev.yaml` are rejected by `internal/maildev` — keep that guard
-  fail-closed and tested.
+- The mail sink never sends mail: leftover `maildev/maildev.yaml` and
+  relay/outbound keys in `labmail/bootstrap.yaml` are rejected by
+  `internal/maildev` — keep that guard fail-closed and tested.
 - Docs ship with the change: README, architecture doc, AGENTS.md, CLI usage
   text, and the labinfo catalog must be updated in the same change that
   alters behavior — sweep for stale mentions before finishing.

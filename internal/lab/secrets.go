@@ -12,8 +12,10 @@ import (
 
 // Secrets generates all lab secrets. Idempotent: existing files are kept.
 //
-//	secrets/labdns-token       bearer token the gateway presents to LabDNS
-//	secrets/mcp-client-token   client token for MCPJungle enterprise mode
+//	secrets/labdns-token            bearer the gateway presents to LabDNS
+//	secrets/labmail-token           bearer the gateway presents to LabMail
+//	secrets/maildev-web-password    HTTP Basic password for the mail UI / /email
+//	secrets/mcp-client-token        client token for MCPJungle enterprise mode
 //	third_party/go-lab-ldap-mcp/secrets/...   minted by LabLDAP's own tools
 //	third_party/go-lab-ldap-mcp/secrets/tls/  lab CA + directory & management certs
 func (r *Runner) Secrets() error {
@@ -37,9 +39,14 @@ func (r *Runner) Secrets() error {
 		return err
 	}
 
-	// Web UI basic-auth password for the receive-only maildev sink; injected
-	// as MAILDEV_WEB_PASS at compose time, never written into the profile.
-	if err := writeTokenIfMissing(r.path("secrets/maildev-web-password"), 0o600); err != nil {
+	// LabMail bearer (MCP + native /v1) and web Basic password. Both are
+	// bind-mounted into the unprivileged container (uid 65532), so they
+	// must be 0o644. 0o600 was only safe while MAILDEV_WEB_PASS was env-
+	// injected. Existing files are chmod'd on every run.
+	if err := writeTokenIfMissing(r.path("secrets/labmail-token"), 0o644); err != nil {
+		return err
+	}
+	if err := writeTokenIfMissing(r.path("secrets/maildev-web-password"), 0o644); err != nil {
 		return err
 	}
 
@@ -125,6 +132,7 @@ func (r *Runner) stageLabinfoCreds() error {
 		"secrets/labinfo-token":                                               "labinfo-token",
 		"secrets/labdns-token":                                                "labdns-token",
 		"secrets/mcp-client-token":                                            "mcp-client-token",
+		"secrets/labmail-token":                                               "labmail-token",
 		"secrets/maildev-web-password":                                        "maildev-web-password",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "labldap-token-admin",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "labldap-user-alice",

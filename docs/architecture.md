@@ -16,7 +16,7 @@ secrets layout, and gateway policy.
 | LabDNS (`go-lab-dns`) | Lab DNS: overrides, wildcards, forwarding, chaos | `http://labdns:8080/mcp` (bearer) | DNS 10053 (UDP/TCP), REST/MCP 18080 |
 | LabLDAP (`go-lab-ldap-mcp` **v0.2.2**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.3.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
-| maildev | Receive-only SMTP sink with web UI/REST for captured mail | none (off-the-shelf; cataloged in labinfo) | SMTP 1025, web 1080 |
+| LabMail (`go-lab-maildev` **v1.0.0-rc.2**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
 | ratarmount-rs | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle | MCP gateway: aggregation, tool groups, ACLs | `http://<host>:8080/mcp` | gateway 8080 |
@@ -34,7 +34,7 @@ flowchart LR
     Jungle
     DNS["labdns (scratch image)"]
     NFS["ratarmount-rs --nfs"]
-    Mail["maildev (receive-only)"]
+    Mail["LabMail (compose: maildev)"]
     Info["labinfo (service directory)"]
   end
   subgraph labldap [compose project labldap]
@@ -48,6 +48,7 @@ flowchart LR
   Jungle -->|"HTTP + bearer"| Info
   Jungle -->|"HTTPS + bearer, lab CA"| Control
   Jungle -->|"HTTP + bearer"| Taclab
+  Jungle -->|"HTTP + bearer"| Mail
   Control --> Dir
   Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP"| mcplab
   Testers --> labldap
@@ -76,8 +77,9 @@ Per-team configuration lives in profiles (`profiles/<name>/`), selected via
   `dns_state_reset` returns to it).
 - `labldap/scenario.yaml` — LabLDAP scenario (users, groups, ACLs,
   tokens; MCP mutations enabled for agent-driven scenarios).
-- `maildev/maildev.yaml` — maildev CLI flags (`internal/maildev` renders the
-  command line and rejects every relay/outbound flag: the sink only receives).
+- `labmail/bootstrap.yaml` — LabMail desired state (`labmail.dev/v1alpha1`;
+  `internal/maildev` rejects leftover `maildev/maildev.yaml` and every
+  relay/outbound key). Compose service name stays `maildev`.
 - `mcpjungle/servers/*.json` — upstream registrations with
   `${ENV}` token injection.
 - `mcpjungle/groups/integration.json` — curated tool-group endpoint.
@@ -175,9 +177,13 @@ per-persona tool groups and OTel metrics scraping.
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
   (`ca.crt`); switching from a leftover 389 volume is a re-bootstrap
   (`LabLDAPUp` wipes uid-389 `/data`).
-- maildev is intentionally not given an MCP surface (off-the-shelf tool); its
-  web UI/REST live in the labinfo catalog and the SMTP sink is data plane.
-  Captured mail sits on tmpfs and is wiped by restart/reset.
+- LabMail is pinned to **v1.0.0-rc.2**. MCP pin is relaxed with upstream
+  `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
+  (same idea as TacLab; no LabMail patch). Compose service name and labinfo
+  catalog id stay `maildev`. Healthcheck is HTTP `/v1/health/ready` (the
+  Node SMTP TCP probe is gone; scratch has no `node`). Bind-mounted secrets
+  are 0o644. Captured mail is process memory and wiped by restart/reset.
+  `POST /email/:id/relay` is 403.
 - ratarmount NFSv3 has no locking (`nolock` required) and AUTH_SYS only; the
   lab boundary is the docker network / host. The export is writable via `-w`
   (durable overlay under `NFS_DATA_DIR`); live commit into the empty-root
@@ -188,5 +194,6 @@ per-persona tool groups and OTel metrics scraping.
 - ratarmount image is Ubuntu-based (release .deb). Alpine/musl source build is
   a size optimization for later.
 - LabLDAP and TacLab images build locally from the vendored repos (TacLab's
-  build compiles its embedded React UI too); first `make up` takes several
-  minutes.
+  build compiles its embedded React UI too); LabMail builds from
+  `third_party/go-lab-maildev` the same way LabDNS does. First `make up`
+  takes several minutes.

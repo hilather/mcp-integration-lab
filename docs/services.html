@@ -56,11 +56,11 @@
             <p><strong>Auth.</strong> Control bearer from <code>api_admin_token</code>. RADIUS shared secret for <code>lab_switches</code>. <code>PASSWORDS.txt</code> for lab users.</p>
           </article>
           <article class="card">
-            <h3>maildev — <a href="https://github.com/maildev/maildev">maildev/maildev</a></h3>
-            <p>Receive-only SMTP sink. Relay flags are rejected fail-closed.</p>
-            <p><strong>Connect.</strong> SMTP <code><host>:1025</code>. UI/REST <code><host>:1080</code> with basic auth.</p>
-            <p><strong>Configure.</strong> <code>profiles/<name>/maildev/maildev.yaml</code>.</p>
-            <p><strong>Auth.</strong> Web user <code>MAILDEV_WEB_USER</code> (admin). Password minted by <code>mcplab secrets</code>.</p>
+            <h3>LabMail — <a href="https://github.com/hilather/go-lab-maildev">hilather/go-lab-maildev</a></h3>
+            <p>Receive-only SMTP sink. Pinned v1.0.0-rc.2. Compose service name stays <code>maildev</code>. Relay keys are rejected fail-closed.</p>
+            <p><strong>Connect.</strong> SMTP <code><host>:1025</code>. UI / <code>/email</code> / <code>/v1</code> / MCP at <code><host>:1080</code>.</p>
+            <p><strong>Configure.</strong> <code>profiles/<name>/labmail/bootstrap.yaml</code>.</p>
+            <p><strong>Auth.</strong> Web Basic user <code>admin</code> (frozen). Password and MCP bearer minted by <code>mcplab secrets</code> (<code>maildev-web-password</code>, <code>labmail-token</code>, both 0o644).</p>
           </article>
           <article class="card">
             <h3>ratarmount-rs — <a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></h3>

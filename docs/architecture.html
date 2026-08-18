@@ -45,7 +45,7 @@
               <ul>
                 <li><strong>LabDNS</strong> scratch image</li>
                 <li><strong>labinfo</strong> service directory</li>
-                <li><strong>maildev</strong> receive-only</li>
+                <li><strong>LabMail</strong> receive-only (compose: maildev)</li>
                 <li><strong>ratarmount-rs</strong> writable NFSv3</li>
               </ul>
             </div>
@@ -71,7 +71,7 @@
                                       │
                  ┌────────────────────┼────────────────────┐
                  │  compose mcplab    │                    │
-                 │   labdns  labinfo  maildev  ratarmount  │
+                 │   labdns  labinfo  LabMail  ratarmount  │
                  └──────────┬─────────┴─────────┬──────────┘
                             │                   │
                  compose labldap         compose labtacacs
@@ -93,6 +93,7 @@
         <ul>
           <li>LabLDAP <code>v0.2.2</code> — no local patch.</li>
           <li>TacLab <code>v1.3.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob.</li>
+          <li>LabMail <code>v1.0.0-rc.2</code> — MCP pin relaxed with <code>allowLegacyClients: true</code> in <code>labmail/bootstrap.yaml</code>. Compose service name stays <code>maildev</code>.</li>
           <li>LabDNS tracks default branch. <code>patches/go-lab-dns-wire-mcp.patch</code> wires Streamable HTTP into <code>serve</code> and relaxes the 2026-07-28 protocol pin so MCPJungle’s client can connect.</li>
         </ul>
         <p class="note">Full write-up, mermaid topology, and the OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>. Configure a profile: <a href="configure.html">Configure</a>.</p>

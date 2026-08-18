@@ -25,7 +25,7 @@ profiles/<name>/
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
   labinfo/services.yaml    endpoint + connection catalog
-  maildev/maildev.yaml     maildev flags (relay flags rejected)
+  labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group
@@ -81,8 +81,8 @@ PROFILE=default
 | `TACLAB_RADIUS_DYNAUTH_PORT` | `3799` | RADIUS DAS. Published; listener default off. |
 | `TACLAB_HTTP_PORT` | `18049` | TacLab UI + REST + MCP. |
 | `MAILDEV_SMTP_PORT` | `1025` | Receive-only SMTP ingest. |
-| `MAILDEV_WEB_PORT` | `1080` | maildev UI + REST, basic auth. |
-| `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Password is minted. |
+| `MAILDEV_WEB_PORT` | `1080` | LabMail UI + `/email` + `/v1` + MCP. |
+| `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Frozen at `admin` (YAML does not interpolate this). Password is minted. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL. Set this to the name remote testers use. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. |
@@ -218,24 +218,44 @@ Lab-user passwords land in
 `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt`.
 RADIUS Access-Requests must carry Message-Authenticator (RFC 3579).
 
-## maildev
+## LabMail
 
-Any maildev long flag can go under `flags:` in `maildev/maildev.yaml`.
-The CLI renders it onto the container command line and **rejects** every
-`outgoing-*` and `auto-relay*` flag. Host ports and web basic-auth are
-lab-managed.
+The compose service name stays `maildev`. Desired state is
+`labmail/bootstrap.yaml` (`labmail.dev/v1alpha1`). `internal/maildev`
+rejects leftover `maildev/maildev.yaml` and every relay/outbound key.
+Host ports and web Basic/bearer files are lab-managed. `allowLegacyClients:
+true` is required for MCPJungle.
 
 ```yaml
-# Full flag list: https://github.com/maildev/maildev#usage
-flags: {}
-  # verbose: true
-  # hide-extensions: [STARTTLS]
-  # incoming-user: smtp-user      # require SMTP AUTH on ingest
-  # incoming-pass: smtp-pass
+apiVersion: labmail.dev/v1alpha1
+kind: LabMail
+metadata:
+  name: lab-sink
+spec:
+  listeners:
+    smtp: { address: ":1025" }
+    management: { address: ":1080", restPath: /v1, mcpPath: /mcp, compatEnabled: true }
+  smtp:
+    hostname: labmail.lab
+    auth: { mode: none }
+    tls: { mode: off }
+  management:
+    auth:
+      mode: bearer_and_basic
+      tokens:
+        - { id: admin, secretFile: /run/secrets/labmail-token, role: administrator }
+      basic:
+        username: admin
+        passwordFile: /run/secrets/maildev-web-password
+        tokenRef: admin
+    mcp:
+      allowLegacyClients: true
 ```
 
 Point the system under test at `<lab-host>:1025`. Read captured mail at
-`:1080`. Nothing is relayed. Captured mail lives on tmpfs.
+`:1080` (Basic user `admin`). Native REST is `/v1`; MCP is `/mcp` (bearer
+in `secrets/labmail-token`). Nothing is relayed. Captured mail is wiped on
+restart.
 
 ## NFS
 
@@ -314,8 +334,8 @@ The curated tool group — this is what most agents should attach to:
 ```json
 {
   "name": "integration",
-  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo"]
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail"]
 }
 ```
 

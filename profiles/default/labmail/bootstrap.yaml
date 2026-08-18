@@ -1,0 +1,87 @@
+# LabMail desired state. Mounted read-only at /etc/labmail/config.yaml.
+# Compose service name and labinfo catalog id stay `maildev` for this swap
+# release. allowLegacyClients is on so MCPJungle (mark3labs/mcp-go v0.48)
+# can register without a LabMail patch. SMTP AUTH stays off so smoke
+# SendMail(..., nil, ...) still works. Basic username is frozen admin
+# (this YAML does not interpolate MAILDEV_WEB_USER). Bind-mounted secret
+# files must be 0o644 (UID 65532). Receive-only is structural: do not add
+# outbound/relay keys.
+apiVersion: labmail.dev/v1alpha1
+kind: LabMail
+metadata:
+  name: lab-sink
+spec:
+  listeners:
+    smtp:
+      address: ":1025"
+    management:
+      address: ":1080"
+      restPath: /v1
+      mcpPath: /mcp
+      compatEnabled: true
+      tls:
+        enabled: false
+        certFile: ""
+        keyFile: ""
+
+  smtp:
+    hostname: labmail.lab
+    maxMessageBytes: 10MiB
+    maxRecipients: 100
+    hideExtensions: []
+    auth:
+      mode: none
+      username: ""
+      passwordFile: ""
+    tls:
+      mode: off
+      required: false
+      certFile: ""
+      keyFile: ""
+    admission:
+      maxSessions: 256
+      maxSessionsPerIP: 32
+      maxInFlightData: 8
+      maxInFlightDataBytes: 64MiB
+      sessionTimeout: 10m
+      commandIdle: 120s
+      dataIdle: 180s
+
+  store:
+    maxMessages: 1000
+    maxBytes: 256MiB
+    fullPolicy: reject
+    maxWait: 60s
+    spillDirectory: ""
+    spillThreshold: 256KiB
+
+  ui:
+    enabled: true
+
+  management:
+    auth:
+      mode: bearer_and_basic
+      tokens:
+        - id: admin
+          secretFile: /run/secrets/labmail-token
+          role: administrator
+          scopes: [mail.read, mail.write, mail.admin, mail.audit.read]
+      basic:
+        username: admin
+        passwordFile: /run/secrets/maildev-web-password
+        tokenRef: admin
+    mcp:
+      allowLegacyClients: true
+    originAllowlist: []
+    bodyLimit: 1MiB
+    requestsPerSecond: 32
+    burst: 64
+    maxConcurrent: 256
+
+  observability:
+    logLevel: info
+    metrics:
+      listen: "127.0.0.1:9090"
+      publicPath: false
+    audit:
+      ring: 128

@@ -48,3 +48,18 @@ func TestServerNamesRejectsBadConfigs(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultProfileRegistersLabmail(t *testing.T) {
+	dir := filepath.Join("..", "..", "profiles", "default", "mcpjungle", "servers")
+	got, err := serverNames(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true}
+	for _, name := range got {
+		delete(want, name)
+	}
+	if len(want) != 0 {
+		t.Fatalf("default profile servers = %v, missing %v", got, want)
+	}
+}

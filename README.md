@@ -72,7 +72,7 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 | **LabDNS** | Authoritative lab DNS: overrides, wildcards, forwarding, bounded chaos | 10053 udp/tcp · REST/MCP 18080 |
 | **LabLDAP** | Native Go directory (`labldapd`) + control plane | 3389 / 3636 · HTTPS 8443 |
 | **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 · HTTP 18049 |
-| **maildev** | Receive-only SMTP sink + web UI | 1025 · 1080 |
+| **LabMail** | Receive-only SMTP sink + UI / REST / MCP (compose service `maildev`) | 1025 · 1080 |
 | **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 |
 | **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
 | **MCPJungle** | Single MCP gateway, tool groups, optional ACLs | 8080 |
@@ -86,7 +86,7 @@ flowchart LR
     Jungle
     DNS[LabDNS]
     NFS[ratarmount-rs]
-    Mail[maildev]
+    Mail[LabMail]
     Info[labinfo]
   end
   subgraph labldap [compose project labldap]
@@ -100,6 +100,7 @@ flowchart LR
   Jungle --> Info
   Jungle --> Control
   Jungle --> Taclab
+  Jungle --> Mail
   Control --> Dir
   Testers[integration testers] -->|DNS LDAP NFS TACACS+ RADIUS SMTP| mcplab
   Testers --> labldap
@@ -116,7 +117,7 @@ profiles/<name>/
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
   labinfo/services.yaml    endpoint + connection catalog
-  maildev/maildev.yaml     maildev flags (relay flags are rejected)
+  labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   mcpjungle/servers/*.json gateway registrations
   mcpjungle/groups/        curated tool groups
 ```
@@ -177,8 +178,8 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, and bounded chaos. YAML desired state, REST + MCP. |
 | [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine, REST, MCP, and a browser UI. Pinned **v0.2.2**. |
 | [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.3.0**. |
+| [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.2**. Compose service name stays `maildev`. |
 | [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. |
-| [maildev/maildev](https://github.com/maildev/maildev) | SMTP testing server with a web UI. Used strictly as a receive-only sink. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
 
@@ -213,4 +214,4 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
 
 ## Status
 
-POC. v0.2.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.
+POC. v0.3.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.

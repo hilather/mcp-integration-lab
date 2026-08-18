@@ -147,27 +147,39 @@ services:
           usage: "RADIUS shared secret for the 'lab_switches' client profile (access + accounting); on the lab host: third_party/go-lab-tacacs-mcp/deployments/compose/secrets/lab_switches_radius_secret"
 
   - id: maildev
-    name: Mail sink (maildev, receive-only)
-    description: Receive-only SMTP sink with a web UI and REST API for inspecting captured mail. It never relays or sends mail outward; captured mail is wiped on restart.
+    name: Mail sink (LabMail, receive-only)
+    description: Receive-only SMTP sink (LabMail) with a web UI, maildev /email compat, native /v1 REST, and MCP. It never relays or sends mail outward; captured mail is wiped on restart.
     urls:
       - name: Web UI
         url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/
-      - name: REST API (list mail)
+      - name: REST API (maildev /email)
         url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/email
+      - name: REST API (native /v1)
+        url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/mcp
     note: "SMTP ingest (no auth, no TLS required): ${LAB_PUBLIC_HOST}:${MAILDEV_SMTP_PORT}. Point systems under test at it as their outbound SMTP server."
     credential:
       file: /run/lab-secrets/maildev-web-password
-      usage: "HTTP basic auth for the web UI and REST API, user '${MAILDEV_WEB_USER}'"
+      usage: "HTTP basic auth for the web UI and /email compat, user 'admin' (frozen; LabMail YAML does not interpolate MAILDEV_WEB_USER)"
     connection:
       endpoints:
         - name: SMTP ingest
           protocol: smtp
           address: ${LAB_PUBLIC_HOST}:${MAILDEV_SMTP_PORT}
           note: configure as the outbound SMTP server of the system under test; all mail is captured, none is relayed
+        - name: MCP (streamable HTTP)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/mcp
+          note: bearer only; gateway interpolates LABMAIL_TOKEN
       parameters:
-        auth: "none by default (this profile sets no incoming-user/incoming-pass in maildev/maildev.yaml)"
+        auth: "none by default (this profile sets smtp.auth.mode=none; no incoming-user/incoming-pass)"
         tls: "not required; plain SMTP is accepted"
         sender_recipient: "any From/To addresses are accepted and captured"
+      credentials:
+        - name: labmail-token
+          file: /run/lab-secrets/labmail-token
+          usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labmail-token"
 
   - id: nfs
     name: NFS export (ratarmount-rs)

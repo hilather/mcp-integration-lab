@@ -7,85 +7,166 @@ import (
 	"testing"
 )
 
-func write(t *testing.T, body string) string {
+func writeProfile(t *testing.T, files map[string]string) string {
 	t.Helper()
-	p := filepath.Join(t.TempDir(), "maildev.yaml")
+	dir := t.TempDir()
+	for rel, body := range files {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+const validBootstrap = `
+apiVersion: labmail.dev/v1alpha1
+kind: LabMail
+spec:
+  smtp:
+    tls:
+      mode: off
+  management:
+    auth:
+      tokens:
+        - id: admin
+          secretFile: /run/secrets/labmail-token
+      basic:
+        username: admin
+        passwordFile: /run/secrets/maildev-web-password
+    mcp:
+      allowLegacyClients: true
+`
+
+func TestValidateProfileAcceptsValidBootstrap(t *testing.T) {
+	dir := writeProfile(t, map[string]string{"labmail/bootstrap.yaml": validBootstrap})
+	if err := ValidateProfile(dir); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateDefaultProfileBootstrap(t *testing.T) {
+	dir := filepath.Join("..", "..", "profiles", "default")
+	if err := ValidateProfile(dir); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateProfileRejectsLeftoverMaildevYAML(t *testing.T) {
+	dir := writeProfile(t, map[string]string{
+		"labmail/bootstrap.yaml": validBootstrap,
+		"maildev/maildev.yaml":   "flags: {}\n",
+	})
+	err := ValidateProfile(dir)
+	if err == nil || !strings.Contains(err.Error(), "replaced by labmail/bootstrap.yaml") {
+		t.Fatalf("expected leftover rejection, got %v", err)
+	}
+}
+
+func TestValidateBootstrapMissingFile(t *testing.T) {
+	if err := ValidateProfile(t.TempDir()); err == nil {
+		t.Fatal("expected missing bootstrap error")
+	}
+}
+
+func TestValidateBootstrapRejectsRelayKeys(t *testing.T) {
+	for _, key := range []string{
+		"outgoing-host",
+		"outgoingHost",
+		"auto-relay",
+		"autoRelay",
+		"--auto-relay",
+		"relay",
+		"smarthost",
+		"forwardTo",
+		"deliver",
+		"environment",
+		"flags",
+		"incoming-secure",
+		"mail-directory",
+		"base-pathname",
+	} {
+		body := "apiVersion: labmail.dev/v1alpha1\nkind: LabMail\n" + key + ": true\n"
+		p := filepath.Join(t.TempDir(), "bootstrap.yaml")
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		err := ValidateBootstrap(p)
+		if err == nil || !strings.Contains(err.Error(), "receive-only") {
+			t.Fatalf("key %q: expected receive-only rejection, got %v", key, err)
+		}
+	}
+}
+
+func TestValidateBootstrapRejectsImplicitSMTPS(t *testing.T) {
+	body := `
+apiVersion: labmail.dev/v1alpha1
+kind: LabMail
+spec:
+  smtp:
+    tls:
+      mode: implicit
+  management:
+    auth:
+      tokens:
+        - secretFile: /run/secrets/labmail-token
+      basic:
+        username: admin
+        passwordFile: /run/secrets/maildev-web-password
+    mcp:
+      allowLegacyClients: true
+`
+	p := filepath.Join(t.TempDir(), "bootstrap.yaml")
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return p
+	err := ValidateBootstrap(p)
+	if err == nil || !strings.Contains(err.Error(), "implicit") {
+		t.Fatalf("expected implicit SMTPS rejection, got %v", err)
+	}
 }
 
-func TestArgsMissingFileEmitsBase(t *testing.T) {
-	got, err := Args(filepath.Join(t.TempDir(), "nope.yaml"))
-	if err != nil {
+func TestValidateBootstrapRejectsLegacyClientsOff(t *testing.T) {
+	body := strings.Replace(validBootstrap, "allowLegacyClients: true", "allowLegacyClients: false", 1)
+	p := filepath.Join(t.TempDir(), "bootstrap.yaml")
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got != "--smtp 1025 --web 1080" {
-		t.Fatalf("base args = %q", got)
+	err := ValidateBootstrap(p)
+	if err == nil || !strings.Contains(err.Error(), "allowLegacyClients") {
+		t.Fatalf("expected allowLegacyClients rejection, got %v", err)
 	}
 }
 
-func TestArgsRendersFlagShapes(t *testing.T) {
-	p := write(t, `
-flags:
-  verbose: true
-  silent: false
-  mail-directory: /tmp/mail
-  hide-extensions: [STARTTLS, SMTPUTF8]
-  ip: 0.0.0.0
-`)
-	got, err := Args(p)
-	if err != nil {
+func TestValidateBootstrapRejectsWrongBasicUser(t *testing.T) {
+	body := strings.Replace(validBootstrap, "username: admin", "username: other", 1)
+	p := filepath.Join(t.TempDir(), "bootstrap.yaml")
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	want := "--smtp 1025 --web 1080 --hide-extensions STARTTLS SMTPUTF8 --ip 0.0.0.0 --mail-directory /tmp/mail --verbose"
-	if got != want {
-		t.Fatalf("args = %q, want %q", got, want)
+	err := ValidateBootstrap(p)
+	if err == nil || !strings.Contains(err.Error(), "MAILDEV_WEB_USER") {
+		t.Fatalf("expected frozen username rejection, got %v", err)
 	}
 }
 
-func TestArgsRejectsRelayFlags(t *testing.T) {
-	for _, flag := range []string{
-		"outgoing-host: smtp.example.com",
-		"outgoing-port: 25",
-		"outgoing-user: bob",
-		"outgoing-pass: hunter2",
-		"outgoing-secure: true",
-		"auto-relay: true",
-		"auto-relay-rules: /rules.json",
-	} {
-		p := write(t, "flags:\n  "+flag+"\n")
-		_, err := Args(p)
-		if err == nil || !strings.Contains(err.Error(), "receive-only") {
-			t.Fatalf("flag %q: expected receive-only rejection, got %v", flag, err)
-		}
+func TestValidateBootstrapRejectsWrongSecretPaths(t *testing.T) {
+	body := strings.Replace(validBootstrap, "/run/secrets/labmail-token", "/etc/wrong-token", 1)
+	p := filepath.Join(t.TempDir(), "bootstrap.yaml")
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := ValidateBootstrap(p)
+	if err == nil || !strings.Contains(err.Error(), "labmail-token") {
+		t.Fatalf("expected token path rejection, got %v", err)
 	}
 }
 
-func TestArgsRejectsManagedFlags(t *testing.T) {
-	for _, flag := range []string{"smtp: 2525", "web: 9999", "web-user: x", "web-pass: y"} {
-		p := write(t, "flags:\n  "+flag+"\n")
-		_, err := Args(p)
-		if err == nil || !strings.Contains(err.Error(), "managed by the lab") {
-			t.Fatalf("flag %q: expected managed rejection, got %v", flag, err)
-		}
-	}
-}
-
-func TestArgsRejectsLeadingDashesAlias(t *testing.T) {
-	// Sneaking the flag in with dashes must not bypass the guard.
-	p := write(t, "flags:\n  --auto-relay: true\n")
-	if _, err := Args(p); err == nil {
-		t.Fatal("expected rejection of --auto-relay")
-	}
-}
-
-func TestArgsRejectsInjectableValues(t *testing.T) {
-	p := write(t, `flags:
-  mail-directory: "/tmp/x --auto-relay"
-`)
-	if _, err := Args(p); err == nil {
-		t.Fatal("expected rejection of value containing whitespace")
+func TestNormalizeKeyStripsDashes(t *testing.T) {
+	if got, want := normalizeKey("--Auto_Relay"), "autorelay"; got != want {
+		t.Fatalf("normalizeKey = %q, want %q", got, want)
 	}
 }

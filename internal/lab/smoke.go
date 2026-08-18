@@ -69,13 +69,7 @@ func (s *smokeState) invoke(tool, input string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	env := append(append([]string{}, s.r.Env...),
-		"LABDNS_TOKEN="+tokens["labdns"],
-		"LABLDAP_TOKEN="+tokens["labldap"],
-		"LABTACACS_TOKEN="+tokens["labtacacs"],
-		"LABINFO_TOKEN="+tokens["labinfo"],
-		"MCP_CLIENT_TOKEN="+tokens["client"],
-	)
+	env := s.r.registrarEnv(tokens)
 	out, err := s.r.captureWithEnv(env, "docker",
 		"compose", "run", "--rm", "-T", "--no-deps", "--quiet-pull",
 		"registrar", "--registry", "http://mcpjungle:8080",
@@ -298,6 +292,13 @@ func (s *smokeState) maildevScenario() {
 		}
 	}
 	s.check(found, "captured mail visible via authenticated REST")
+
+	// MCP wait is additive: keep the three REST/SMTP assertions above
+	// unchanged (TestMaildevScenarioCompat twin in go-lab-maildev).
+	waitIn := fmt.Sprintf(`{"filter":{"subjectContains":%q},"timeout":"10s"}`, subject)
+	waitOut, err := s.invoke("labmail__mail_messages_wait", waitIn)
+	s.check(err == nil && strings.Contains(waitOut, subject),
+		fmt.Sprintf("mail_messages_wait sees captured mail (err=%v)", err))
 }
 
 // radiusAuth sends one PAP Access-Request and returns the verified reply code.
@@ -431,6 +432,7 @@ func (s *smokeState) labinfoScenario() {
 	smtpPort := s.r.Prof.Get("MAILDEV_SMTP_PORT", "1025")
 	allHaveEndpoints := true
 	foundSMTP := false
+	foundMailMCP := false
 	foundBaseDN := false
 	connSecretsRevealed := false
 	for _, svc := range conns.Services {
@@ -440,6 +442,9 @@ func (s *smokeState) labinfoScenario() {
 		for _, e := range svc.Endpoints {
 			if svc.ID == "maildev" && e.Protocol == "smtp" && strings.HasSuffix(e.Address, ":"+smtpPort) {
 				foundSMTP = true
+			}
+			if svc.ID == "maildev" && e.Protocol == "mcp-streamable-http" && strings.Contains(e.Address, "/mcp") {
+				foundMailMCP = true
 			}
 		}
 		if svc.ID == "labldap" && strings.HasPrefix(svc.Parameters["base_dn"], "dc=") {
@@ -453,6 +458,7 @@ func (s *smokeState) labinfoScenario() {
 	}
 	s.check(allHaveEndpoints, "every service documents at least one protocol endpoint")
 	s.check(foundSMTP, "maildev SMTP endpoint carries the profile's port")
+	s.check(foundMailMCP, "maildev MCP endpoint is cataloged")
 	s.check(foundBaseDN, "labldap parameters include the base DN")
 	s.check(connSecretsRevealed == devMode,
 		fmt.Sprintf("connection secrets revealed only in dev mode (revealed=%v)", connSecretsRevealed))

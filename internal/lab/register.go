@@ -22,13 +22,7 @@ func (r *Runner) Register() error {
 	if err != nil {
 		return err
 	}
-	regEnv := append(append([]string{}, r.Env...),
-		"LABDNS_TOKEN="+tokens["labdns"],
-		"LABLDAP_TOKEN="+tokens["labldap"],
-		"LABTACACS_TOKEN="+tokens["labtacacs"],
-		"LABINFO_TOKEN="+tokens["labinfo"],
-		"MCP_CLIENT_TOKEN="+tokens["client"],
-	)
+	regEnv := r.registrarEnv(tokens)
 
 	servers, err := serverNames(filepath.Join(r.Prof.Dir, "mcpjungle", "servers"))
 	if err != nil {
@@ -103,10 +97,26 @@ func (r *Runner) loadTokens() (map[string]string, error) {
 	if out["labinfo"], err = read("secrets/labinfo-token"); err != nil {
 		return nil, err
 	}
+	if out["labmail"], err = read("secrets/labmail-token"); err != nil {
+		return nil, err
+	}
 	if out["client"], err = read("secrets/mcp-client-token"); err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+// registrarEnv is the process environment for `docker compose run registrar`:
+// compose interpolates ${LAB*_TOKEN} into the server JSON files.
+func (r *Runner) registrarEnv(tokens map[string]string) []string {
+	return append(append([]string{}, r.Env...),
+		"LABDNS_TOKEN="+tokens["labdns"],
+		"LABLDAP_TOKEN="+tokens["labldap"],
+		"LABTACACS_TOKEN="+tokens["labtacacs"],
+		"LABINFO_TOKEN="+tokens["labinfo"],
+		"LABMAIL_TOKEN="+tokens["labmail"],
+		"MCP_CLIENT_TOKEN="+tokens["client"],
+	)
 }
 
 // serverNames discovers the MCP servers a profile registers by parsing the

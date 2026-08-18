@@ -1,0 +1,7 @@
+{
+  "name": "labmail",
+  "transport": "streamable_http",
+  "description": "Receive-only SMTP sink (LabMail): captured mail over REST /v1 and /email, wait/extract, plan/apply/reset. Compose service name stays maildev.",
+  "url": "http://maildev:1080/mcp",
+  "bearer_token": "${LABMAIL_TOKEN}"
+}

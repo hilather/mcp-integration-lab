@@ -7,6 +7,17 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-18
+
+### Changed
+
+- **Mail sink is LabMail** (`go-lab-maildev` **v1.0.0-rc.2**) instead of the
+  Node `maildev/maildev` image. Compose service name and labinfo catalog id
+  stay `maildev`. Desired state is `labmail/bootstrap.yaml`; leftover
+  `maildev/maildev.yaml` and relay/outbound keys are rejected fail-closed.
+  MCP is registered (`labmail` server, `allowLegacyClients: true`). Bind-
+  mounted secrets are 0o644 so the unprivileged container can read them.
+
 ## [0.2.0] - 2026-08-17
 
 ### Changed

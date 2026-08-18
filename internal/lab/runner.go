@@ -45,21 +45,11 @@ func New(root string) (*Runner, error) {
 	return r, nil
 }
 
-// refreshDerivedEnv appends environment values derived from the profile and
-// from generated secrets: the maildev command line (rendered from the
-// profile's maildev.yaml with the receive-only guard) and the maildev web UI
-// password. Appended duplicates win (exec uses the last value), so calling
-// this again after `mcplab secrets` picks up freshly generated files.
+// refreshDerivedEnv re-validates the active profile's LabMail bootstrap
+// (receive-only guard, leftover maildev.yaml rejection). Secrets are
+// bind-mounted as files; do not inject MAILDEV_ARGS / MAILDEV_WEB_PASS.
 func (r *Runner) refreshDerivedEnv() error {
-	args, err := maildev.Args(filepath.Join(r.Prof.Dir, "maildev", "maildev.yaml"))
-	if err != nil {
-		return err
-	}
-	r.Env = append(r.Env, "MAILDEV_ARGS="+args)
-	if b, err := os.ReadFile(r.path("secrets/maildev-web-password")); err == nil {
-		r.Env = append(r.Env, "MAILDEV_WEB_PASS="+strings.TrimSpace(string(b)))
-	}
-	return nil
+	return maildev.ValidateProfile(r.Prof.Dir)
 }
 
 func (r *Runner) path(rel string) string {

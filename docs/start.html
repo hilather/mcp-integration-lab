@@ -81,7 +81,7 @@ ldapsearch -H ldaps://<lab-host>:3636 \
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt</code></pre>
-        <p>Point outbound SMTP at <code><lab-host>:1025</code> and read captured mail in the maildev UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under <code>third_party/go-lab-tacacs-mcp/deployments/compose/secrets/</code> and a Message-Authenticator attribute.</p>
+        <p>Point outbound SMTP at <code><lab-host>:1025</code> and read captured mail in the LabMail UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under <code>third_party/go-lab-tacacs-mcp/deployments/compose/secrets/</code> and a Message-Authenticator attribute.</p>
 
         <h2 id="profile">Pick a profile</h2>
         <p>Copy <code>profiles/default</code> to <code>profiles/teamx</code>, edit ports and YAML, then:</p>

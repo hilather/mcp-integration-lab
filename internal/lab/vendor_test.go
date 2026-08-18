@@ -16,4 +16,7 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	if got["third_party/go-lab-dns"] != "" {
 		t.Fatalf("labdns should stay unpinned until MCP wiring lands upstream, got %q", got["third_party/go-lab-dns"])
 	}
+	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.2" {
+		t.Fatalf("labmail pin = %q, want v1.0.0-rc.2", got["third_party/go-lab-maildev"])
+	}
 }
