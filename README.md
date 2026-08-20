@@ -43,6 +43,7 @@ make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail through the gateway
 ```
 
 Needs Docker Engine 24+ with Compose v2.24.4+, GNU make, and Go 1.26+. First run vendors the service repos and builds images; later runs reuse them.
+Older Compose releases fail validation of the LabLDAP overlay; use v2.24.4 or newer.
 
 Point an MCP client at the gateway. The default profile runs enterprise mode, so send the minted client token:
 
@@ -124,6 +125,8 @@ profiles/<name>/
 
 Select it with `PROFILE=` in `.env` (see [`.env.example`](.env.example)) or per invocation: `make up PROFILE=teamx`. Process env overrides `.env`, which overrides `profile.env`.
 
+Team-local profiles under `profiles/<name>/` (other than `default`) are gitignored — see [`profiles/README.md`](profiles/README.md). Do not leave stale port overrides in `.env` (for example `LABDNS_DNS_PORT=10053` while your profile sets `53`) — `make preflight` rejects that drift.
+
 A LabDNS zone from the default profile:
 
 ```yaml
@@ -166,8 +169,12 @@ Configuration reference with every variable and a working snippet for each servi
 | `make down` | Stop. Bind-mounted storage survives. |
 | `make reset` | Stop and wipe all runtime state |
 | `make register` | Reapply gateway JSON from the active profile |
+| `make preflight` | Fail fast on profile drift and unavailable host ports |
 | `make smoke` | End-to-end scenario through the gateway |
 | `make test` | `go vet` + unit/regression tests for the CLI |
+
+`make up` and `make register` run the same preflight check automatically. To
+bypass intentionally, set `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`.
 
 ## Projects in this lab
 

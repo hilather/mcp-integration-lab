@@ -7,6 +7,33 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Added
+
+- `mcplab preflight` / `make preflight` now fail fast when critical endpoint
+  and mode values (host, control-plane ports, dev/enterprise mode) are
+  overridden outside `profiles/<name>/profile.env`, preventing stale
+  `localhost`/port drift from being registered into labinfo.
+- Preflight probes every host port the active profile publishes (mcplab,
+  LabLDAP, and TacLab compose projects) and fails before bring-up when a
+  port is held by a non-lab process. Ports already published by this lab's
+  containers are allowed so idempotent `make up` still works.
+- `profiles/README.md` documents that only `default` is shipped and other
+  profile directories are gitignored for team-local customization.
+
+### Changed
+
+- `mcplab up` and `mcplab register` now run the same preflight check before
+  starting containers or registering servers. Intentional env overrides can
+  still proceed by setting `MCPLAB_ALLOW_PROFILE_OVERRIDES=true` (port checks
+  always run).
+- Preflight now includes `LABDNS_DNS_PORT`, so a stale `.env` override (for
+  example a leftover `10053` while the active profile expects `53`) fails
+  before bring-up and labinfo would advertise the wrong resolver port.
+- Local Cursor MCP config moves to `.cursor/mcp.json.example`; `.cursor/mcp.json`
+  is gitignored so host-specific gateway URLs are not committed.
+- Only `profiles/default` is shipped; team-specific profiles live in gitignored
+  `profiles/<name>/` directories locally.
+
 ## [0.3.0] - 2026-08-18
 
 ### Changed

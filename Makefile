@@ -3,7 +3,7 @@
 SHELL := /bin/bash
 export PROFILE
 
-.PHONY: help up down reset register smoke vendor secrets fixtures labldap-up labldap-down labtacacs-up labtacacs-down test
+.PHONY: help up down reset register preflight smoke vendor secrets fixtures labldap-up labldap-down labtacacs-up labtacacs-down test
 
 help:
 	@go run ./cmd/mcplab 2>&1 || true
@@ -19,6 +19,9 @@ reset:
 
 register:
 	go run ./cmd/mcplab register
+
+preflight:
+	go run ./cmd/mcplab preflight
 
 smoke:
 	go run ./cmd/mcplab smoke

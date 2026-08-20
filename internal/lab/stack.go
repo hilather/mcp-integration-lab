@@ -6,6 +6,9 @@ import "fmt"
 // secrets, fixtures, LabLDAP and TacLab projects, main compose project, and
 // gateway registration. Idempotent.
 func (r *Runner) Up() error {
+	if err := r.Preflight(); err != nil {
+		return err
+	}
 	fmt.Printf("profile: %s (%s)\n", r.Prof.Name, r.Prof.Dir)
 	for _, step := range []func() error{
 		r.Vendor,

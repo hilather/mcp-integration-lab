@@ -11,3 +11,10 @@ third_party/
 *.db
 mnt/
 .env
+
+# Team-local profiles (copy profiles/default to start)
+profiles/*/
+!profiles/default/
+
+# Local Cursor MCP endpoints (host-specific; see .cursor/mcp.json.example)
+.cursor/mcp.json

@@ -6,7 +6,9 @@ Secrets are generated and gitignored. Runtime mutations are wipeable.
 The same reference is published as
 [configure.html](https://hilather.github.io/mcp-integration-lab/configure.html).
 The snippets below are taken from `profiles/default` — copy that directory
-to start a team profile.
+to start a team profile. Directories under `profiles/` other than `default`
+are gitignored so local profiles survive `git pull`; see
+[`profiles/README.md`](../profiles/README.md).
 
 ## Who owns what
 
@@ -59,8 +61,26 @@ Highest wins:
 ```bash
 # .env
 PROFILE=default
-# LABDNS_DNS_PORT=53   # uncomment to override the profile
+# PROFILE=teamx
 ```
+
+If your team profile sets different ports in `profile.env`, do not leave stale
+overrides in `.env` — preflight rejects drift (for example `LABDNS_DNS_PORT=10053`
+in `.env` while the profile sets `53`).
+
+## Preflight
+
+`make preflight` (also run automatically by `make up` and `make register`) checks:
+
+1. **Profile drift** — critical endpoint/mode values in `.env` or process env
+   must match `profiles/<name>/profile.env` (unless
+   `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`).
+2. **Host ports** — every published port from the active profile must be free,
+   or already held only by this lab's Docker containers (idempotent restarts).
+
+If a profile uses IANA port 53 for DNS and systemd-resolved already holds it,
+preflight fails before compose starts. Stop the conflicting service or pick a
+different `LABDNS_DNS_PORT` in your team profile.
 
 ## profile.env — every knob
 

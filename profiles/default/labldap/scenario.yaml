@@ -24,7 +24,7 @@ spec:
     startupMode: merge
     softReset: true
   transport:
-    insecureLabMode: false
+    insecureLabMode: true
     ldap:
       enabled: true
       port: 3389
@@ -40,8 +40,6 @@ spec:
       mode: files
       certFile: /run/secrets/management.crt
       keyFile: /run/secrets/management.key
-    cors:
-      allowedOrigins: []
     session:
       idleTimeout: 30m
       absoluteTimeout: 8h

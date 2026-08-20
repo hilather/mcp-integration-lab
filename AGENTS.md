@@ -12,7 +12,9 @@ we work by.
    `profiles/<name>/` (see `profiles/default`). Never hardcode a port or a
    config path in `docker-compose.yaml`; add a variable to `profile.env` with
    a sane default in the compose file. `.env` selects the profile (`PROFILE=`)
-   and may override individual values; process env overrides both.
+   and may override individual values; process env overrides both. Only
+   `profiles/default` is shipped; other `profiles/<name>/` directories are
+   gitignored so teams can maintain local profiles across `git pull`.
 2. **Permanent config is YAML; runtime state is ephemeral.** Bootstrap and
    scenario files are the desired state; anything mutated at runtime (via MCP
    tools) must be wipeable by `make reset` and restorable by restart or

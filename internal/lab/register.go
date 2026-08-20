@@ -15,6 +15,9 @@ import (
 // running gateway. Idempotent: deregister/recreate is the supported "update"
 // path upstream, and gateway state is ephemeral by design (tmpfs SQLite).
 func (r *Runner) Register() error {
+	if err := r.Preflight(); err != nil {
+		return err
+	}
 	port := r.Prof.Get("MCP_GATEWAY_PORT", "8080")
 	mode := r.Prof.Get("MCPJUNGLE_MODE", "development")
 

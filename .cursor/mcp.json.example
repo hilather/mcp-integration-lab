@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "integration-lab-gateway": {
+      "url": "http://<lab-host>:8080/mcp"
+    },
+    "integration-lab-labdns": {
+      "url": "http://<lab-host>:18080/mcp",
+      "headers": {
+        "Authorization": "Bearer <labdns-token>"
+      }
+    }
+  }
+}

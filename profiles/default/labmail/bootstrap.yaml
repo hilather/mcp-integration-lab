@@ -72,7 +72,6 @@ spec:
         tokenRef: admin
     mcp:
       allowLegacyClients: true
-    originAllowlist: []
     bodyLimit: 1MiB
     requestsPerSecond: 32
     burst: 64

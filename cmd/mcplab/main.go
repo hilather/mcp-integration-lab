@@ -19,6 +19,7 @@ Usage: mcplab <command>
   down           stop everything (bind-mounted storage survives)
   reset          down -v for all compose projects: wipe all runtime state
   register       (re)apply gateway config from the active profile
+  preflight      fail fast on profile drift and unavailable host ports
   smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail scenario through the gateway
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
@@ -49,6 +50,7 @@ func main() {
 		"down":         r.Down,
 		"reset":        r.Reset,
 		"register":     r.Register,
+		"preflight":    r.Preflight,
 		"smoke":        r.Smoke,
 		"vendor":       r.Vendor,
 		"secrets":      r.Secrets,

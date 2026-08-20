@@ -81,7 +81,10 @@ make up PROFILE=teamx</code></pre>
         </ol>
         <pre><code># .env
 PROFILE=default
-# LABDNS_DNS_PORT=53   # uncomment to override the profile</code></pre>
+# PROFILE=teamx</code></pre>
+
+        <h2 id="preflight">Preflight</h2>
+        <p><code>make preflight</code> (also run by <code>make up</code> and <code>make register</code>) checks profile drift and that every published host port is free or already held only by this lab's containers. Failures stop bring-up before compose dies mid-deploy.</p>
 
         <h2 id="knobs">profile.env — every knob</h2>
         <table>

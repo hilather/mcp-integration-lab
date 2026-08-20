@@ -15,7 +15,7 @@ make up && make smoke
 
 | Kind of change | Put it here |
 | --- | --- |
-| Ports, YAML, gateway registrations | `profiles/<name>/` |
+| Ports, YAML, gateway registrations | `profiles/<name>/` (`default` is shipped; other names are gitignored locally) |
 | Orchestration logic | `cmd/mcplab` and `internal/` |
 | Compose overlays for LabLDAP / TacLab | `compose/` |
 | Upstream fix you need now | `patches/` — and open a PR on the upstream repo |
