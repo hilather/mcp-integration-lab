@@ -79,7 +79,7 @@
                    labldapd                 :1812/:1813 :8080</code></pre>
 
         <h2>Permanence vs. wipe</h2>
-        <p>Bootstrap YAML and scenario files are desired state. Anything an MCP tool mutates must come back with <code>make reset</code> or a <code>*_state_reset</code> tool. Gateway registration is tmpfs. The only durable host paths a profile may define are <code>NFS_ARCHIVE_DIR</code> and <code>NFS_DATA_DIR</code>.</p>
+        <p>Bootstrap YAML and scenario files are desired state. Anything an MCP tool mutates must come back with <code>make reset</code> or a <code>*_state_reset</code> tool. Gateway registration is tmpfs. The only durable host paths a profile may define are <code>NFS_ARCHIVE_DIR</code> and <code>NFS_DATA_DIR</code>. After a YAML tweak, <code>make reload APP=&lt;app&gt;</code> recreates that one service; <code>make up</code> is first bring-up, a vendor pin bump, or a profile switch.</p>
 
         <h2>Security model</h2>
         <p>Internal hops always use static bearer tokens on the isolated docker network. The single profile knob is <code>LAB_DEV_MODE</code>.</p>
@@ -91,10 +91,11 @@
 
         <h2>Vendoring and pins</h2>
         <ul>
-          <li>LabLDAP <code>v0.2.2</code> — no local patch.</li>
+          <li>LabDNS <code>v1.1.0</code> — operator console on <code>GET /</code>. Local patch is only <code>patches/go-lab-dns-relax-mcp-pin.patch</code> (MCPJungle protocol).</li>
+          <li>LabLDAP <code>v0.3.0</code> — native is the default engine; no local patch. Compose is <code>compose.yaml</code> + <code>compose.ephemeral.yaml</code>.</li>
           <li>TacLab <code>v1.3.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob.</li>
-          <li>LabMail <code>v1.0.0-rc.2</code> — MCP pin relaxed with <code>allowLegacyClients: true</code> in <code>labmail/bootstrap.yaml</code>. Compose service name stays <code>maildev</code>.</li>
-          <li>LabDNS tracks default branch. <code>patches/go-lab-dns-wire-mcp.patch</code> wires Streamable HTTP into <code>serve</code> and relaxes the 2026-07-28 protocol pin so MCPJungle’s client can connect.</li>
+          <li>LabMail <code>v1.0.0-rc.3</code> — MCP pin relaxed with <code>allowLegacyClients: true</code> in <code>labmail/bootstrap.yaml</code>. Default <code>originAllowlist: ["*"]</code> for remote inbox JS. Compose service name stays <code>maildev</code>.</li>
+          <li>ratarmount-rs <code>v0.1.24</code> — NFSv3 export; NFSv4.1 is packaged but not enabled.</li>
         </ul>
         <p class="note">Full write-up, mermaid topology, and the OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>. Configure a profile: <a href="configure.html">Configure</a>.</p>
       </article>

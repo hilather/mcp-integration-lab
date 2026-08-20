@@ -1,12 +1,14 @@
 # LabLDAP scenario for the MCP integration lab.
-# Based on upstream deploy/compose/scenario.native.yaml with lab-specific
-# changes:
-#   - directory.engine: native (labldapd, not 389 DS)
+# Based on upstream deploy/compose/scenario.yaml (native is the default
+# engine as of v0.3.0) with lab-specific changes:
+#   - directory.engine: native (explicit; omitted also compiles as native)
 #   - management TLS uses lab-CA-signed files (staged by secret-prep) so the
 #     MCP gateway can verify the control plane's certificate
 #   - MCP mutation + password tools are registered for AI-driven scenarios
 #     (includes v0.2+ account-workflow tools: ldap_get_account_state,
 #     expire/lock/enable, etc.)
+# After editing, `make reload APP=labldap` recreates directory + control
+# (ephemeral /data is re-seeded from this file).
 apiVersion: labldap.dev/v1alpha1
 kind: LabScenario
 metadata:

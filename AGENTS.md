@@ -79,7 +79,7 @@ we work by.
 11. **The mail sink never sends mail.** Compose service name and labinfo
     catalog id stay `maildev` for the swap release (rename later, not in
     the image-pin change). The image is LabMail (`go-lab-maildev`, pinned
-    `v1.0.0-rc.2`). Desired state is
+    `v1.0.0-rc.3`). Desired state is
     `profiles/<name>/labmail/bootstrap.yaml` (`labmail.dev/v1alpha1`).
     Receive-only is structural in LabMail: no outbound SMTP, reserved-key
     reject, `POST /email/:id/relay` is 403. `internal/maildev` fail-closes
@@ -127,9 +127,10 @@ we work by.
   merging the vendored LabLDAP and TacLab compose projects onto the shared
   network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabLDAP `v0.2.2`,
-  TacLab `v1.3.0`, LabMail `v1.0.0-rc.2`). TacLab's generated lab baseline
-  also lives under its checkout
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.1.0`,
+  LabLDAP `v0.3.0`, TacLab `v1.3.0`, LabMail `v1.0.0-rc.3`). ratarmount-rs
+  is the signed `.deb` in `docker/ratarmount/Dockerfile` (`0.1.24`).
+  TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
 - `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
@@ -142,14 +143,18 @@ we work by.
 
 - Host ports 53 and 5353 collide with systemd-resolved/avahi; that's why DNS
   defaults to 10053.
-- LabDNS pins MCP protocol `2026-07-28`; the vendored
-  `patches/go-lab-dns-wire-mcp.patch` both wires MCP into `serve` and
-  relaxes the pin because the gateway's client speaks an older generation.
+- LabDNS is pinned to **v1.1.0**. MCP is wired into `serve` upstream. The
+  vendored `patches/go-lab-dns-relax-mcp-pin.patch` only relaxes the
+  `2026-07-28` protocol pin because the gateway's client speaks an older
+  generation. Operator console is `GET /` on the management listener
+  (`spec.ui.enabled`, default true). Remote browsers need exact Origins in
+  `spec.management.allowedOrigins` (no `"*"` sentinel; loopback is already
+  allowed). `make reload APP=labdns` recreates only that container.
 - TacLab (pinned `v1.3.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`.
-- LabMail (pinned `v1.0.0-rc.2`) also pins `2026-07-28`. Do **not** patch
+- LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and
   labinfo catalog id stay `maildev`. Bind-mounted secrets
@@ -157,7 +162,10 @@ we work by.
   so UID 65532 can read them — 0o600 was only safe while `MAILDEV_WEB_PASS`
   was env-injected. Healthcheck is HTTP `GET /v1/health/ready` (scratch has
   no `node`; ready still requires SMTP bound). Leftover
-  `maildev/maildev.yaml` is rejected by `internal/maildev`.
+  `maildev/maildev.yaml` is rejected by `internal/maildev`. rc.3 hashed
+  inbox JS sends `Origin`; the default profile sets
+  `originAllowlist: ["*"]` so remote browsers can load the SPA (bearer +
+  Basic still required; CORS stays off). `"private"` is RFC1918+ULA only.
 - TacLab is self-contained: `tools/labgen` generates its whole compose bundle
   (configs incl. the combined TACACS+RADIUS variant, PKI, shared secrets,
   plaintext lab passwords in `secrets/PASSWORDS.txt`). Don't hand-write those
@@ -168,10 +176,15 @@ we work by.
   `mcplab-shared` (as the smoke test does) or use a hosts entry. Trust
   `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt` (lab CA); native
   `labldapd` serves that cert directly — there is no 389 instance-CA.
-- The LabLDAP overlay uses compose `!override` for ports; the native
-  engine overlay uses `!reset` (Compose v2.24.4+). Plain merging would
-  append to upstream's loopback publishes. TacLab's vendored
-  `compose.combined.yaml` uses `!override` too.
+- LabLDAP is pinned to **v0.3.0**. Upstream `compose.yaml` is already
+  native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
+  `compose/labldap.overlay.yaml`. Do not stack the v0.2
+  `compose.native.yaml` alias. The overlay uses compose `!override` for
+  ports (Compose v2.24.4+). Plain merging would append to upstream's
+  loopback publishes. TacLab's vendored `compose.combined.yaml` uses
+  `!override` too. `make labldap-up` is idempotent; `make reload
+  APP=labldap` force-recreates directory + control and re-runs bootstrap
+  (ephemeral `/data` is re-seeded).
 - Switching LabLDAP from 389 DS to native is a re-bootstrap: leftover
   389 `/data` (uid 389 tmpfs) fail-closes `labldapd`. `LabLDAPUp` wipes
   that volume when it sees a dirsrv image or uid=389 volume opts.
@@ -188,3 +201,9 @@ we work by.
   file; the archive bind mount must be writable (plan 2× compressed headroom).
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
+- Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
+  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs). It is
+  not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
+  compose project, and mcpjungle reload re-runs `register` because
+  registration SQLite is tmpfs. Full `make up` after a vendor pin bump,
+  profile switch, or first bring-up.

@@ -5,7 +5,7 @@
 # SendMail(..., nil, ...) still works. Basic username is frozen admin
 # (this YAML does not interpolate MAILDEV_WEB_USER). Bind-mounted secret
 # files must be 0o644 (UID 65532). Receive-only is structural: do not add
-# outbound/relay keys.
+# outbound/relay keys. After editing, `make reload APP=maildev`.
 apiVersion: labmail.dev/v1alpha1
 kind: LabMail
 metadata:
@@ -59,6 +59,12 @@ spec:
     enabled: true
 
   management:
+    # LabMail 1.0.0-rc.3: hashed inbox JS sends Origin. Empty list 403s
+    # non-loopback browsers (HTML GET / is often 200). "*" is the lab
+    # hatch because management is published on all interfaces; bearer +
+    # Basic still required. CORS/OPTIONS stay disabled. Use "private"
+    # (RFC1918 + ULA) or an exact http(s)://host[:port] to tighten.
+    originAllowlist: ["*"]
     auth:
       mode: bearer_and_basic
       tokens:

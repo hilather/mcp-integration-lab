@@ -3,7 +3,7 @@
 SHELL := /bin/bash
 export PROFILE
 
-.PHONY: help up down reset register preflight smoke vendor secrets fixtures labldap-up labldap-down labtacacs-up labtacacs-down test
+.PHONY: help up down reset register preflight smoke vendor secrets fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down test
 
 help:
 	@go run ./cmd/mcplab 2>&1 || true
@@ -34,6 +34,11 @@ secrets:
 
 fixtures:
 	go run ./cmd/mcplab fixtures
+
+# Recreate one app. APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs
+reload:
+	@test -n "$(APP)" || { echo "usage: make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs" >&2; exit 2; }
+	go run ./cmd/mcplab reload $(APP)
 
 labldap-up:
 	go run ./cmd/mcplab labldap-up

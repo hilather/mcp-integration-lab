@@ -34,7 +34,7 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <div class="eyebrow">v0.3.0 · integration laboratory</div>
+          <div class="eyebrow">v0.4.0 · integration laboratory</div>
           <h1>One gateway.<br />Every lab protocol.</h1>
           <p class="lead">
             MCP Integration Lab stands up DNS, LDAP, TACACS+, RADIUS, mail, and
@@ -92,7 +92,7 @@
                 <li><strong>labldapd</strong> — 3389 / 3636</li>
                 <li><strong>control plane</strong> — 8443</li>
                 <li>native engine, lab CA</li>
-                <li>pinned v0.2.2</li>
+                <li>pinned v0.3.0</li>
               </ul>
             </div>
             <div class="topo-project">
@@ -118,12 +118,12 @@
         </div>
         <div class="cards">
           <article class="card">
-            <h3>LabDNS</h3>
-            <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, and bounded chaos. YAML desired state; REST and MCP on the management plane.</p>
+            <h3>LabDNS · v1.1.0</h3>
+            <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state; REST, MCP, and UI on the management plane.</p>
             <div class="meta"><span>10053 · 18080</span><a href="https://github.com/hilather/go-lab-dns">hilather/go-lab-dns</a></div>
           </article>
           <article class="card">
-            <h3>LabLDAP · v0.2.2</h3>
+            <h3>LabLDAP · v0.3.0</h3>
             <p>Native Go directory (labldapd) plus a control plane. Real LDAP/LDAPS on the wire, REST, MCP, and a browser UI.</p>
             <div class="meta"><span>3389 / 3636 · 8443</span><a href="https://github.com/hilather/go-lab-ldap-mcp">hilather/go-lab-ldap-mcp</a></div>
           </article>
@@ -133,13 +133,13 @@
             <div class="meta"><span>49 / 300 · 1812 / 1813</span><a href="https://github.com/hilather/go-lab-tacacs-mcp">hilather/go-lab-tacacs-mcp</a></div>
           </article>
           <article class="card">
-            <h3>LabMail · v1.0.0-rc.2</h3>
+            <h3>LabMail · v1.0.0-rc.3</h3>
             <p>Receive-only SMTP sink with an inbox UI, maildev <code>/email</code> compat, native <code>/v1</code>, and MCP. Compose service name stays <code>maildev</code>.</p>
             <div class="meta"><span>1025 · 1080</span><a href="https://github.com/hilather/go-lab-maildev">hilather/go-lab-maildev</a></div>
           </article>
           <article class="card">
-            <h3>ratarmount-rs</h3>
-            <p>Archive-backed userspace NFSv3 export with a write overlay. Empty-root <code>.tar.zst</code>; commits every 15m.</p>
+            <h3>ratarmount-rs · v0.1.24</h3>
+            <p>Archive-backed userspace NFSv3 export with a write overlay. Empty-root <code>.tar.zst</code>; commits every 15m. NFSv4.1 is in the package; this lab stays on v3.</p>
             <div class="meta"><span>20490</span><a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></div>
           </article>
           <article class="card">
@@ -159,6 +159,7 @@
           <p>Docker Engine 24+ with Compose v2.24.4+, GNU make, and Go 1.26+. First run vendors the service repos and builds images.</p>
           <ol class="list">
             <li><strong>make up</strong> — clone vendors, mint secrets, build images, start, register.</li>
+            <li><strong>make reload APP=&lt;app&gt;</strong> — recreate one service after a YAML tweak; not a full redeploy.</li>
             <li><strong>make smoke</strong> — agent-style end-to-end scenario through the gateway.</li>
             <li><strong>http://<host>:8080/mcp</strong> — attach an MCP client. Enterprise mode needs the minted bearer.</li>
           </ol>
@@ -192,7 +193,7 @@ make smoke
           </thead>
           <tbody>
             <tr><td>DNS data plane</td><td>10053 udp/tcp</td><td>53 collides with systemd-resolved</td></tr>
-            <tr><td>LabDNS REST / MCP</td><td>18080</td><td>/v1 + /mcp, bearer</td></tr>
+            <tr><td>LabDNS REST / MCP / UI</td><td>18080</td><td>/v1 + /mcp + operator console, bearer</td></tr>
             <tr><td>LDAP / LDAPS</td><td>3389 / 3636</td><td>cleartext binds disabled</td></tr>
             <tr><td>LabLDAP control</td><td>8443</td><td>REST + MCP + UI, lab TLS</td></tr>
             <tr><td>MCP gateway</td><td>8080</td><td>streamable HTTP + tool groups</td></tr>
@@ -215,11 +216,11 @@ make smoke
           <p>This repo owns configuration, secrets layout, and gateway policy. The services themselves are vendored or pulled as images.</p>
         </div>
         <div class="roles">
-          <div class="role"><a href="https://github.com/hilather/go-lab-dns">LabDNS</a><p>Laboratory DNS with overrides, wildcards, suffix forwarding, and bounded chaos. YAML desired state, REST + MCP.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-ldap-mcp">LabLDAP</a><p>Disposable directory laboratory. Native Go engine, REST, MCP, and a browser UI. <a href="https://hilather.github.io/go-lab-ldap-mcp/">Site</a>.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-dns">LabDNS</a><p>Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. YAML desired state, REST + MCP. Pinned v1.1.0.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-ldap-mcp">LabLDAP</a><p>Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned v0.3.0. <a href="https://hilather.github.io/go-lab-ldap-mcp/">Site</a>.</p></div>
           <div class="role"><a href="https://github.com/hilather/go-lab-tacacs-mcp">TacLab</a><p>TACACS+ lab appliance: RFC 8907 + RFC 9887 TLS 1.3, RADIUS, REST/MCP, embedded operator UI. <a href="https://hilather.github.io/go-lab-tacacs-mcp/">Site</a>.</p></div>
-          <div class="role"><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a><p>Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-maildev">LabMail</a><p>Receive-only SMTP lab appliance. Inbox UI, /email compat, /v1, MCP. Pinned v1.0.0-rc.2. Compose service name stays maildev.</p></div>
+          <div class="role"><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a><p>Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. Pinned v0.1.24.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-maildev">LabMail</a><p>Receive-only SMTP lab appliance. Inbox UI, /email compat, /v1, MCP. Pinned v1.0.0-rc.3. Compose service name stays maildev.</p></div>
           <div class="role"><a href="https://github.com/mcpjungle/MCPJungle">MCPJungle</a><p>Self-hosted MCP gateway — the single client endpoint. <a href="https://docs.mcpjungle.com">Docs</a>.</p></div>
           <div class="role"><a href="https://github.com/mark3labs/mcp-go">mcp-go</a><p>Go SDK for the Model Context Protocol. Powers labinfo and is the client generation spoken by the gateway.</p></div>
         </div>

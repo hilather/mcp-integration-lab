@@ -13,11 +13,11 @@ secrets layout, and gateway policy.
 
 | Service | Role | MCP | External host ports (default profile) |
 | --- | --- | --- | --- |
-| LabDNS (`go-lab-dns`) | Lab DNS: overrides, wildcards, forwarding, chaos | `http://labdns:8080/mcp` (bearer) | DNS 10053 (UDP/TCP), REST/MCP 18080 |
-| LabLDAP (`go-lab-ldap-mcp` **v0.2.2**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
+| LabDNS (`go-lab-dns` **v1.1.0**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer) | DNS 10053 (UDP/TCP), REST/MCP/UI 18080 |
+| LabLDAP (`go-lab-ldap-mcp` **v0.3.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.3.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
-| LabMail (`go-lab-maildev` **v1.0.0-rc.2**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
-| ratarmount-rs | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
+| LabMail (`go-lab-maildev` **v1.0.0-rc.3**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
+| ratarmount-rs **v0.1.24** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle | MCP gateway: aggregation, tool groups, ACLs | `http://<host>:8080/mcp` | gateway 8080 |
 
@@ -108,6 +108,25 @@ separated from the exec layer and covered by unit/regression tests
 (`make test`). Changes to orchestration behavior require tests where the
 logic is testable without docker.
 
+`make up` is the full bring-up (vendor, secrets, fixtures, all three compose
+projects, gateway registration). `mcplab reload <app>` / `make reload
+APP=<app>` rebuilds and recreates **one** application so a YAML or image
+tweak does not bounce the rest of the lab:
+
+| App | What reload does | Runtime state discarded |
+| --- | --- | --- |
+| `labdns` | `compose up --no-deps --force-recreate labdns` | in-process DNS overlay / sessions |
+| `maildev` | same for compose service `maildev` | captured inbox |
+| `nfs` | same for `nfs` (on-exit overlay commit runs first) | NFS client mounts; overlay already committed |
+| `labinfo` | same for `labinfo` | none (catalog is bind-mounted YAML) |
+| `mcpjungle` | recreate gateway, then `register` | tmpfs SQLite (re-applied from profile JSON) |
+| `labldap` | rebuild images, force-recreate directory + control, re-run bootstrap | ephemeral `/data` (re-seeded from scenario.yaml) |
+| `labtacacs` | `compose up --force-recreate` on the TacLab project | in-process AAA state (labgen files on disk survive) |
+
+`make labldap-up` / `make labtacacs-up` stay idempotent project bring-up
+(used by `make up`). Use full `make up` after a vendor pin bump, a profile
+switch, or first run.
+
 ## Security model
 
 One profile knob, `LAB_DEV_MODE` (default `false`), drives the posture.
@@ -155,42 +174,50 @@ per-persona tool groups and OTel metrics scraping.
 
 ## Design notes / limitations
 
-- The lab carries one patch against vendored `go-lab-dns`
-  (`patches/go-lab-dns-wire-mcp.patch`, applied by `mcplab vendor`) doing
-  two things: (a) mounts the repo's existing MCP Streamable HTTP adapter on
-  the management listener — upstream ships the package but has not wired it
-  into `serve` yet; (b) relaxes the hard `2026-07-28` protocol pin, because
-  MCPJungle's client (`mark3labs/mcp-go v0.48`) speaks an earlier protocol
-  generation and the pin locks every such gateway out. Both belong upstream
-  eventually (the wiring as-is, the pin as a config knob).
+- LabDNS is pinned to **v1.1.0**. MCP Streamable HTTP is wired into `serve`
+  upstream. The remaining local patch
+  (`patches/go-lab-dns-relax-mcp-pin.patch`) only relaxes the hard
+  `2026-07-28` protocol pin, because MCPJungle's client
+  (`mark3labs/mcp-go v0.48`) speaks an earlier protocol generation. The pin
+  as a config knob belongs upstream. 1.1.0 adds an embedded operator
+  console (`GET /` on the management listener, `spec.ui.enabled` default
+  true) and `spec.management.allowedOrigins` (exact Origins; loopback
+  already allowed). Canonical `sha256:` revisions change vs 1.0.0-rc.*
+  because omitted `spec.ui` is materialized.
 - TacLab is pinned to release **v1.3.0**. Its MCP pin is relaxed with the
   upstream `api.mcp.allow_legacy_clients` knob (default `false`; this lab
   turns it on after `labgen`). There is no TacLab patch in `patches/`.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
   RADIUS Challenge/EAP/MS-CHAP/PEAP, named Cisco-AVPair, optional RadSec
   (TCP 2083, default off) and inbound DAS (UDP 3799, default off).
-- LabLDAP is pinned to release **v0.2.2**. The lab runs the native Go
-  engine (`labldapd`, `directory.engine: native` in the profile scenario);
-  389 DS remains available upstream but is not used here. MCP
+- LabLDAP is pinned to release **v0.3.0**. Native is now the default
+  engine (omitted `spec.directory.engine` compiles as `native`); this lab
+  still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
+  + `compose.ephemeral.yaml` plus `compose/labldap.overlay.yaml`. MCP
   account-workflow tools (`ldap_get_account_state`, expire/lock/enable)
   register because the profile sets `registerMutations` and
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
   (`ca.crt`); switching from a leftover 389 volume is a re-bootstrap
   (`LabLDAPUp` wipes uid-389 `/data`).
-- LabMail is pinned to **v1.0.0-rc.2**. MCP pin is relaxed with upstream
+- LabMail is pinned to **v1.0.0-rc.3**. MCP pin is relaxed with upstream
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (same idea as TacLab; no LabMail patch). Compose service name and labinfo
   catalog id stay `maildev`. Healthcheck is HTTP `/v1/health/ready` (the
   Node SMTP TCP probe is gone; scratch has no `node`). Bind-mounted secrets
   are 0o644. Captured mail is process memory and wiped by restart/reset.
-  `POST /email/:id/relay` is 403.
-- ratarmount NFSv3 has no locking (`nolock` required) and AUTH_SYS only; the
-  lab boundary is the docker network / host. The export is writable via `-w`
-  (durable overlay under `NFS_DATA_DIR`); live commit into the empty-root
-  `.tar.zst` is `--commit-overlay-interval` (profile
-  `NFS_COMMIT_OVERLAY_INTERVAL`, default 15m) plus `--commit-overlay-on-exit`.
-  Gzip is rejected; `:temp:` overlays are rejected. Persist copies the
-  compressed file and remount reindexes the whole TAR.
+  `POST /email/:id/relay` is 403. rc.3 adds `originAllowlist` sentinels
+  `"*"` and `"private"`; the default profile uses `"*"` so remote inbox JS
+  loads (bearer + Basic still required; CORS stays off).
+- ratarmount-rs is pinned to **v0.1.24** (`.deb` in
+  `docker/ratarmount/Dockerfile`). NFSv3 has no locking (`nolock` required)
+  and AUTH_SYS only; the lab boundary is the docker network / host. The
+  export is writable via `-w` (durable overlay under `NFS_DATA_DIR`); live
+  commit into the empty-root `.tar.zst` is `--commit-overlay-interval`
+  (profile `NFS_COMMIT_OVERLAY_INTERVAL`, default 15m) plus
+  `--commit-overlay-on-exit`. Gzip is rejected; `:temp:` overlays are
+  rejected. Persist copies the compressed file and remount reindexes the
+  whole TAR. NFSv4.1 (`--nfs-vers 4`) is compiled into the package; this
+  lab stays on v3.
 - ratarmount image is Ubuntu-based (release .deb). Alpine/musl source build is
   a size optimization for later.
 - LabLDAP and TacLab images build locally from the vendored repos (TacLab's

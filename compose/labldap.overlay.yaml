@@ -1,5 +1,6 @@
-# Overlay applied on top of the vendored LabLDAP native compose bundle
-# (compose.yaml + compose.native.yaml + compose.native-ephemeral.yaml).
+# Overlay applied on top of the vendored LabLDAP compose bundle
+# (compose.yaml + compose.ephemeral.yaml; native labldapd is the default
+# engine as of v0.3.0).
 #
 # 1. Rewires the `lab` network onto the shared external network so the MCP
 #    gateway (separate compose project) can reach `control:8443`.
@@ -12,7 +13,7 @@
 #    only, but this lab exists for remote systems to test against.
 #
 # Native directory TLS is the lab CA `directory` cert (no 389 instance-CA
-# publish step). `native-secret-prep` in the upstream overlay already stages
+# publish step). `native-secret-prep` in upstream compose.yaml stages
 # dm.pw + directory.crt/key from LABLDAP_TLS_DIR / LABLDAP_DM_PASSWORD_FILE.
 #
 # Requires env vars (absolute paths, exported by the mcplab CLI):
@@ -21,7 +22,7 @@
 #   LABLDAP_TLS_CA             -> .../secrets/tls/ca.crt (lab CA)
 #   LABLDAP_SECRETS_DIR        -> .../secrets
 #   LABLDAP_DM_PASSWORD_FILE   -> .../secrets/dm.pw
-# Native overlay uses compose `!reset`/`!override` (Compose v2.24.4+).
+# Port republish uses compose `!override` (Compose v2.24.4+).
 networks:
   lab:
     external: true

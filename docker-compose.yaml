@@ -21,6 +21,8 @@ networks:
 
 services:
   # ------------------------------------------------------------------ LabDNS
+  # Pinned go-lab-dns v1.1.0 (operator console on GET /). YAML edits:
+  # `make reload APP=labdns` — not a full `make up`.
   labdns:
     build:
       context: ./third_party/go-lab-dns
@@ -30,7 +32,7 @@ services:
     ports:
       - "${LABDNS_DNS_PORT:-10053}:5353/udp"
       - "${LABDNS_DNS_PORT:-10053}:5353/tcp"
-      # Management REST (/v1) + MCP (/mcp); bearer auth for non-loopback peers.
+      # Management REST (/v1) + MCP (/mcp) + operator console (GET /).
       - "${LABDNS_REST_PORT:-18080}:8080/tcp"
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labdns/bootstrap.yaml:/etc/labdns/config.yaml:ro
@@ -50,8 +52,10 @@ services:
       start_period: 3s
 
   # ------------------------------------------- ratarmount-rs NFS export (POC)
-  # Userspace NFSv3 server: no FUSE device, no privileges. Data plane only for
-  # now; an MCP wrapper around its control socket is a phase-1 item.
+  # Userspace NFSv3 server (ratarmount-rs v0.1.24): no FUSE device, no
+  # privileges. Data plane only for now; an MCP wrapper around its control
+  # socket is a phase-1 item. NFSv4.1 (`--nfs-vers 4`) is in the .deb but
+  # this lab stays on v3 (`nolock`). Reload: `make reload APP=nfs`.
   # Writable overlay (-w) plus live commit into the empty-root .tar.zst
   # (gzip is rejected; :temp: is rejected). Interval is profile-defined.
   nfs:
@@ -96,6 +100,7 @@ services:
   # Desired state is the profile's labmail/bootstrap.yaml (validated by
   # internal/maildev: leftover maildev.yaml and relay keys are rejected).
   # Captured mail is process memory / tmpfs — ephemeral by design.
+  # Reload: `make reload APP=maildev` (wipes the inbox).
   # Do not inject MAILDEV_ARGS / MAILDEV_WEB_USER / MAILDEV_WEB_PASS:
   # `environment: {}` does not clear operator env, so the keys are omitted.
   maildev:
@@ -175,6 +180,7 @@ services:
     security_opt: ["no-new-privileges:true"]
     user: "65532:65532"
     restart: unless-stopped
+    # Reload: `make reload APP=labinfo`
     healthcheck:
       test: ["CMD", "/labinfo", "healthcheck", "--url=http://127.0.0.1:8080/healthz"]
       interval: 5s

@@ -1,6 +1,7 @@
 # LabDNS desired state for the MCP integration lab.
 # Read-only bootstrap: runtime mutations (REST /v1, MCP /mcp) are ephemeral
-# and `dns_state_reset` returns the service to this file.
+# and `dns_state_reset` returns the service to this file. After editing,
+# `make reload APP=labdns` recreates only this container.
 apiVersion: labdns.dev/v1alpha1
 kind: LabDNS
 metadata:
@@ -14,11 +15,19 @@ spec:
       address: ":8080"
       restPath: /v1
       mcpPath: /mcp
+  # Operator console on the management listener (LabDNS 1.1.0). Omitted
+  # also defaults to true. Set false to 404 SPA paths only (REST/MCP stay).
+  ui:
+    enabled: true
   management:
     auth:
       # Non-loopback peers (the MCP gateway) must present this bearer token.
       profile: bearer
       secretRef: /etc/labdns/token
+    # Exact http(s)://host[:port] Origins for a remote browser console.
+    # Loopback Origins are already allowed. There is no "*" sentinel —
+    # add e.g. http://lab.example:18080 when LAB_PUBLIC_HOST is not
+    # localhost. Takes effect on the next request (no restart).
   access:
     clientGroups: []
   defaults:

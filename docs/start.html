@@ -33,6 +33,7 @@
         <a href="#client">Attach an MCP client</a>
         <a href="#planes">Hit a data plane</a>
         <a href="#profile">Pick a profile</a>
+        <a href="#reload">Reload one app</a>
         <a href="#stop">Stop and reset</a>
       </aside>
       <article class="prose">
@@ -90,10 +91,21 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
 make up PROFILE=teamx</code></pre>
         <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name remote testers use. That hostname is what labinfo puts in every URL. Full reference: <a href="configure.html">Configure</a>.</p>
 
+        <h2 id="reload">Reload one app (not a full redeploy)</h2>
+        <p><code>make up</code> rebuilds everything. After you edit one service's YAML, reload only that app:</p>
+        <pre><code>make reload APP=labdns      # labdns/bootstrap.yaml, operator console
+make reload APP=maildev     # labmail/bootstrap.yaml; wipes the inbox
+make reload APP=nfs         # ratarmount image / overlay interval
+make reload APP=labinfo     # labinfo/services.yaml
+make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
+make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
+make reload APP=labtacacs   # TacLab compose project</code></pre>
+        <p>Same as <code>mcplab reload &lt;app&gt;</code>. Sibling services stay up. Use full <code>make up</code> after a vendor pin bump, a profile switch, or first bring-up.</p>
+
         <h2 id="stop">Stop and reset</h2>
         <pre><code>make down     # stop; bind-mounted storage survives
 make reset    # wipe all runtime state
-make register # reapply gateway JSON from the profile</code></pre>
+make register # reapply gateway JSON from the profile (no container restart)</code></pre>
         <p class="note">The same text lives in the repo as <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/guides/quickstart.md">docs/guides/quickstart.md</a>.</p>
       </article>
     </div>

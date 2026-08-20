@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hilather/mcp-integration-lab/internal/envfile"
 )
 
 const testCatalog = `
@@ -207,6 +209,57 @@ func TestConnectionsFilterByService(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "gateway, nfs") {
 		t.Errorf("unknown service error = %v, want list of known ids", err)
 	}
+}
+
+func TestDefaultCatalogOperatorConsole(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := defaultProfileLookup(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := cat.Render(false, env, func(string) (string, error) {
+		t.Fatal("readSecret must not be called outside dev mode")
+		return "", nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dns *EndpointInfo
+	for i := range got.Services {
+		if got.Services[i].ID == "labdns" {
+			dns = &got.Services[i]
+			break
+		}
+	}
+	if dns == nil {
+		t.Fatal("default catalog missing labdns")
+	}
+	host := env("LAB_PUBLIC_HOST")
+	port := env("LABDNS_REST_PORT")
+	want := "http://" + host + ":" + port + "/"
+	found := false
+	for _, u := range dns.URLs {
+		if u.Name == "Operator console" && u.URL == want {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("labdns URLs = %+v, want Operator console %s", dns.URLs, want)
+	}
+}
+
+func defaultProfileLookup(t *testing.T) (func(string) string, error) {
+	t.Helper()
+	m, err := envfile.ParseFile(filepath.Join("..", "..", "profiles", "default", "profile.env"))
+	if err != nil {
+		return nil, err
+	}
+	return func(k string) string { return m[k] }, nil
 }
 
 func TestLoadRejectsInvalid(t *testing.T) {

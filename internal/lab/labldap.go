@@ -7,8 +7,10 @@ import (
 
 // LabLDAPUp brings up the LabLDAP stack (separate compose project `labldap`)
 // on the native Go engine (`labldapd`), mirroring upstream
-// `make compose-up-native` with this repo's overlay (shared network,
-// management TLS staging, external ports) and the active profile's scenario.
+// `make compose-up` (native is the default as of v0.3.0) with this repo's
+// overlay (shared network, management TLS staging, external ports) and the
+// active profile's scenario. Idempotent; use Reload("labldap") to
+// force-recreate directory + control after a scenario edit.
 func (r *Runner) LabLDAPUp() error {
 	if err := r.EnsureNetwork(); err != nil {
 		return err

@@ -25,8 +25,8 @@ func TestLabldapComposeArgsUsesNativeEngine(t *testing.T) {
 	args := r.labldapComposeArgs("up", "-d")
 	joined := strings.Join(args, "\n")
 	for _, want := range []string{
-		"compose.native.yaml",
-		"compose.native-ephemeral.yaml",
+		"compose.yaml",
+		"compose.ephemeral.yaml",
 		"labldap.overlay.yaml",
 	} {
 		if !strings.Contains(joined, want) {
@@ -34,8 +34,11 @@ func TestLabldapComposeArgsUsesNativeEngine(t *testing.T) {
 		}
 	}
 	for _, a := range args {
-		if strings.HasSuffix(a, "/compose.ephemeral.yaml") {
-			t.Fatalf("389 ephemeral overlay still selected: %s", a)
+		if strings.HasSuffix(a, "/compose.native.yaml") ||
+			strings.HasSuffix(a, "/compose.native-ephemeral.yaml") ||
+			strings.HasSuffix(a, "/compose.389ds.yaml") ||
+			strings.HasSuffix(a, "/compose.389ds-ephemeral.yaml") {
+			t.Fatalf("v0.2 native alias or 389 overlay still selected: %s", a)
 		}
 	}
 }

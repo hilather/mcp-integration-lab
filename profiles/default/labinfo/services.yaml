@@ -43,13 +43,15 @@ services:
 
   - id: labdns
     name: LabDNS (lab DNS server)
-    description: Lab DNS management plane — REST under /v1, MCP under /mcp. The DNS data plane itself is plain DNS.
+    description: Lab DNS management plane — operator console at /, REST under /v1, MCP under /mcp. The DNS data plane itself is plain DNS.
     urls:
+      - name: Operator console
+        url: http://${LAB_PUBLIC_HOST}:${LABDNS_REST_PORT}/
       - name: REST API
         url: http://${LAB_PUBLIC_HOST}:${LABDNS_REST_PORT}/v1
       - name: MCP endpoint
         url: http://${LAB_PUBLIC_HOST}:${LABDNS_REST_PORT}/mcp
-    note: "DNS data plane: dig @${LAB_PUBLIC_HOST} -p ${LABDNS_DNS_PORT} <name>"
+    note: "DNS data plane: dig @${LAB_PUBLIC_HOST} -p ${LABDNS_DNS_PORT} <name>. Operator console is GET / on the REST port (paste the bearer). Remote browsers need spec.management.allowedOrigins in labdns/bootstrap.yaml (exact Origin; loopback is already allowed)."
     credential:
       file: /run/lab-secrets/labdns-token
       usage: "HTTP header 'Authorization: Bearer <token>'"
@@ -158,7 +160,7 @@ services:
         url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/v1
       - name: MCP endpoint
         url: http://${LAB_PUBLIC_HOST}:${MAILDEV_WEB_PORT}/mcp
-    note: "SMTP ingest (no auth, no TLS required): ${LAB_PUBLIC_HOST}:${MAILDEV_SMTP_PORT}. Point systems under test at it as their outbound SMTP server."
+    note: "SMTP ingest (no auth, no TLS required): ${LAB_PUBLIC_HOST}:${MAILDEV_SMTP_PORT}. Point systems under test at it as their outbound SMTP server. Inbox SPA from a non-loopback browser needs spec.management.originAllowlist (this profile uses \"*\")."
     credential:
       file: /run/lab-secrets/maildev-web-password
       usage: "HTTP basic auth for the web UI and /email compat, user 'admin' (frozen; LabMail YAML does not interpolate MAILDEV_WEB_USER)"

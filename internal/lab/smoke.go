@@ -121,7 +121,8 @@ func (s *smokeState) dnsScenario() {
 	s.check(err == nil, "dns_state_reset")
 
 	addrs, err = s.lookup("smoke.lab.test")
-	s.check(err != nil || len(addrs) == 0, "smoke.lab.test gone after reset")
+	s.check(err != nil || len(addrs) == 0,
+		fmt.Sprintf("smoke.lab.test gone after reset (got %v err=%v)", addrs, err))
 }
 
 func (s *smokeState) ldapScenario() {

@@ -87,7 +87,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | Variable | Default | What it is |
 | --- | --- | --- |
 | `LABDNS_DNS_PORT` | `10053` | DNS data plane (udp+tcp). `53` usually collides with systemd-resolved. |
-| `LABDNS_REST_PORT` | `18080` | LabDNS REST `/v1` + MCP `/mcp`. |
+| `LABDNS_REST_PORT` | `18080` | LabDNS REST `/v1` + MCP `/mcp` + operator console `GET /`. |
 | `LABLDAP_LDAP_PORT` | `3389` | LDAP (StartTLS). Cleartext simple bind is disabled. |
 | `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory`. |
 | `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
@@ -111,11 +111,46 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `NFS_DATA_DIR` | `.data/nfs-work` | Indexes plus the durable write overlay. Give it real disk. |
 | `NFS_COMMIT_OVERLAY_INTERVAL` | `15m` | How often overlay writes are spliced into the `.tar.zst`. |
 
+## Reload vs full redeploy
+
+`make up` vendors, mints secrets, builds every image, starts three compose
+projects, and registers the gateway. Use it for first bring-up, a vendor pin
+bump, or a profile switch.
+
+After that, recreate **one** application:
+
+```bash
+make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs
+# equivalent: mcplab reload <app>
+```
+
+| You changed | Command | Side effect |
+| --- | --- | --- |
+| `labdns/bootstrap.yaml` | `make reload APP=labdns` | runtime DNS mutations and UI sessions gone |
+| `labmail/bootstrap.yaml` | `make reload APP=maildev` | captured inbox gone |
+| NFS interval / ratarmount image | `make reload APP=nfs` | on-exit overlay commit runs; clients remount |
+| `labinfo/services.yaml` | `make reload APP=labinfo` | none |
+| `mcpjungle/servers/*.json` | `make register` | no container restart (JSON is re-applied) |
+| gateway container itself | `make reload APP=mcpjungle` | tmpfs SQLite wiped, then `register` |
+| `labldap/scenario.yaml` | `make reload APP=labldap` | ephemeral `/data` re-seeded from the scenario |
+| TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
+
+`make labldap-up` / `make labtacacs-up` are idempotent project bring-up
+(the path `make up` uses). They do not force-recreate a running directory.
+
 ## LabDNS
 
 `labdns/bootstrap.yaml` is the desired state, mounted read-only. MCP
-`dns_state_reset` returns the service to this file. Non-loopback peers
+`dns_state_reset` returns the service to this file. After editing the file,
+`make reload APP=labdns` recreates only LabDNS. Non-loopback peers
 present the bearer in `secrets/labdns-token`.
+
+LabDNS **v1.1.0** serves an operator console at `GET /` on
+`LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
+the login screen. Loopback Origins are allowed. A remote browser must list
+its Origin in `spec.management.allowedOrigins` as an exact
+`http(s)://host[:port]` string (no `"*"` sentinel). `spec.ui.enabled:
+false` 404s the SPA only; REST and MCP stay.
 
 Default profile — authoritative for `lab.test.` with `ns1`, `nfs`,
 `ldap`, and a `*.tools` wildcard:
@@ -134,10 +169,13 @@ spec:
       address: ":8080"
       restPath: /v1
       mcpPath: /mcp
+  ui:
+    enabled: true
   management:
     auth:
       profile: bearer
       secretRef: /etc/labdns/token
+    # allowedOrigins: [http://lab.example:18080]  # remote console Origin
   defaults:
     ttl: 30s
     negativeTTL: 10s
@@ -153,15 +191,17 @@ spec:
         - { id: tools-wildcard-a, owner: "*.tools", type: A, values: [10.42.0.20] }
 ```
 
-Add a zone or a record here and `make up` (or restart labdns). Runtime
+Add a zone or a record here and `make reload APP=labdns`. Runtime
 records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. This lab pins
-`directory.engine: native` (labldapd, not 389 DS), management TLS from
-lab-CA files, and `registerMutations` / `registerPassword` so
-account-workflow tools are live.
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.3.0** defaults to
+the native engine (omitted `engine` compiles as `native`); this lab still
+sets `directory.engine: native` explicitly. Management TLS comes from
+lab-CA files, and `registerMutations` / `registerPassword` keep
+account-workflow tools live. After editing, `make reload APP=labldap`
+force-recreates directory + control and re-seeds ephemeral `/data`.
 
 ```yaml
 apiVersion: labldap.dev/v1alpha1
@@ -244,7 +284,16 @@ The compose service name stays `maildev`. Desired state is
 `labmail/bootstrap.yaml` (`labmail.dev/v1alpha1`). `internal/maildev`
 rejects leftover `maildev/maildev.yaml` and every relay/outbound key.
 Host ports and web Basic/bearer files are lab-managed. `allowLegacyClients:
-true` is required for MCPJungle.
+true` is required for MCPJungle. After editing, `make reload APP=maildev`
+(wipes the inbox).
+
+LabMail **v1.0.0-rc.3** hashed inbox JS sends `Origin`. An empty
+`originAllowlist` 403s those GETs from a non-loopback browser (HTML `GET /`
+is often 200). This profile sets `"*"` because the UI is published on all
+interfaces; bearer + Basic still required; CORS/`OPTIONS` stay disabled.
+Tighten with `"private"` (RFC 1918 + ULA, not Tailscale `100.x`) or an
+exact `http(s)://host[:port]`. Optional `spec.smtp.behavior` is
+deterministic and default-off — not a chaos engine; leave it omitted.
 
 ```yaml
 apiVersion: labmail.dev/v1alpha1
@@ -270,6 +319,7 @@ spec:
         tokenRef: admin
     mcp:
       allowLegacyClients: true
+    originAllowlist: ["*"]
 ```
 
 Point the system under test at `<lab-host>:1025`. Read captured mail at
@@ -295,7 +345,9 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
 ```
 
-AUTH_SYS only. No MCP wrapper yet (phase 1).
+AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.24**
+also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After changing
+the interval or the image pin, `make reload APP=nfs`.
 
 ## labinfo catalog
 

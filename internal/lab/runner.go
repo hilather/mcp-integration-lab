@@ -114,17 +114,16 @@ func (r *Runner) compose(args ...string) error {
 	return r.run(".", "docker", append([]string{"compose"}, args...)...)
 }
 
-// labldapComposeArgs is the vendored LabLDAP native-engine compose bundle
-// plus this repo's overlay. Engine is labldapd (not 389 DS): compose.native.yaml
-// replaces the directory service; compose.native-ephemeral.yaml is the tmpfs
-// /data overlay sized for bbolt.
+// labldapComposeArgs is the vendored LabLDAP compose bundle plus this repo's
+// overlay. As of LabLDAP v0.3.0, compose.yaml is already native labldapd;
+// compose.ephemeral.yaml is the tmpfs /data overlay sized for bbolt.
+// compose.native.yaml is an upstream one-release alias and is not stacked.
 func (r *Runner) labldapComposeArgs(args ...string) []string {
 	ll := filepath.Join(r.Root, "third_party", "go-lab-ldap-mcp")
 	base := []string{
 		"compose", "-p", "labldap",
 		"-f", filepath.Join(ll, "deploy", "compose", "compose.yaml"),
-		"-f", filepath.Join(ll, "deploy", "compose", "compose.native.yaml"),
-		"-f", filepath.Join(ll, "deploy", "compose", "compose.native-ephemeral.yaml"),
+		"-f", filepath.Join(ll, "deploy", "compose", "compose.ephemeral.yaml"),
 		"-f", filepath.Join(r.Root, "compose", "labldap.overlay.yaml"),
 	}
 	return append(base, args...)

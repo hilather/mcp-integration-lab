@@ -72,10 +72,29 @@ make up PROFILE=teamx
 
 Set `LAB_PUBLIC_HOST` to the DNS name remote testers use. That hostname is what labinfo puts in every URL. Full reference: [configuration.md](configuration.md).
 
+## Reload one app (not a full redeploy)
+
+`make up` rebuilds everything. After you edit one service's YAML, or need to
+bounce a wedged container, reload only that app:
+
+```bash
+make reload APP=labdns      # labdns/bootstrap.yaml, operator console
+make reload APP=maildev     # labmail/bootstrap.yaml; wipes the inbox
+make reload APP=nfs         # ratarmount image / overlay interval
+make reload APP=labinfo     # labinfo/services.yaml
+make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
+make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
+make reload APP=labtacacs   # TacLab compose project
+```
+
+Same commands as `mcplab reload <app>`. Aliases: `dns`, `labmail`/`mail`,
+`ldap`, `taclab`/`tacacs`, `gateway`. Sibling services stay up. Use full
+`make up` after a vendor pin bump, a profile switch, or first bring-up.
+
 ## Stop and reset
 
 ```bash
 make down     # stop; bind-mounted storage survives
 make reset    # wipe all runtime state
-make register # reapply gateway JSON from the profile
+make register # reapply gateway JSON from the profile (no container restart)
 ```

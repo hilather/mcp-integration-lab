@@ -6,7 +6,7 @@
 # stays a lab-grade single-purpose image.
 FROM ubuntu:24.04
 
-ARG RATARMOUNT_VERSION=0.1.22
+ARG RATARMOUNT_VERSION=0.1.24
 
 ADD https://github.com/hilather/ratarmount-rs/releases/download/v${RATARMOUNT_VERSION}/ratarmount_${RATARMOUNT_VERSION}_amd64.deb /tmp/ratarmount.deb
 

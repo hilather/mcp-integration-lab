@@ -16,7 +16,7 @@ index 3e6c9f8..3f2bf3c 100644
 +// which locks out every client on an earlier SDK generation (e.g. gateways on
 +// mark3labs/mcp-go). The lab relaxes the pin and lets the official SDK
 +// negotiate any version it supports. The header stays optional: the spec only
-+// requires it after negotiation.
++// requires it after negotiation. MCP is wired into serve upstream as of v1.1.0.
  func validateProtocolVersion(r *http.Request) error {
 -	ver := strings.TrimSpace(r.Header.Get(headerProtocolVersion))
 -	if ver == "" {

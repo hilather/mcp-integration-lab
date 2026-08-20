@@ -7,8 +7,33 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-20
+
+### Changed
+
+- **LabDNS v1.1.0** (was an unpinned `main` checkout). MCP is wired into
+  `serve` upstream; the local patch is only
+  `patches/go-lab-dns-relax-mcp-pin.patch` so MCPJungle can still register.
+  The operator console is on the management listener (`GET /` on port
+  18080). Omitted `spec.ui` enables it; remote browsers need exact Origins
+  in `spec.management.allowedOrigins`.
+- **LabLDAP v0.3.0** (was v0.2.2). Native `labldapd` is now upstream's
+  default engine; this lab still sets `engine: native` explicitly. Compose
+  stacks `compose.yaml` + `compose.ephemeral.yaml` (the v0.2
+  `compose.native*.yaml` aliases are not used).
+- **LabMail v1.0.0-rc.3** (was rc.2). Default profile sets
+  `spec.management.originAllowlist: ["*"]` so the inbox SPA's hashed JS
+  loads from a non-loopback browser Origin. Bearer + Basic still required;
+  CORS stays off. Tighten with `"private"` or an exact Origin.
+- **ratarmount-rs v0.1.24** (was 0.1.22). The lab export stays NFSv3;
+  NFSv4.1 (`--nfs-vers 4`) is in the package but not enabled here.
+
 ### Added
 
+- `mcplab reload <app>` / `make reload APP=<app>` rebuilds and recreates
+  one application (labdns, maildev, nfs, labinfo, mcpjungle, labldap,
+  labtacacs) without a full `make up`. Gateway reload re-runs
+  `register` because SQLite is tmpfs.
 - `mcplab preflight` / `make preflight` now fail fast when critical endpoint
   and mode values (host, control-plane ports, dev/enterprise mode) are
   overridden outside `profiles/<name>/profile.env`, preventing stale

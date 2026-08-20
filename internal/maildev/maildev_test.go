@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func writeProfile(t *testing.T, files map[string]string) string {
@@ -52,6 +54,37 @@ func TestValidateDefaultProfileBootstrap(t *testing.T) {
 	dir := filepath.Join("..", "..", "profiles", "default")
 	if err := ValidateProfile(dir); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDefaultProfileOriginAllowlist(t *testing.T) {
+	path := filepath.Join("..", "..", "profiles", "default", "labmail", "bootstrap.yaml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBootstrap(path); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Spec struct {
+			Management struct {
+				OriginAllowlist []string `yaml:"originAllowlist"`
+			} `yaml:"management"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, v := range doc.Spec.Management.OriginAllowlist {
+		if v == "*" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("profiles/default/labmail/bootstrap.yaml originAllowlist = %v, want \"*\" (LabMail rc.3 remote SPA hatch)", doc.Spec.Management.OriginAllowlist)
 	}
 }
 

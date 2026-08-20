@@ -29,6 +29,13 @@ func (r *Runner) labtacacsCompose(args ...string) error {
 	return r.run(".", "docker", r.labtacacsComposeArgs(args...)...)
 }
 
+func (r *Runner) requireTaclabSecrets() error {
+	if _, err := os.Stat(r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")); err != nil {
+		return fmt.Errorf("TacLab lab directory not generated (run `mcplab secrets` first): %w", err)
+	}
+	return nil
+}
+
 // LabTacacsUp brings up the TacLab stack (separate compose project
 // `labtacacs`). labgen must have generated the lab directory first
 // (`mcplab secrets` does this).
@@ -36,8 +43,8 @@ func (r *Runner) LabTacacsUp() error {
 	if err := r.EnsureNetwork(); err != nil {
 		return err
 	}
-	if _, err := os.Stat(r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")); err != nil {
-		return fmt.Errorf("TacLab lab directory not generated (run `mcplab secrets` first): %w", err)
+	if err := r.requireTaclabSecrets(); err != nil {
+		return err
 	}
 	if err := r.labtacacsCompose("up", "-d", "--build", "--wait", "--remove-orphans"); err != nil {
 		return err

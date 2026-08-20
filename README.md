@@ -70,7 +70,7 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 
 | Service | Role | Default host ports |
 | --- | --- | --- |
-| **LabDNS** | Authoritative lab DNS: overrides, wildcards, forwarding, bounded chaos | 10053 udp/tcp · REST/MCP 18080 |
+| **LabDNS** | Authoritative lab DNS: overrides, wildcards, forwarding, bounded chaos, operator console | 10053 udp/tcp · REST/MCP/UI 18080 |
 | **LabLDAP** | Native Go directory (`labldapd`) + control plane | 3389 / 3636 · HTTPS 8443 |
 | **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 · HTTP 18049 |
 | **LabMail** | Receive-only SMTP sink + UI / REST / MCP (compose service `maildev`) | 1025 · 1080 |
@@ -166,6 +166,7 @@ Configuration reference with every variable and a working snippet for each servi
 | Command | What it does |
 | --- | --- |
 | `make up` | Vendor, secrets, fixtures, full stack, gateway registration (idempotent) |
+| `make reload APP=<app>` | Rebuild/recreate one app (see below). Not a full redeploy. |
 | `make down` | Stop. Bind-mounted storage survives. |
 | `make reset` | Stop and wipe all runtime state |
 | `make register` | Reapply gateway JSON from the active profile |
@@ -173,8 +174,15 @@ Configuration reference with every variable and a working snippet for each servi
 | `make smoke` | End-to-end scenario through the gateway |
 | `make test` | `go vet` + unit/regression tests for the CLI |
 
+`APP` is one of `labdns`, `maildev`, `nfs`, `labinfo`, `mcpjungle`, `labldap`,
+`labtacacs`. Use this after editing that service's YAML or bumping its image.
+Gateway reload (`APP=mcpjungle`) also re-runs `make register` because
+registration SQLite is tmpfs. `make labldap-up` / `make labtacacs-up` remain
+idempotent bring-up of those compose projects.
+
 `make up` and `make register` run the same preflight check automatically. To
-bypass intentionally, set `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`.
+bypass intentionally, set `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`. Use `make up`
+for first bring-up, a vendor pin bump, or a profile switch.
 
 ## Projects in this lab
 
@@ -182,11 +190,11 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 
 | Project | What it is |
 | --- | --- |
-| [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, and bounded chaos. YAML desired state, REST + MCP. |
-| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine, REST, MCP, and a browser UI. Pinned **v0.2.2**. |
+| [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state, REST + MCP. Pinned **v1.1.0**. |
+| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned **v0.3.0**. |
 | [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.3.0**. |
-| [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.2**. Compose service name stays `maildev`. |
-| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. |
+| [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.3**. Compose service name stays `maildev`. |
+| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.24**. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
 
@@ -221,4 +229,4 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
 
 ## Status
 
-POC. v0.3.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.
+POC. v0.4.0. Local images. Laboratory static tokens. Contributions that keep configuration in profiles and runtime state ephemeral are welcome.
