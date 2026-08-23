@@ -7,7 +7,7 @@ import (
 
 // CanonicalReloadApps are the names operators pass to `mcplab reload`.
 var CanonicalReloadApps = []string{
-	"labdns", "maildev", "nfs", "labinfo", "mcpjungle", "labldap", "labtacacs",
+	"labdns", "maildev", "nfs", "labinfo", "mcpjungle", "labldap", "labtacacs", "labmitm",
 }
 
 type reloadKind int
@@ -44,6 +44,8 @@ func ResolveReload(name string) (reloadTarget, error) {
 		return reloadTarget{kind: reloadLabLDAP, canonical: "labldap"}, nil
 	case "labtacacs", "taclab", "tacacs":
 		return reloadTarget{kind: reloadLabTacacs, canonical: "labtacacs"}, nil
+	case "labmitm", "mitm":
+		return reloadTarget{kind: reloadMainCompose, composeService: "labmitm", canonical: "labmitm"}, nil
 	default:
 		return reloadTarget{}, fmt.Errorf("unknown app %q (want one of: %s)", name, strings.Join(CanonicalReloadApps, ", "))
 	}

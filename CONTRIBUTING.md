@@ -10,7 +10,7 @@ make test          # go vet + unit/regression tests
 # if you touched compose, profiles, or the CLI lifecycle:
 make up && make smoke
 # iterating on one service's YAML after the stack is up:
-make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs
+make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 ```
 
 ## Where things belong

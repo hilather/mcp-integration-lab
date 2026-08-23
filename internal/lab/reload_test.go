@@ -1,6 +1,8 @@
 package lab
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -21,6 +23,8 @@ func TestResolveReloadAliases(t *testing.T) {
 		"labtacacs": "labtacacs",
 		"taclab":    "labtacacs",
 		"tacacs":    "labtacacs",
+		"labmitm":   "labmitm",
+		"mitm":      "labmitm",
 	}
 	for in, want := range cases {
 		got, err := ResolveReload(in)
@@ -91,6 +95,30 @@ func TestCanonicalReloadAppsAllResolve(t *testing.T) {
 		}
 		if got.canonical != name {
 			t.Errorf("ResolveReload(%q).canonical = %q", name, got.canonical)
+		}
+	}
+}
+
+func TestDocsMentionCanonicalReloadApps(t *testing.T) {
+	root := filepath.Join("..", "..")
+	files := []string{
+		"AGENTS.md",
+		"CONTRIBUTING.md",
+		"README.md",
+		"docs/guides/quickstart.md",
+		"docs/guides/configuration.md",
+		"docs/architecture.md",
+	}
+	for _, rel := range files {
+		b, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			t.Fatalf("%s: %v", rel, err)
+		}
+		body := string(b)
+		for _, app := range CanonicalReloadApps {
+			if !strings.Contains(body, app) {
+				t.Errorf("%s missing reload app %s", rel, app)
+			}
 		}
 	}
 }

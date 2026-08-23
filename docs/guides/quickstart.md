@@ -22,7 +22,7 @@ make smoke
 
 `make up` is idempotent. It clones pinned vendors into `third_party/`, applies patches, mints gitignored secrets, builds local images, starts three compose projects on `mcplab-shared`, and registers every MCP server with the gateway. First run is image-build heavy.
 
-`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, and mail.
+`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM.
 
 ## Attach an MCP client
 
@@ -58,7 +58,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
 ```
 
-Point outbound SMTP at `<lab-host>:1025` and read captured mail in the LabMail UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/` and a Message-Authenticator attribute.
+Point outbound SMTP at `<lab-host>:1025` and read captured mail in the LabMail UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/` and a Message-Authenticator attribute. Point HTTP clients at `<lab-host>:18888` as `HTTP_PROXY` (unauthenticated; intercept is `:443` only). The inspector is `:18088`.
 
 ## Pick a profile
 
@@ -85,10 +85,11 @@ make reload APP=labinfo     # labinfo/services.yaml
 make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
 make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
 make reload APP=labtacacs   # TacLab compose project
+make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows
 ```
 
 Same commands as `mcplab reload <app>`. Aliases: `dns`, `labmail`/`mail`,
-`ldap`, `taclab`/`tacacs`, `gateway`. Sibling services stay up. Use full
+`ldap`, `taclab`/`tacacs`, `gateway`, `mitm`. Sibling services stay up. Use full
 `make up` after a vendor pin bump, a profile switch, or first bring-up.
 
 ## Stop and reset

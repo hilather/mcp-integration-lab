@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,10 +20,11 @@ import (
 	"github.com/hilather/mcp-integration-lab/internal/radius"
 )
 
-// Smoke runs the end-to-end scenario: drives DNS, LDAP, and TACACS+/RADIUS
-// state through the MCP gateway the way an agent would, then verifies every
-// result on the real data plane (DNS query, LDAPS bind, kernel NFS mount,
-// RADIUS PAP auth, SMTP delivery into the receive-only mail sink).
+// Smoke runs the end-to-end scenario: drives DNS, LDAP, TACACS+/RADIUS,
+// mail, and LabMITM state through the MCP gateway the way an agent would,
+// then verifies every result on the real data plane (DNS query, LDAPS bind,
+// kernel NFS mount, RADIUS PAP auth, SMTP delivery into the receive-only
+// mail sink, HTTP intercept via the published proxy port).
 func (r *Runner) Smoke() error {
 	s := &smokeState{r: r}
 
@@ -35,6 +37,7 @@ func (r *Runner) Smoke() error {
 	s.nfsScenario()
 	s.tacacsScenario()
 	s.maildevScenario()
+	s.labmitmScenario()
 	s.labinfoScenario()
 
 	fmt.Printf("\n== smoke summary: %d passed, %d failed\n", s.pass, s.fail)
@@ -302,6 +305,81 @@ func (s *smokeState) maildevScenario() {
 		fmt.Sprintf("mail_messages_wait sees captured mail (err=%v)", err))
 }
 
+// flowListJSON is LabMITM native GET /v1/flows — an object with items, not a
+// raw array (the opt-in compat spelling).
+type flowListJSON struct {
+	Items []json.RawMessage `json:"items"`
+}
+
+func (s *smokeState) labmitmScenario() {
+	s.step("labmitm scenario: host-side ProxyURL GET is captured; management is bearer-only")
+
+	webPort := s.r.Prof.Get("LABMITM_WEB_PORT", "18088")
+	proxyPort := s.r.Prof.Get("LABMITM_PROXY_PORT", "18888")
+
+	// Direct checks must not inherit HTTP_PROXY/HTTPS_PROXY.
+	direct := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Proxy: func(*http.Request) (*url.URL, error) { return nil, nil },
+		},
+	}
+
+	resp, err := direct.Get("http://127.0.0.1:" + webPort + "/v1/flows")
+	if err == nil {
+		resp.Body.Close()
+	}
+	s.check(err == nil && resp.StatusCode == http.StatusUnauthorized,
+		"REST /v1/flows requires bearer")
+
+	token, err := readTrimmed(s.r.path("secrets/labmitm-token"))
+	if err != nil {
+		s.check(false, "read labmitm token: "+err.Error())
+		return
+	}
+	req, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:"+webPort+"/v1/flows", nil)
+	if err != nil {
+		s.check(false, "build bearer request: "+err.Error())
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err = direct.Do(req)
+	var list flowListJSON
+	if err == nil {
+		decErr := json.NewDecoder(resp.Body).Decode(&list)
+		resp.Body.Close()
+		if decErr != nil {
+			err = decErr
+		}
+	}
+	s.check(err == nil && resp.StatusCode == http.StatusOK,
+		"bearer GET /v1/flows returns {items:...}")
+
+	proxyURL, err := url.Parse("http://127.0.0.1:" + proxyPort)
+	if err != nil {
+		s.check(false, "parse proxy URL: "+err.Error())
+		return
+	}
+	viaProxy := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		},
+	}
+	live, err := viaProxy.Get("http://labdns:8080/v1/health/live")
+	if err == nil {
+		live.Body.Close()
+	}
+	if !s.check(err == nil && live.StatusCode == http.StatusOK,
+		fmt.Sprintf("proxied GET labdns /v1/health/live via :%s (err=%v)", proxyPort, err)) {
+		return
+	}
+
+	waitOut, err := s.invoke("labmitm__mitm_flows_wait", `{"filter":{"host":"labdns"},"timeout":"10s"}`)
+	s.check(err == nil && strings.Contains(waitOut, "labdns"),
+		fmt.Sprintf("mitm_flows_wait sees labdns flow (err=%v)", err))
+}
+
 // radiusAuth sends one PAP Access-Request and returns the verified reply code.
 func radiusAuth(addr, user, password, secret string) (byte, error) {
 	var authenticator [16]byte
@@ -386,7 +464,9 @@ func (s *smokeState) labinfoScenario() {
 	s.check(eps.DevMode == devMode, fmt.Sprintf("devMode flag matches profile (%v)", devMode))
 
 	gatewayPort := s.r.Prof.Get("MCP_GATEWAY_PORT", "8080")
+	mitmWebPort := s.r.Prof.Get("LABMITM_WEB_PORT", "18088")
 	foundGateway := false
+	foundMITM := false
 	credentialsRevealed := false
 	for _, svc := range eps.Services {
 		if svc.ID == "gateway" {
@@ -396,11 +476,19 @@ func (s *smokeState) labinfoScenario() {
 				}
 			}
 		}
+		if svc.ID == "labmitm" {
+			for _, u := range svc.URLs {
+				if strings.Contains(u.URL, ":"+mitmWebPort) {
+					foundMITM = true
+				}
+			}
+		}
 		if svc.Credential != nil && svc.Credential.Secret != "" {
 			credentialsRevealed = true
 		}
 	}
 	s.check(foundGateway, "gateway URL carries the profile's public port")
+	s.check(foundMITM, "labmitm catalog URL carries the profile's web port")
 	s.check(credentialsRevealed == devMode,
 		fmt.Sprintf("credentials revealed only in dev mode (revealed=%v)", credentialsRevealed))
 

@@ -21,9 +21,9 @@ Usage: mcplab <command> [args]
   reset          down -v for all compose projects: wipe all runtime state
   register       (re)apply gateway config from the active profile
   preflight      fail fast on profile drift and unavailable host ports
-  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail scenario through the gateway
+  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM scenario through the gateway
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
-                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs
+                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
   secrets        generate tokens, LabLDAP secrets, lab CA, TacLab lab dir

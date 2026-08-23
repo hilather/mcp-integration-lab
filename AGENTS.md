@@ -1,7 +1,7 @@
 # Agent guide — MCP Integration Lab
 
 This repo orchestrates AI-ready lab services (DNS, LDAP, TACACS+/RADIUS,
-mail, NFS) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
+mail, NFS, HTTP intercept) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
 and gateway policy; the services themselves are vendored. These are the rules
 we work by.
 
@@ -123,14 +123,14 @@ we work by.
 - `cmd/labinfo`, `internal/labinfo` — first-party service-directory MCP
   service (rule 9); built by `docker/labinfo/`
 - `docker-compose.yaml` — main project (gateway, LabDNS, LabMail as compose
-  service `maildev`, NFS, labinfo); `compose/*.overlay.yaml` — overlays
+  service `maildev`, LabMITM, NFS, labinfo); `compose/*.overlay.yaml` — overlays
   merging the vendored LabLDAP and TacLab compose projects onto the shared
   network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.1.0`,
-  LabLDAP `v0.3.0`, TacLab `v1.3.0`, LabMail `v1.0.0-rc.3`). ratarmount-rs
-  is the signed `.deb` in `docker/ratarmount/Dockerfile` (`0.1.24`).
-  TacLab's generated lab baseline also lives under its checkout
+  LabLDAP `v0.3.0`, TacLab `v1.3.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.1.0`).
+  ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
+  (`0.1.24`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
 - `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
@@ -201,8 +201,27 @@ we work by.
   file; the archive bind mount must be writable (plan 2× compressed headroom).
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
+- LabMITM is pinned to **v1.1.0**. Desired state is
+  `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
+  **lab-owned overlay copy** — do not recopy from the v1.1.0 examples tree
+  (that tag still lists labldap/labtacacs). Do **not** patch it:
+  `allowLegacyClients: true` is in the profile YAML. Binary
+  `--management-listen` defaults to off; compose must pass
+  `--management-listen=:8088` or HEALTHCHECK / REST / MCP / SPA stay
+  unbound. Bind-mounted `secrets/labmitm-token` must be **0o644** (UID
+  65532). Management is bearer-only (no HTTP Basic); the HTTP/1.1 data
+  plane is unauthenticated — do not publish without a network boundary.
+  `allowHosts` is HTTP-useful compose DNS (`*.lab`, labdns, labinfo,
+  maildev, mcpjungle, control, taclab). Do not uncomment `directory` /
+  `nfs` without accepting unauthenticated TCP. CONNECT to non-443 TLS
+  (LabLDAP LDAPS, TacLab TLS) is tunnel-not-decrypt; intercept is
+  `:443` only. Origin allowlist is exact Origins (loopback already
+  allowed; no `"*"` / `"private"` sentinel). `make reload APP=labmitm`
+  recreates the container and wipes captured flows (generate-mode CA
+  rotates). Preflight warns (never errors) when `LAB_PUBLIC_HOST` is not
+  loopback and `originAllowlist` is empty.
 - Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
-  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs). It is
+  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm). It is
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,

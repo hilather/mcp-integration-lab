@@ -30,7 +30,7 @@
       <article class="prose">
         <div class="eyebrow">Design</div>
         <h1>Three compose projects. One shared network.</h1>
-        <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, and NFS at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
+        <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, NFS, and the HTTP intercept proxy at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
         <div class="topo" style="margin: 24px 0 32px">
           <div class="topo-flow">
             <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
@@ -46,6 +46,7 @@
                 <li><strong>LabDNS</strong> scratch image</li>
                 <li><strong>labinfo</strong> service directory</li>
                 <li><strong>LabMail</strong> receive-only (compose: maildev)</li>
+                <li><strong>LabMITM</strong> HTTP intercept :18888 / :18088</li>
                 <li><strong>ratarmount-rs</strong> writable NFSv3</li>
               </ul>
             </div>
@@ -71,7 +72,7 @@
                                       │
                  ┌────────────────────┼────────────────────┐
                  │  compose mcplab    │                    │
-                 │   labdns  labinfo  LabMail  ratarmount  │
+                 │   labdns  labinfo  LabMail  labmitm  ratarmount  │
                  └──────────┬─────────┴─────────┬──────────┘
                             │                   │
                  compose labldap         compose labtacacs
@@ -95,6 +96,7 @@
           <li>LabLDAP <code>v0.3.0</code> — native is the default engine; no local patch. Compose is <code>compose.yaml</code> + <code>compose.ephemeral.yaml</code>.</li>
           <li>TacLab <code>v1.3.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob.</li>
           <li>LabMail <code>v1.0.0-rc.3</code> — MCP pin relaxed with <code>allowLegacyClients: true</code> in <code>labmail/bootstrap.yaml</code>. Default <code>originAllowlist: ["*"]</code> for remote inbox JS. Compose service name stays <code>maildev</code>.</li>
+          <li>LabMITM <code>v1.1.0</code> — MCP <code>http://labmitm:8088/mcp</code>. Compose must pass <code>--management-listen=:8088</code>. Unauthenticated data plane; intercept <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Exact Origins (no <code>"*"</code>). Token 0o644. No local patch.</li>
           <li>ratarmount-rs <code>v0.1.24</code> — NFSv3 export; NFSv4.1 is packaged but not enabled.</li>
         </ul>
         <p class="note">Full write-up, mermaid topology, and the OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>. Configure a profile: <a href="configure.html">Configure</a>.</p>

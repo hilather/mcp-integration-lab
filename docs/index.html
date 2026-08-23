@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MCP Integration Lab — one gateway, every lab protocol</title>
-  <meta name="description" content="DNS, LDAP, TACACS+, RADIUS, mail, and NFS behind a single MCP gateway. YAML-configured, ephemeral, ready for integration tests." />
+  <meta name="description" content="DNS, LDAP, TACACS+, RADIUS, mail, NFS, and HTTP intercept behind a single MCP gateway. YAML-configured, ephemeral, ready for integration tests." />
   <meta name="theme-color" content="#0b0c0e" />
   <meta property="og:title" content="MCP Integration Lab" />
   <meta property="og:description" content="One gateway. Every lab protocol. YAML-configured, ephemeral, ready for integration tests." />
@@ -37,8 +37,8 @@
           <div class="eyebrow">v0.4.0 · integration laboratory</div>
           <h1>One gateway.<br />Every lab protocol.</h1>
           <p class="lead">
-            MCP Integration Lab stands up DNS, LDAP, TACACS+, RADIUS, mail, and
-            NFS behind a single MCP endpoint. Configuration is YAML and lives
+            MCP Integration Lab stands up DNS, LDAP, TACACS+, RADIUS, mail, NFS,
+            and HTTP intercept behind a single MCP endpoint. Configuration is YAML and lives
             in a profile. Runtime state is ephemeral and a restart wipes it.
           </p>
           <div class="hero-actions">
@@ -72,7 +72,7 @@
             <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
             <div class="topo-edge">streamable HTTP</div>
             <div class="topo-node hub"><span>Gateway</span><strong>MCPJungle :8080</strong></div>
-            <div class="topo-edge">DNS · LDAP · TACACS+ · RADIUS · SMTP · NFS</div>
+            <div class="topo-edge">DNS · LDAP · TACACS+ · RADIUS · SMTP · NFS · HTTP proxy</div>
             <div class="topo-node"><span>Data plane</span><strong>Integration testers</strong></div>
           </div>
           <div class="topo-projects">
@@ -82,6 +82,7 @@
                 <li><strong>LabDNS</strong> — 10053 / 18080</li>
                 <li><strong>labinfo</strong> — 18090</li>
                 <li><strong>LabMail</strong> — 1025 / 1080</li>
+                <li><strong>LabMITM</strong> — 18888 / 18088</li>
                 <li><strong>ratarmount-rs</strong> — 20490</li>
                 <li><strong>MCPJungle</strong> — 8080</li>
               </ul>
@@ -113,7 +114,7 @@
       <div class="wrap">
         <div class="sec-head">
           <div class="eyebrow">The stack</div>
-          <h2>Seven services. One profile. One client URL.</h2>
+          <h2>Eight services. One profile. One client URL.</h2>
           <p>Each appliance is a real protocol on the wire. Agents talk to the gateway. Testers talk to the data planes.</p>
         </div>
         <div class="cards">
@@ -136,6 +137,11 @@
             <h3>LabMail · v1.0.0-rc.3</h3>
             <p>Receive-only SMTP sink with an inbox UI, maildev <code>/email</code> compat, native <code>/v1</code>, and MCP. Compose service name stays <code>maildev</code>.</p>
             <div class="meta"><span>1025 · 1080</span><a href="https://github.com/hilather/go-lab-maildev">hilather/go-lab-maildev</a></div>
+          </article>
+          <article class="card">
+            <h3>LabMITM · v1.1.0</h3>
+            <p>Laboratory HTTP(S) intercepting forward proxy with a flow-inspector UI, native <code>/v1</code>, and MCP. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only.</p>
+            <div class="meta"><span>18888 · 18088</span><a href="https://github.com/hilather/go-lab-mitmproxy">hilather/go-lab-mitmproxy</a></div>
           </article>
           <article class="card">
             <h3>ratarmount-rs · v0.1.24</h3>
@@ -201,6 +207,7 @@ make smoke
             <tr><td>RADIUS access / acct</td><td>1812 / 1813</td><td>udp; Message-Authenticator required</td></tr>
             <tr><td>TacLab control</td><td>18049</td><td>UI + REST + MCP</td></tr>
             <tr><td>SMTP / LabMail web</td><td>1025 / 1080</td><td>receive-only sink, MCP on /mcp</td></tr>
+            <tr><td>LabMITM proxy / inspector</td><td>18888 / 18088</td><td>unauthenticated HTTP/1.1 proxy; intercept :443 only</td></tr>
             <tr><td>NFS export</td><td>20490</td><td>userspace NFSv3, writable overlay, nolock</td></tr>
             <tr><td>labinfo</td><td>18090</td><td>service-directory MCP</td></tr>
           </tbody>
@@ -221,6 +228,7 @@ make smoke
           <div class="role"><a href="https://github.com/hilather/go-lab-tacacs-mcp">TacLab</a><p>TACACS+ lab appliance: RFC 8907 + RFC 9887 TLS 1.3, RADIUS, REST/MCP, embedded operator UI. <a href="https://hilather.github.io/go-lab-tacacs-mcp/">Site</a>.</p></div>
           <div class="role"><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a><p>Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. Pinned v0.1.24.</p></div>
           <div class="role"><a href="https://github.com/hilather/go-lab-maildev">LabMail</a><p>Receive-only SMTP lab appliance. Inbox UI, /email compat, /v1, MCP. Pinned v1.0.0-rc.3. Compose service name stays maildev.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-mitmproxy">LabMITM</a><p>Laboratory HTTP(S) intercepting forward proxy. Flow-inspector UI, /v1, MCP. Pinned v1.1.0. Data plane is unauthenticated; intercept is :443 only.</p></div>
           <div class="role"><a href="https://github.com/mcpjungle/MCPJungle">MCPJungle</a><p>Self-hosted MCP gateway — the single client endpoint. <a href="https://docs.mcpjungle.com">Docs</a>.</p></div>
           <div class="role"><a href="https://github.com/mark3labs/mcp-go">mcp-go</a><p>Go SDK for the Model Context Protocol. Powers labinfo and is the client generation spoken by the gateway.</p></div>
         </div>
