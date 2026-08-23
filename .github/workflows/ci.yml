@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Unit tests
+        run: make test
+
+  smoke-dev:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PROFILE: ci-dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Write gitignored ci-dev profile
+        run: |
+          set -euo pipefail
+          cp -a profiles/default profiles/ci-dev
+          # Knob lives in that profile.env. Process env on default fails preflight.
+          sed -i 's/^LAB_DEV_MODE=false$/LAB_DEV_MODE=true/' profiles/ci-dev/profile.env
+          grep -qx 'LAB_DEV_MODE=true' profiles/ci-dev/profile.env
+          if grep -q '^LAB_DEV_MODE=false$' profiles/ci-dev/profile.env; then
+            echo "LAB_DEV_MODE=false still set in profiles/ci-dev/profile.env" >&2
+            exit 1
+          fi
+          test -f profiles/ci-dev/dev-credentials.yaml
+      - name: Bring up the lab
+        run: make up
+      - name: Smoke catalog values on the wire
+        run: make smoke

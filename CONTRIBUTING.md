@@ -13,6 +13,11 @@ make up && make smoke
 make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 ```
 
+CI runs `make test` on the default (non-dev) profile, then copies
+`profiles/default` to gitignored `profiles/ci-dev/` with
+`LAB_DEV_MODE=true` in that `profile.env` and runs `make up && make smoke`
+there. Do not set `LAB_DEV_MODE=true` as process env on `default`.
+
 ## Where things belong
 
 | Kind of change | Put it here |

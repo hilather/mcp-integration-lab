@@ -519,5 +519,10 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   profile's** `profile.env` (process env on `default` fails preflight).
 
 Catalog reconcile follows `LAB_DEV_MODE` only — never `MCPJUNGLE_MODE`.
+`make smoke` against a dev profile asserts catalog values on the wire
+(Alice bind, RADIUS `taclabAdmin`, `connections_list` equal to disk);
+default-profile smoke stays random secrets and redaction. CI copies
+`profiles/default` to gitignored `profiles/ci-dev/` and sets the knob in
+that `profile.env` — never as process env on `default`.
 
 Design and phase-1 OAuth plan: [architecture.md](../architecture.md).

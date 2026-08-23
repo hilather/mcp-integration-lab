@@ -36,4 +36,7 @@ is no merge with `default` — a team profile that enables dev mode must
 have its own complete catalog. TacLab lab-user passwords and AAA shared
 secrets are pinned from this file after `labgen` (PKI stays generated).
 After `make up` (or `mcplab secrets`), `make creds` prints the shareable
-sheet from staged files.
+sheet from staged files. `make smoke` against a profile with
+`LAB_DEV_MODE=true` asserts those catalog values on the wire. CI copies
+`default` to gitignored `profiles/ci-dev/` and sets the knob in that
+`profile.env` (not as process env on `default`).

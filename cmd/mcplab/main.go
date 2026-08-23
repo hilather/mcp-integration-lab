@@ -22,6 +22,7 @@ Usage: mcplab <command> [args]
   register       (re)apply gateway config from the active profile
   preflight      fail fast on profile drift and unavailable host ports
   smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM scenario through the gateway
+                 (dev mode also asserts catalog values on the wire)
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
                  labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 

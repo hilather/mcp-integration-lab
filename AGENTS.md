@@ -250,3 +250,10 @@ we work by.
   change, `mcplab secrets` is enough: it reloads running apps whose files
   changed (and `Register()` if any registrarEnv token changed). `make up`
   skips those names so they are not bounced twice.
+- Dev-mode smoke (`LAB_DEV_MODE=true` in the active `profile.env`) asserts
+  catalog values on the wire: Alice's bind password, RADIUS Accept for
+  catalog `taclabAdmin`, and `connections_list` secrets equal disk files.
+  Default-profile smoke stays random secrets and redaction. Never set
+  `LAB_DEV_MODE=true` as process env on `default` (preflight). CI copies
+  `profiles/default` to gitignored `profiles/ci-dev/` and flips the knob
+  there.

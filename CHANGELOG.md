@@ -9,6 +9,13 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Added
 
+- `make smoke` in `LAB_DEV_MODE` asserts Alice's LDAPS bind, RADIUS Accept
+  for catalog `taclabAdmin`, and labinfo `connections_list` secrets equal
+  the profile catalog / disk files (`devMode=true`). CI copies
+  `profiles/default` to gitignored `profiles/ci-dev/` with
+  `LAB_DEV_MODE=true` in that `profile.env` and runs that smoke; the
+  default-profile job stays non-dev (random secrets, redaction). Never
+  set `LAB_DEV_MODE=true` as process env on `default`.
 - When `LAB_DEV_MODE=true`, `mcplab secrets` reconciles LabDNS, LabMail,
   labinfo, MCP client, LabLDAP tokens/passwords, and TacLab lab-user
   passwords plus AAA shared secrets from the profile's

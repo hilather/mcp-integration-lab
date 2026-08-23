@@ -172,6 +172,9 @@ Internal hops always use static bearer tokens on an isolated docker network.
   when registrar tokens change; `make up` skips those apps.
   `mcplab creds` / `make creds` prints the same sheet from files on disk
   (fails closed outside dev; never prints TLS private keys).
+  Dev-mode `make smoke` asserts those catalog values on the wire (Alice
+  bind, RADIUS `taclabAdmin`, `connections_list` equal to disk).
+  Default-profile smoke stays on random secrets and redaction.
 
 labinfo's catalog (`profiles/<name>/labinfo/services.yaml`) requires a
 `connection` block per service — protocol endpoints, client parameters (LDAP

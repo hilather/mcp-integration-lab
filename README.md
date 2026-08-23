@@ -176,7 +176,7 @@ Configuration reference with every variable and a working snippet for each servi
 | `make reset` | Stop and wipe all runtime state |
 | `make register` | Reapply gateway JSON from the active profile |
 | `make preflight` | Fail fast on profile drift and unavailable host ports |
-| `make smoke` | End-to-end scenario through the gateway |
+| `make smoke` | End-to-end scenario through the gateway (dev mode also asserts catalog values on the wire) |
 | `make creds` | Print the shareable credentials sheet (dev mode only) |
 | `make test` | `go vet` + unit/regression tests for the CLI |
 

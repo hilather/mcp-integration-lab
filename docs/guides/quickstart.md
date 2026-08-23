@@ -22,7 +22,7 @@ make smoke
 
 `make up` is idempotent. It clones pinned vendors into `third_party/`, applies patches, mints gitignored secrets, builds local images, starts three compose projects on `mcplab-shared`, and registers every MCP server with the gateway. First run is image-build heavy.
 
-`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM.
+`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with `LAB_DEV_MODE=true` it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog `taclabAdmin`, `connections_list` secrets equal the files on disk, `devMode=true`).
 
 ## Attach an MCP client
 
@@ -74,7 +74,19 @@ Set `LAB_PUBLIC_HOST` to the DNS name or address remote testers use. That value 
 
 ## Easy connect (dev mode)
 
-For a throwaway local lab, set `LAB_DEV_MODE=true` in **that profile's** `profile.env` (not process env on `default` — preflight rejects the drift). Then `make up`. Tokens, Alice's bind password (`lab-dev-alice-12` on the default catalog), the mail admin password, and TacLab lab-user / AAA secrets come from `dev-credentials.yaml` and are the same on every clone using that catalog. labinfo reveals them; `make creds` prints the shareable sheet (PEMs included; fails closed outside dev mode). Never enable this on a shared internet-facing host. Flip the knob back to `false` and run `mcplab secrets` to remint.
+For a throwaway local lab, copy the default profile and set `LAB_DEV_MODE=true` in **that profile's** `profile.env` (not process env on `default` — preflight rejects the drift):
+
+```bash
+cp -a profiles/default profiles/teamx
+# edit profiles/teamx/profile.env: LAB_DEV_MODE=true
+make up PROFILE=teamx
+make smoke PROFILE=teamx
+make creds
+```
+
+Tokens, Alice's bind password (`lab-dev-alice-12` on the default catalog), the mail admin password, and TacLab lab-user / AAA secrets come from `dev-credentials.yaml` and are the same on every clone using that catalog. `make smoke` then checks those catalog values on the wire. labinfo reveals them; `make creds` prints the shareable sheet (PEMs included; fails closed outside dev mode). Never enable this on a shared internet-facing host. Flip the knob back to `false` and run `mcplab secrets` to remint.
+
+CI does the same with a gitignored `profiles/ci-dev/` (copy of `default`, `LAB_DEV_MODE=true` in that `profile.env`). The default-profile unit-test job stays non-dev.
 
 ## Reload one app (not a full redeploy)
 
