@@ -194,6 +194,7 @@ func TestConnCredIndexDefaultCatalog(t *testing.T) {
 		"lab-admin-enable":      "labtacacs-lab-admin-enable",
 		"lab-readonly-password": "labtacacs-lab-readonly",
 		"labmail-token":         "labmail-token",
+		"labmitm-token":         "labmitm-token",
 		"tacacs-client-ca":      "tacacs-client-ca.pem",
 		"tacacs-client-ok-cert": "tacacs-client-ok.pem",
 	}
@@ -271,6 +272,7 @@ func writeCatalogDisk(t *testing.T, root string, doc *DevCredentials) {
 		"secrets/labdns-token":                                                doc.Spec.Tokens.LabDNS + "\n",
 		"secrets/labinfo-token":                                               doc.Spec.Tokens.Labinfo + "\n",
 		"secrets/labmail-token":                                               doc.Spec.Tokens.Labmail + "\n",
+		"secrets/labmitm-token":                                               doc.Spec.Tokens.LabMITM + "\n",
 		"secrets/mcp-client-token":                                            doc.Spec.Tokens.MCPClient + "\n",
 		"secrets/maildev-web-password":                                        doc.Spec.Passwords.MaildevWeb + "\n",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     doc.Spec.Tokens.LabLDAPAdmin + "\n",

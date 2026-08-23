@@ -351,14 +351,7 @@ func TestSecretsLeaveDevRotatesCatalogAlice(t *testing.T) {
 	if got := readTrim(t, r, "third_party/go-lab-ldap-mcp/secrets/user-alice"); got != "lab-dev-alice-12" {
 		t.Fatalf("precondition Alice = %q", got)
 	}
-	tlsDir := r.path("third_party/go-lab-ldap-mcp/secrets/tls")
-	if err := os.MkdirAll(tlsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	ca := filepath.Join(tlsDir, "ca.crt")
-	if err := os.WriteFile(ca, []byte("keep-me\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	caKey := mustRead(t, r.path("third_party/go-lab-ldap-mcp/secrets/tls/ca.key"))
 
 	r.Prof.Values["LAB_DEV_MODE"] = "false"
 	if err := r.Secrets(); err != nil {
@@ -378,9 +371,8 @@ func TestSecretsLeaveDevRotatesCatalogAlice(t *testing.T) {
 	if _, err := os.Stat(r.path(devModeMarkerRel)); !os.IsNotExist(err) {
 		t.Fatalf("marker should be removed last, still present: %v", err)
 	}
-	kept, err := os.ReadFile(ca)
-	if err != nil || string(kept) != "keep-me\n" {
-		t.Fatalf("leave-dev must not rotate LabLDAP TLS: %v %q", err, kept)
+	if got := mustRead(t, r.path("third_party/go-lab-ldap-mcp/secrets/tls/ca.key")); string(got) != string(caKey) {
+		t.Fatal("leave-dev must not rotate LabLDAP CA")
 	}
 }
 
@@ -1209,6 +1201,7 @@ func writeStageSources(r *Runner, withOptionalCerts bool) error {
 		"secrets/mcp-client-token":                                            "mcp-token\n",
 		"secrets/labmail-token":                                               "mail-token\n",
 		"secrets/maildev-web-password":                                        "mail-pass\n",
+		"secrets/labmitm-token":                                               "mitm-token\n",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "ldap-admin\n",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "alice-pw\n",
 		"third_party/go-lab-ldap-mcp/secrets/tls/ca.crt":                      "-----BEGIN CERTIFICATE-----\nLABCA\n-----END CERTIFICATE-----\n",

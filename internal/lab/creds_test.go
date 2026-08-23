@@ -91,7 +91,6 @@ func TestCredsPrintsStagedFilesAndHost(t *testing.T) {
 		"lab-readonly-password=LabReadonly-Dev-Pass-01!",
 		"lab-ca:",
 		"-----BEGIN CERTIFICATE-----",
-		"TESTCA",
 		"radius-shared-secret=",
 		"tacacs-shared-secret=",
 		"labtacacs-token-admin=",

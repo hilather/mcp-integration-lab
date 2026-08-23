@@ -341,6 +341,9 @@ func TestDefaultCatalogConnectionCredentialsRedactOutsideDev(t *testing.T) {
 		"maildev": {
 			"labmail-token",
 		},
+		"labmitm": {
+			"labmitm-token",
+		},
 		"nfs": nil,
 	}
 	if len(got.Services) != len(want) {
