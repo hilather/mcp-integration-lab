@@ -86,7 +86,7 @@
         <p>Internal hops always use static bearer tokens on the isolated docker network. The single profile knob is <code>LAB_DEV_MODE</code>.</p>
         <ul>
           <li>Hardened: enterprise gateway, redacted labinfo, random-if-missing secrets. Leaving dev mode (marker <code>secrets/.lab-dev-mode</code>) unlinks and remints orchestrator tokens, runs LabLDAP <code>setupsecrets --force</code> and <code>labgen -force</code>, reloads running containers, and removes the marker last. LabLDAP TLS is not rotated.</li>
-          <li>Dev: open gateway, revealed credentials staged world-readable under <code>secrets/labinfo-creds/</code>, and secret files reconciled from <code>dev-credentials.yaml</code> (fail-closed if missing; no merge with <code>default</code>; default profile ships <code>lab-dev-*</code> values, inert unless this knob is on). Catalog reconcile never inspects <code>MCPJUNGLE_MODE</code>. <code>mcplab secrets</code> reloads running containers whose files changed (or when the marker is missing / <code>reloads</code> is not <code>done</code>) and re-registers the gateway when registrar tokens change; <code>make up</code> skips those apps.</li>
+          <li>Dev: open gateway, revealed credentials staged world-readable under <code>secrets/labinfo-creds/</code>, and secret files reconciled from <code>dev-credentials.yaml</code> (including TacLab lab-user passwords and AAA shared secrets after <code>labgen</code>; fail-closed if missing; no merge with <code>default</code>; default profile ships <code>lab-dev-*</code> values, inert unless this knob is on). Catalog reconcile never inspects <code>MCPJUNGLE_MODE</code>. <code>mcplab secrets</code> reloads running containers whose files changed (or when the marker is missing / <code>reloads</code> is not <code>done</code>) and re-registers the gateway when registrar tokens change; <code>make up</code> skips those apps.</li>
           <li>Phase 1 puts OAuth 2.1 / OIDC on a proxy in front of the gateway. The tools do not change.</li>
         </ul>
 
@@ -94,7 +94,7 @@
         <ul>
           <li>LabDNS <code>v1.1.0</code> — operator console on <code>GET /</code>. Local patch is only <code>patches/go-lab-dns-relax-mcp-pin.patch</code> (MCPJungle protocol).</li>
           <li>LabLDAP <code>v0.3.0</code> — native is the default engine; no local patch. Compose is <code>compose.yaml</code> + <code>compose.ephemeral.yaml</code>.</li>
-          <li>TacLab <code>v1.3.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob.</li>
+          <li>TacLab <code>v1.3.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob. Dev mode post-processes secret files after <code>labgen</code>; it does not patch the vendor.</li>
           <li>LabMail <code>v1.0.0-rc.3</code> — MCP pin relaxed with <code>allowLegacyClients: true</code> in <code>labmail/bootstrap.yaml</code>. Default <code>originAllowlist: ["*"]</code> for remote inbox JS. Compose service name stays <code>maildev</code>.</li>
           <li>LabMITM <code>v1.1.0</code> — MCP <code>http://labmitm:8088/mcp</code>. Compose must pass <code>--management-listen=:8088</code>. Unauthenticated data plane; intercept <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Exact Origins (no <code>"*"</code>). Token 0o644. No local patch.</li>
           <li>ratarmount-rs <code>v0.1.24</code> — NFSv3 export; NFSv4.1 is packaged but not enabled.</li>

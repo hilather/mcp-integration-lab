@@ -159,7 +159,11 @@ we work by.
 - TacLab (pinned `v1.3.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
-  strict. Bumping the vendor pin re-runs `labgen -force`.
+  strict. Bumping the vendor pin re-runs `labgen -force`. In
+  `LAB_DEV_MODE=true`, `applyDevTaclabSecrets` then pins token, shared
+  secrets, challenge, `PASSWORDS.txt`, and Argon2id verifiers from the
+  catalog (PHC rewrite only when `VerifyArgon2id` fails). PKI and YAML
+  stay labgen's.
 - LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and

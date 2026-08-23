@@ -1,6 +1,7 @@
-// Package taclabcfg mutates TacLab's labgen-generated YAML. labgen owns the
-// baseline (PKI, secrets, users); this lab only turns on the upstream MCP
-// compatibility knob so MCPJungle can connect.
+// Package taclabcfg mutates TacLab's labgen-generated tree. labgen owns the
+// baseline (PKI, YAML, layout); this lab turns on the upstream MCP
+// compatibility knob and, in dev mode, pins secret material from the
+// profile catalog.
 package taclabcfg
 
 import (

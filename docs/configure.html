@@ -67,7 +67,7 @@
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group</code></pre>
-        <p>TacLab’s baseline is generated, not hand-written. <code>labgen</code> materializes users, groups, clients, policies, PKI, and shared secrets into <code>third_party/go-lab-tacacs-mcp/deployments/compose/</code> on first <code>make up</code>. The profile only owns the host ports (<code>TACLAB_*</code>).</p>
+        <p>TacLab’s baseline is generated, not hand-written. <code>labgen</code> materializes users, groups, clients, policies, PKI, and shared secrets into <code>third_party/go-lab-tacacs-mcp/deployments/compose/</code> on first <code>make up</code>. The profile owns the host ports (<code>TACLAB_*</code>). When <code>LAB_DEV_MODE=true</code>, <code>mcplab secrets</code> post-processes the secret files to the catalog (token, shared secrets, lab-user passwords, Argon2id verifiers) and leaves PKI and YAML alone.</p>
         <pre><code>cp -a profiles/default profiles/teamx
 # edit profiles/teamx/profile.env and the YAML/JSON under it
 cp .env.example .env
@@ -207,7 +207,7 @@ TACLAB_HTTP_PORT=18049
 # published, listeners default off
 TACLAB_RADIUS_RADSEC_PORT=2083
 TACLAB_RADIUS_DYNAUTH_PORT=3799</code></pre>
-        <p>Lab-user passwords land in <code>third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt</code>. RADIUS Access-Requests must carry Message-Authenticator (RFC 3579).</p>
+        <p>Lab-user passwords land in <code>third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt</code>. In <code>LAB_DEV_MODE=true</code> those values (and the TACACS+/RADIUS shared secrets) come from <code>dev-credentials.yaml</code>. RADIUS Access-Requests must carry Message-Authenticator (RFC 3579).</p>
 
         <h2 id="mail">LabMail</h2>
         <p>The compose service name stays <code>maildev</code>. Desired state is <code>labmail/bootstrap.yaml</code> (LabMail <strong>v1.0.0-rc.3</strong>). The orchestrator <strong>rejects</strong> leftover <code>maildev/maildev.yaml</code> and every relay/outbound key. <code>allowLegacyClients: true</code> is required for MCPJungle. After editing, <code>make reload APP=maildev</code> (wipes the inbox). Hashed inbox JS sends <code>Origin</code>; this profile sets <code>originAllowlist: ["*"]</code> so remote browsers can load the SPA. Bearer + Basic still required; CORS stays off. Tighten with <code>"private"</code> or an exact Origin.</p>
@@ -318,7 +318,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <h2 id="security">One knob: LAB_DEV_MODE</h2>
         <ul>
           <li><strong>false (default)</strong> — enterprise gateway. Clients send <code>Authorization: Bearer $(cat secrets/mcp-client-token)</code>. labinfo describes auth and never reveals secrets. Secret files are random-if-missing. If <code>secrets/.lab-dev-mode</code> is present, <code>mcplab secrets</code> remints orchestrator tokens, force-runs LabLDAP <code>setupsecrets</code> and TacLab <code>labgen</code>, reloads running containers, and removes the marker last. LabLDAP TLS is not rotated.</li>
-          <li><strong>true</strong> — open gateway, labinfo reveals web tokens and connection secrets, and <code>mcplab secrets</code> writes this profile's <code>dev-credentials.yaml</code> (fail-closed if missing or incomplete; no merge with <code>default</code>). The default profile ships <code>lab-dev-*</code> values; they are inert unless this knob is on. Never default a shared team profile to dev mode. Set the knob in that profile's <code>profile.env</code>.</li>
+          <li><strong>true</strong> — open gateway, labinfo reveals web tokens and connection secrets, and <code>mcplab secrets</code> writes this profile's <code>dev-credentials.yaml</code> (fail-closed if missing or incomplete; no merge with <code>default</code>), including TacLab lab-user passwords and AAA shared secrets after <code>labgen</code>. The default profile ships <code>lab-dev-*</code> values; they are inert unless this knob is on. Never default a shared team profile to dev mode. Set the knob in that profile's <code>profile.env</code>.</li>
         </ul>
         <p>Catalog reconcile follows <code>LAB_DEV_MODE</code> only — never <code>MCPJUNGLE_MODE</code>. <code>mcplab secrets</code> reloads running apps whose files changed (and re-registers when registrar tokens change); <code>make up</code> skips LabLDAP/TacLab if they already reloaded this process.</p>
         <p class="note">Markdown twin: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/guides/configuration.md">docs/guides/configuration.md</a>. Design and phase-1 OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>.</p>

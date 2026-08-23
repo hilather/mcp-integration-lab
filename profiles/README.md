@@ -33,4 +33,5 @@ The catalog is consumed only when `LAB_DEV_MODE=true` (never from
 `MCPJUNGLE_MODE`). The default profile ships live `lab-dev-*` values in
 `dev-credentials.yaml`; they are inert while `LAB_DEV_MODE=false`. There
 is no merge with `default` — a team profile that enables dev mode must
-have its own complete catalog.
+have its own complete catalog. TacLab lab-user passwords and AAA shared
+secrets are pinned from this file after `labgen` (PKI stays generated).

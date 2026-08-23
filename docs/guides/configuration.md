@@ -42,7 +42,10 @@ profiles/<name>/
 TacLab’s baseline is generated, not hand-written. `labgen` materializes
 users, groups, clients, policies, PKI, and shared secrets into
 `third_party/go-lab-tacacs-mcp/deployments/compose/` on first `make up`.
-The profile only owns the host ports (`TACLAB_*`).
+The profile owns the host ports (`TACLAB_*`). When `LAB_DEV_MODE=true`,
+`mcplab secrets` post-processes the secret files to the catalog (token,
+shared secrets, lab-user passwords, Argon2id verifiers) and leaves PKI
+and YAML alone.
 
 ```bash
 cp -a profiles/default profiles/teamx
@@ -295,7 +298,9 @@ TACLAB_RADIUS_DYNAUTH_PORT=3799
 
 Lab-user passwords land in
 `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt`.
-RADIUS Access-Requests must carry Message-Authenticator (RFC 3579).
+In `LAB_DEV_MODE=true` those values (and the TACACS+/RADIUS shared secrets)
+come from `dev-credentials.yaml`. RADIUS Access-Requests must carry
+Message-Authenticator (RFC 3579).
 
 ## LabMail
 
@@ -496,7 +501,8 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
 - **true** — open gateway, labinfo reveals web tokens and connection
   secrets (LDAP bind password, RADIUS shared secret), and `mcplab secrets`
   writes this profile's `dev-credentials.yaml` (fail-closed if missing or
-  incomplete; no merge with `default`). The default profile ships
+  incomplete; no merge with `default`), including TacLab lab-user
+  passwords and AAA shared secrets after `labgen`. The default profile ships
   `lab-dev-*` values; they are inert unless this knob is on. Never
   default a shared team profile to dev mode. Set the knob in **that
   profile's** `profile.env` (process env on `default` fails preflight).

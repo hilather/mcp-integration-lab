@@ -93,8 +93,10 @@ TacLab is generated rather than hand-written: its `labgen` tool materializes
 the full lab baseline (combined TACACS+RADIUS config, PKI, shared secrets,
 lab-user passwords) into `third_party/go-lab-tacacs-mcp/deployments/compose/`
 on first `mcplab secrets`; the lab runs that bundle as compose project
-`labtacacs` with an overlay for the shared network, and the profile only owns
-the host ports (`TACLAB_*`).
+`labtacacs` with an overlay for the shared network, and the profile owns
+the host ports (`TACLAB_*`). In `LAB_DEV_MODE=true`, `internal/taclabcfg`
+pins the secret files to `dev-credentials.yaml` after labgen (PKI and YAML
+stay generated).
 
 Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
 `profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
@@ -152,7 +154,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
   RADIUS shared secret) — all staged world-readable in
   `secrets/labinfo-creds/` (lab-grade static secrets, gitignored).
   `mcplab secrets` writes the active profile's `dev-credentials.yaml` into
-  those files (fail-closed if the catalog is missing; no merge with
+  those files, including TacLab lab-user passwords and AAA shared secrets
+  after labgen (fail-closed if the catalog is missing; no merge with
   `default`). The default profile ships `lab-dev-*` values; they are inert
   unless this knob is on. Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
@@ -208,7 +211,8 @@ per-persona tool groups and OTel metrics scraping.
   turns it on after `labgen`). There is no TacLab patch in `patches/`.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
   RADIUS Challenge/EAP/MS-CHAP/PEAP, named Cisco-AVPair, optional RadSec
-  (TCP 2083, default off) and inbound DAS (UDP 3799, default off).
+  (TCP 2083, default off) and inbound DAS (UDP 3799, default off). Dev mode
+  post-processes secret files after labgen; it does not patch the vendor.
 - LabLDAP is pinned to release **v0.3.0**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`

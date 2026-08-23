@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hilather/mcp-integration-lab/internal/profile"
+	"github.com/hilather/mcp-integration-lab/internal/taclabcfg"
 )
 
 func validCatalogBytes(t *testing.T) []byte {
@@ -49,6 +51,7 @@ func installTestSecretsDeps(r *Runner, exists map[string]bool) {
 	if exists == nil {
 		exists = map[string]bool{}
 	}
+	p := taclabcfg.TestParams
 	r.deps = &secretsDeps{
 		setupsecrets: func(force bool) error {
 			return fakeSetupsecrets(r.Root, force)
@@ -60,11 +63,12 @@ func installTestSecretsDeps(r *Runner, exists map[string]bool) {
 		containerExists: func(name string) (bool, error) {
 			return exists[name], nil
 		},
-		reloadMain:      func(string) error { return nil },
-		reloadGateway:   func() error { return nil },
-		reloadLabLDAP:   func() error { return nil },
-		reloadLabTacacs: func() error { return nil },
-		register:        func() error { return nil },
+		reloadMain:         func(string) error { return nil },
+		reloadGateway:      func() error { return nil },
+		reloadLabLDAP:      func() error { return nil },
+		reloadLabTacacs:    func() error { return nil },
+		register:           func() error { return nil },
+		taclabArgon2Params: &p,
 	}
 }
 
@@ -177,10 +181,39 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 		"third_party/go-lab-ldap-mcp/secrets/runtime-ldap":  "lab-dev-runtime-12",
 		"third_party/go-lab-ldap-mcp/secrets/dm.pw":         "lab-dev-dm-password-12",
 		"third_party/go-lab-ldap-mcp/secrets/directory.env": "DS_DM_PASSWORD=lab-dev-dm-password-12",
+		taclabSecretRel("api_admin_token"):                  "lab-dev-labtacacs-token-admin",
+		taclabSecretRel("lab_switches_tacacs_secret"):       "LabDev-Switches-Tacacs-01",
+		taclabSecretRel("lab_switches_radius_secret"):       "LabDev-Switches-Radius-01",
+		taclabSecretRel("lab_admin_challenge_secret"):       "LabChallenge-Dev-Pass-01!",
 	}
 	for rel, exp := range want {
 		if got := readTrim(t, r, rel); got != exp {
 			t.Errorf("%s = %q, want %q", rel, got, exp)
+		}
+	}
+	for _, name := range []string{"api_admin_token", "lab_switches_tacacs_secret", "lab_switches_radius_secret", "lab_admin_challenge_secret"} {
+		b := mustRead(t, r.path(taclabSecretRel(name)))
+		if bytes.Contains(b, []byte("\n")) {
+			t.Errorf("%s has trailing newline", name)
+		}
+	}
+	pw := string(mustRead(t, r.path(taclabSecretRel("PASSWORDS.txt"))))
+	if !strings.Contains(pw, "lab-admin=LabAdmin-Dev-Pass-01!\n") {
+		t.Fatalf("PASSWORDS.txt lab-admin=:\n%s", pw)
+	}
+	phcChecks := []struct{ file, password string }{
+		{"lab_admin_argon2id", "LabAdmin-Dev-Pass-01!"},
+		{"lab_admin_enable_argon2id", "LabEnable-Dev-Pass-01!"},
+		{"lab_readonly_argon2id", "LabReadonly-Dev-Pass-01!"},
+		{"lab_disabled_argon2id", "LabDisabled-Dev-Pass-01!"},
+	}
+	for _, h := range phcChecks {
+		b := mustRead(t, r.path(taclabSecretRel(h.file)))
+		if bytes.Contains(b, []byte("\n")) {
+			t.Errorf("%s has newline", h.file)
+		}
+		if err := taclabcfg.VerifyArgon2id(b, []byte(h.password)); err != nil {
+			t.Errorf("%s: %v", h.file, err)
 		}
 	}
 	m, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
@@ -209,6 +242,9 @@ func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 	alice := readTrim(t, r, "third_party/go-lab-ldap-mcp/secrets/user-alice")
 	if alice == "lab-dev-alice-12" {
 		t.Fatal("non-dev must not write catalog Alice")
+	}
+	if readTrim(t, r, taclabSecretRel("api_admin_token")) == "lab-dev-labtacacs-token-admin" {
+		t.Fatal("non-dev must not write catalog TacLab token")
 	}
 	if _, err := os.Stat(r.path(devModeMarkerRel)); err == nil {
 		t.Fatal("non-dev must not write the dev-mode marker")
@@ -288,6 +324,9 @@ func TestSecretsLeaveDevRotatesCatalogAlice(t *testing.T) {
 	mustHexToken(t, readTrim(t, r, "secrets/labdns-token"), "labdns-token")
 	if readTrim(t, r, "secrets/labdns-token") == "lab-dev-labdns-token" {
 		t.Fatal("leave-dev must not keep catalog labdns token")
+	}
+	if readTrim(t, r, taclabSecretRel("api_admin_token")) == "lab-dev-labtacacs-token-admin" {
+		t.Fatal("leave-dev must not keep catalog TacLab token")
 	}
 	if _, err := os.Stat(r.path(devModeMarkerRel)); !os.IsNotExist(err) {
 		t.Fatalf("marker should be removed last, still present: %v", err)
@@ -473,6 +512,103 @@ func TestSecretsMatchingCatalogDoesNotReload(t *testing.T) {
 	if len(r.reloadedThisRun) != 0 {
 		t.Fatalf("reloadedThisRun=%v, want empty", r.reloadedThisRun)
 	}
+}
+
+func TestSecretsTaclabTokenChangeFlagsRegister(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	token := r.path(taclabSecretRel("api_admin_token"))
+	if err := os.Chmod(token, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(token, []byte("stale-taclab-token"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	exists := map[string]bool{"labtacacs": true, "mcpjungle": true}
+	installTestSecretsDeps(r, exists)
+	var registered, gateway, labtacacs bool
+	r.deps.register = func() error { registered = true; return nil }
+	r.deps.reloadGateway = func() error { gateway = true; return nil }
+	r.deps.reloadLabTacacs = func() error { labtacacs = true; return nil }
+	r.deps.reloadLabLDAP = func() error { t.Fatal("unexpected labldap reload"); return nil }
+	r.deps.reloadMain = func(string) error { t.Fatal("unexpected main reload"); return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTrim(t, r, taclabSecretRel("api_admin_token")); got != "lab-dev-labtacacs-token-admin" {
+		t.Fatalf("api_admin_token = %q", got)
+	}
+	if !r.alreadyReloaded("labtacacs") || !labtacacs {
+		t.Fatal("api_admin_token change must reloadLabTacacs")
+	}
+	if r.alreadyReloaded("mcpjungle") || gateway {
+		t.Fatal("token alone must Register(), not reloadGateway")
+	}
+	if !r.alreadyReloaded("register") || !registered {
+		t.Fatal("api_admin_token change must Register() (LABTACACS_TOKEN)")
+	}
+}
+
+func TestSecretsTaclabPHCRewriteDoesNotReload(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	phcPath := r.path(taclabSecretRel("lab_admin_argon2id"))
+	if err := os.Chmod(phcPath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(phcPath, []byte("not-a-phc"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	installTestSecretsDeps(r, map[string]bool{"labtacacs": true, "mcpjungle": true})
+	var hits []string
+	r.deps.reloadLabTacacs = func() error { hits = append(hits, "labtacacs"); return nil }
+	r.deps.register = func() error { hits = append(hits, "register"); return nil }
+	r.deps.reloadGateway = func() error { hits = append(hits, "gateway"); return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if err := taclabcfg.VerifyArgon2id(mustRead(t, phcPath), []byte("LabAdmin-Dev-Pass-01!")); err != nil {
+		t.Fatalf("PHC not rewritten: %v", err)
+	}
+	if len(hits) != 0 {
+		t.Fatalf("PHC rewrite must not bounce AAA: %v", hits)
+	}
+	if len(r.reloadedThisRun) != 0 {
+		t.Fatalf("reloadedThisRun=%v", r.reloadedThisRun)
+	}
+}
+
+func TestSecretsEnterDevRetriesLabTacacsWhenPending(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	prev, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeDevModeMarker(r.path(devModeMarkerRel), r.Prof.Name, prev.catalogSHA, reloadsPending); err != nil {
+		t.Fatal(err)
+	}
+	installTestSecretsDeps(r, map[string]bool{"labtacacs": true})
+	var labtacacs bool
+	r.deps.reloadLabTacacs = func() error { labtacacs = true; return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labtacacs || !r.alreadyReloaded("labtacacs") {
+		t.Fatal("pending enter-dev must reloadLabTacacs even when plaintext matches")
+	}
+}
+
+func taclabSecretRel(name string) string {
+	return taclabDir + "/deployments/compose/secrets/" + name
 }
 
 func TestAlreadyReloaded(t *testing.T) {

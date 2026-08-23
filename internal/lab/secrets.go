@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,6 +39,9 @@ type secretsDeps struct {
 	reloadLabLDAP   func() error
 	reloadLabTacacs func() error
 	register        func() error
+
+	taclabArgon2Params *taclabcfg.Argon2Params
+	taclabEntropy      io.Reader
 }
 
 type secretChanges struct {
@@ -50,14 +54,20 @@ type secretChanges struct {
 	labldapRuntime bool
 	labldapDM      bool
 	labldapAdmin   bool
+	labtacacs      bool
+	labtacacsAdmin bool
 }
 
 func (c secretChanges) labldap() bool {
 	return c.labldapAlice || c.labldapRuntime || c.labldapDM || c.labldapAdmin
 }
 
+func (c secretChanges) labtacacsReload() bool {
+	return c.labtacacs || c.labtacacsAdmin
+}
+
 func (c secretChanges) registrarEnv() bool {
-	return c.labdnsToken || c.labinfoToken || c.labmailToken || c.mcpClientToken || c.labldapAdmin
+	return c.labdnsToken || c.labinfoToken || c.labmailToken || c.mcpClientToken || c.labldapAdmin || c.labtacacsAdmin
 }
 
 func (c secretChanges) count() int {
@@ -65,6 +75,7 @@ func (c secretChanges) count() int {
 	for _, v := range []bool{
 		c.labdnsToken, c.labinfoToken, c.labmailToken, c.maildevWeb, c.mcpClientToken,
 		c.labldapAlice, c.labldapRuntime, c.labldapDM, c.labldapAdmin,
+		c.labtacacs, c.labtacacsAdmin,
 	} {
 		if v {
 			n++
@@ -86,6 +97,8 @@ func enterDevReloadChanges() secretChanges {
 		labldapRuntime: true,
 		labldapDM:      true,
 		labldapAdmin:   true,
+		labtacacs:      true,
+		labtacacsAdmin: true,
 	}
 }
 
@@ -136,6 +149,12 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if err := r.generateTaclabLab(false); err != nil {
 		return err
 	}
+	tac, err := r.applyDevTaclabSecrets(doc)
+	if err != nil {
+		return err
+	}
+	ch.labtacacs = tac.Changed
+	ch.labtacacsAdmin = tac.APIAdminChanged
 
 	newHash := sha256Hex(raw)
 	if prev.catalogSHA != "" && prev.catalogSHA != newHash {
@@ -363,6 +382,7 @@ func (r *Runner) generateTaclabLab(force bool) error {
 // and turns on api.mcp.allow_legacy_clients so MCPJungle can connect. labgen
 // is rerun with -force when the vendored checkout moves to a new tag, so a
 // pin bump cannot leave a stale baseline behind. force also covers leave-dev.
+// Dev-mode catalog pinning runs after this from secretsEnterDev.
 func (r *Runner) ensureTaclabLab(force bool) error {
 	ref, err := r.taclabVendorRef()
 	if err != nil {
@@ -393,6 +413,28 @@ func (r *Runner) ensureTaclabLab(force bool) error {
 		return fmt.Errorf("enable TacLab MCP legacy clients: %w", err)
 	}
 	return nil
+}
+
+func (r *Runner) applyDevTaclabSecrets(doc *DevCredentials) (taclabcfg.ApplyResult, error) {
+	params := taclabcfg.DefaultParams
+	entropy := rand.Reader
+	if r.deps != nil && r.deps.taclabArgon2Params != nil {
+		params = *r.deps.taclabArgon2Params
+	}
+	if r.deps != nil && r.deps.taclabEntropy != nil {
+		entropy = r.deps.taclabEntropy
+	}
+	cat := taclabcfg.Catalog{
+		APIAdminToken:    doc.Spec.Tokens.LabTacacsAdmin,
+		TacacsSecret:     doc.Spec.SharedSecrets.TacacsLabSwitches,
+		RadiusSecret:     doc.Spec.SharedSecrets.RadiusLabSwitches,
+		AdminPassword:    doc.Spec.Passwords.TaclabAdmin,
+		AdminEnable:      doc.Spec.Passwords.TaclabAdminEnable,
+		ReadonlyPassword: doc.Spec.Passwords.TaclabReadonly,
+		DisabledPassword: doc.Spec.Passwords.TaclabDisabled,
+		ChallengeSecret:  doc.Spec.Passwords.TaclabChallenge,
+	}
+	return taclabcfg.ApplyDevSecrets(r.path(taclabDir+"/deployments/compose/secrets"), cat, params, entropy)
 }
 
 const taclabLabgenMarker = "deployments/compose/.mcplab-labgen-ref"
@@ -573,7 +615,7 @@ func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
 			}
 		}
 	}
-	if leaveDev {
+	if leaveDev || ch.labtacacsReload() {
 		ok, err := r.serviceExists("labtacacs")
 		if err != nil {
 			return err
