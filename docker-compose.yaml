@@ -201,6 +201,8 @@ services:
       TACLAB_RADIUS_DYNAUTH_PORT: ${TACLAB_RADIUS_DYNAUTH_PORT:-3799}
       MAILDEV_SMTP_PORT: ${MAILDEV_SMTP_PORT:-1025}
       MAILDEV_WEB_PORT: ${MAILDEV_WEB_PORT:-1080}
+      LABMITM_PROXY_PORT: ${LABMITM_PROXY_PORT:-18888}
+      LABMITM_WEB_PORT: ${LABMITM_WEB_PORT:-18088}
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labinfo/services.yaml:/etc/labinfo/services.yaml:ro
       # Staged by `mcplab secrets`: world-readable copies of the web-service
@@ -252,6 +254,7 @@ services:
       LABTACACS_TOKEN: ${LABTACACS_TOKEN:-}
       LABINFO_TOKEN: ${LABINFO_TOKEN:-}
       LABMAIL_TOKEN: ${LABMAIL_TOKEN:-}
+      LABMITM_TOKEN: ${LABMITM_TOKEN:-}
       MCP_CLIENT_TOKEN: ${MCP_CLIENT_TOKEN:-}
       # CLI stores its server config (enterprise admin token) under $HOME.
       HOME: /cli-home

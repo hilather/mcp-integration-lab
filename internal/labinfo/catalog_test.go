@@ -211,6 +211,46 @@ func TestConnectionsFilterByService(t *testing.T) {
 	}
 }
 
+func TestDefaultCatalogLabmitm(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var svc *Service
+	for i := range cat.Services {
+		if cat.Services[i].ID == "labmitm" {
+			svc = &cat.Services[i]
+			break
+		}
+	}
+	if svc == nil {
+		t.Fatal("default catalog missing labmitm")
+	}
+	if strings.Contains(strings.ToLower(svc.Description), "follow-on") {
+		t.Fatalf("live catalog must not say compose-in is a follow-on: %q", svc.Description)
+	}
+	if svc.Connection == nil || len(svc.Connection.Endpoints) == 0 {
+		t.Fatal("labmitm must have a connection block")
+	}
+	if svc.Credential == nil || svc.Credential.File != "/run/lab-secrets/labmitm-token" {
+		t.Fatalf("credential file = %#v, want /run/lab-secrets/labmitm-token", svc.Credential)
+	}
+	if !strings.Contains(svc.Note, "exact Origins") || !strings.Contains(svc.Note, "${LABMITM_WEB_PORT}") {
+		t.Fatalf("note missing exact-Origin / remote inspector sentence: %q", svc.Note)
+	}
+	tls := svc.Connection.Parameters["tls"]
+	if !strings.Contains(tls, ":443") || !strings.Contains(tls, "tunnel-not-decrypt") {
+		t.Fatalf("tls parameter missing intercept-:443 / CONNECT-tunnel sentence: %q", tls)
+	}
+	hosts := svc.Connection.Parameters["hosts"]
+	for _, name := range []string{"*.lab", "labdns", "labinfo", "maildev", "mcpjungle", "control", "taclab"} {
+		if !strings.Contains(hosts, name) {
+			t.Fatalf("hosts = %q, missing %q", hosts, name)
+		}
+	}
+}
+
 func TestDefaultCatalogOperatorConsole(t *testing.T) {
 	root := filepath.Join("..", "..")
 	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))

@@ -202,3 +202,38 @@ services:
         mount_example: "mount -t nfs -o vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT} ${LAB_PUBLIC_HOST}:/ /mnt"
         auth: AUTH_SYS (no credential)
         writable: "true — writes go to a durable overlay and are committed into the .tar.zst every ${NFS_COMMIT_OVERLAY_INTERVAL} and on process exit (gzip is not supported)"
+
+  - id: labmitm
+    name: HTTP intercept (LabMITM)
+    description: Laboratory HTTP(S) intercepting forward proxy with a flow-inspector UI, native /v1 REST, and MCP. Captured flows are wiped on restart.
+    urls:
+      - name: Web UI
+        url: http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT}/
+      - name: REST API (native /v1)
+        url: http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT}/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT}/mcp
+      - name: CA certificate
+        url: http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT}/v1/ca
+    note: "HTTP/1.1 forward proxy (no Proxy-Authorization): ${LAB_PUBLIC_HOST}:${LABMITM_PROXY_PORT}. Point systems under test at it as HTTP_PROXY / HTTPS_PROXY. Install GET /v1/ca into the SUT trust store for HTTPS intercept. Generate-mode CA rotates on restart. Origin allowlist is exact Origins only (loopback already allowed; no \"*\"). Remote inspector needs http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT} in bootstrap."
+    credential:
+      file: /run/lab-secrets/labmitm-token
+      usage: "HTTP header 'Authorization: Bearer <token>' for native /v1, MCP, and the flow-inspector UI; on the lab host: secrets/labmitm-token"
+    connection:
+      endpoints:
+        - name: HTTP proxy
+          protocol: http-proxy
+          address: ${LAB_PUBLIC_HOST}:${LABMITM_PROXY_PORT}
+          note: unauthenticated HTTP/1.1 absolute-form + CONNECT; do not publish without a network boundary
+        - name: MCP (streamable HTTP)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT}/mcp
+          note: bearer only; gateway interpolates LABMITM_TOKEN
+      parameters:
+        auth: "proxy data plane is unauthenticated; management is bearer-only (no HTTP Basic)"
+        tls: "HTTPS intercept uses an in-process lab CA on :443 only; clients must trust GET /v1/ca. CONNECT to non-443 TLS (LabLDAP LDAPS, TacLab TLS) is tunnel-not-decrypt"
+        hosts: "allowHosts includes *.lab and compose DNS names (labdns, labinfo, maildev, mcpjungle, control, taclab)"
+      credentials:
+        - name: labmitm-token
+          file: /run/lab-secrets/labmitm-token
+          usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labmitm-token"

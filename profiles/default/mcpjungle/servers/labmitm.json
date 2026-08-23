@@ -1,0 +1,7 @@
+{
+  "name": "labmitm",
+  "transport": "streamable_http",
+  "description": "Laboratory HTTP(S) intercepting proxy (LabMITM): captured flows over REST /v1, wait/resume/drop/replay, plan/apply/reset.",
+  "url": "http://labmitm:8088/mcp",
+  "bearer_token": "${LABMITM_TOKEN}"
+}
