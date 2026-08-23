@@ -421,12 +421,12 @@ func labgenPassword(path, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		if v, ok := strings.CutPrefix(line, name+"="); ok {
-			return strings.TrimSpace(v), nil
-		}
+	pw := parseLabgenPasswords(b)
+	v, ok := pw[name]
+	if !ok {
+		return "", fmt.Errorf("%s: no entry for %q", path, name)
 	}
-	return "", fmt.Errorf("%s: no entry for %q", path, name)
+	return v, nil
 }
 
 func readTrimmed(path string) (string, error) {

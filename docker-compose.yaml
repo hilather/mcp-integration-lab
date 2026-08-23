@@ -205,8 +205,9 @@ services:
       LABMITM_WEB_PORT: ${LABMITM_WEB_PORT:-18088}
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labinfo/services.yaml:/etc/labinfo/services.yaml:ro
-      # Staged by `mcplab secrets`: world-readable copies of the web-service
-      # credentials (lab-grade tradeoff; only revealed when LAB_DEV_MODE).
+      # Staged by `mcplab secrets`: world-readable copies of web tokens,
+      # connection secrets, and CA PEMs (lab-grade tradeoff; only revealed
+      # when LAB_DEV_MODE).
       - ./secrets/labinfo-creds:/run/lab-secrets:ro
     read_only: true
     cap_drop: [ALL]

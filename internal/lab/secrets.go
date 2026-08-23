@@ -502,6 +502,10 @@ func (r *Runner) stageLabinfoCreds() error {
 		b, err := os.ReadFile(r.path(f.src))
 		if err != nil {
 			if f.optional && os.IsNotExist(err) {
+				dst := filepath.Join(dir, f.dst)
+				if rmErr := os.Remove(dst); rmErr != nil && !os.IsNotExist(rmErr) {
+					return fmt.Errorf("stage labinfo creds: %w", rmErr)
+				}
 				continue
 			}
 			return fmt.Errorf("stage labinfo creds: %w", err)
@@ -544,7 +548,7 @@ func parseLabgenPasswords(b []byte) map[string]string {
 		if !ok {
 			continue
 		}
-		out[k] = v
+		out[strings.TrimSpace(k)] = strings.TrimSpace(v)
 	}
 	return out
 }

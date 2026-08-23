@@ -4,8 +4,9 @@
 // mount options, and connection credentials), rendered for agents so they can
 // direct users to the right URL and help configure clients against the lab.
 // Credentials are included only when the profile enables dev mode
-// (LAB_DEV_MODE). In that mode values are profile-owned
-// (dev-credentials.yaml).
+// (LAB_DEV_MODE). Tokens, passwords, and shared secrets are then
+// profile-owned (dev-credentials.yaml); lab-ca and TacLab client PEMs
+// are this lab's generated files and are not catalog-stable.
 package labinfo
 
 import (

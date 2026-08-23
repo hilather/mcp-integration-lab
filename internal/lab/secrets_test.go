@@ -814,6 +814,7 @@ lab-readonly=Charlie
 
 lab-disabled=Delta
 lab-admin-challenge=Echo
+lab-spaced = value with spaces
 `))
 	want := map[string]string{
 		"lab-admin":           "Alpha",
@@ -821,6 +822,7 @@ lab-admin-challenge=Echo
 		"lab-readonly":        "Charlie",
 		"lab-disabled":        "Delta",
 		"lab-admin-challenge": "Echo",
+		"lab-spaced":          "value with spaces",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("len=%d want %d: %#v", len(got), len(want), got)
@@ -921,6 +923,52 @@ func TestStageLabinfoCredsCopiesOptionalClientCerts(t *testing.T) {
 	}
 	if got := strings.TrimSpace(string(mustRead(t, r.path("secrets/labinfo-creds/tacacs-client-ok.pem")))); got != "-----BEGIN CERTIFICATE-----\nCLIENTOK\n-----END CERTIFICATE-----" {
 		t.Fatalf("client-ok = %q", got)
+	}
+}
+
+func TestStageLabinfoCredsRemovesStaleOptionalDest(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	if err := writeStageSources(r, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stageLabinfoCreds(); err != nil {
+		t.Fatal(err)
+	}
+	for _, dst := range []string{"tacacs-client-ca.pem", "tacacs-client-ok.pem"} {
+		if _, err := os.Stat(r.path("secrets/labinfo-creds/" + dst)); err != nil {
+			t.Fatalf("precondition %s: %v", dst, err)
+		}
+	}
+	for _, src := range []string{
+		taclabDir + "/deployments/compose/certs-public/client-ca.pem",
+		taclabDir + "/deployments/compose/certs-public/client-ok.pem",
+	} {
+		if err := os.Remove(r.path(src)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := r.stageLabinfoCreds(); err != nil {
+		t.Fatal(err)
+	}
+	for _, dst := range []string{"tacacs-client-ca.pem", "tacacs-client-ok.pem"} {
+		if _, err := os.Stat(r.path("secrets/labinfo-creds/" + dst)); !os.IsNotExist(err) {
+			t.Errorf("stale optional dest %s still present: %v", dst, err)
+		}
+	}
+}
+
+func TestLabgenPasswordUsesSharedParser(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "PASSWORDS.txt")
+	if err := os.WriteFile(path, []byte("# header\nlab-admin = spaced-admin\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := labgenPassword(path, "lab-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "spaced-admin" {
+		t.Fatalf("labgenPassword = %q, want trimmed shared parse", got)
 	}
 }
 
