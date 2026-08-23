@@ -98,7 +98,7 @@ make up PROFILE=teamx</code></pre>
 # edit profiles/teamx/profile.env: LAB_DEV_MODE=true
 make up PROFILE=teamx
 make smoke PROFILE=teamx
-make creds</code></pre>
+make creds PROFILE=teamx</code></pre>
         <p>Tokens, Alice's bind password (<code>lab-dev-alice-12</code> on the default catalog), the mail admin password, and TacLab lab-user / AAA secrets come from <code>dev-credentials.yaml</code> and are the same on every clone using that catalog. <code>make smoke</code> then checks those catalog values on the wire. labinfo reveals them; <code>make creds</code> prints the shareable sheet (PEMs included; fails closed outside dev mode). Never enable this on a shared internet-facing host. Flip the knob back to <code>false</code> and run <code>mcplab secrets</code> to remint.</p>
         <p>CI does the same with a gitignored <code>profiles/ci-dev/</code> (copy of <code>default</code>, <code>LAB_DEV_MODE=true</code> in that <code>profile.env</code>). The default-profile unit-test job stays non-dev.</p>
 

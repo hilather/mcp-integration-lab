@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hilather/mcp-integration-lab/internal/labinfo"
+	"gopkg.in/yaml.v3"
 )
 
 func TestCatalogFileExpectsCoversEveryRequiredKey(t *testing.T) {
@@ -27,6 +28,7 @@ func TestCatalogFileExpectsCoversEveryRequiredKey(t *testing.T) {
 		{"spec.passwords.labldapAlice", doc.Spec.Passwords.LabLDAPAlice, ""},
 		{"spec.passwords.labldapRuntime", doc.Spec.Passwords.LabLDAPRuntime, ""},
 		{"spec.passwords.labldapDM", doc.Spec.Passwords.LabLDAPDM, ""},
+		{"spec.passwords.labldapDM(directory.env)", "DS_DM_PASSWORD=" + doc.Spec.Passwords.LabLDAPDM, ""},
 		{"spec.passwords.taclabAdmin", doc.Spec.Passwords.TaclabAdmin, "lab-admin"},
 		{"spec.passwords.taclabAdminEnable", doc.Spec.Passwords.TaclabAdminEnable, "lab-admin-enable"},
 		{"spec.passwords.taclabReadonly", doc.Spec.Passwords.TaclabReadonly, "lab-readonly"},
@@ -84,6 +86,16 @@ func TestCheckCatalogFiles(t *testing.T) {
 	if len(mism) != 1 || !strings.Contains(mism[0], "spec.passwords.labldapAlice") {
 		t.Fatalf("Alice mismatch = %v", mism)
 	}
+
+	writeCatalogDisk(t, root, doc)
+	env := filepath.Join(root, "third_party", "go-lab-ldap-mcp", "secrets", "directory.env")
+	if err := os.WriteFile(env, []byte("DS_DM_PASSWORD=drifted\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mism = checkCatalogFiles(root, doc)
+	if len(mism) != 1 || !strings.Contains(mism[0], "directory.env") {
+		t.Fatalf("directory.env mismatch = %v", mism)
+	}
 }
 
 func TestMatchConnSecretsToDisk(t *testing.T) {
@@ -126,6 +138,43 @@ func TestMatchConnSecretsToDisk(t *testing.T) {
 	if len(mism) != 1 || !strings.Contains(mism[0], "radius-shared-secret") {
 		t.Fatalf("missing required cred = %v", mism)
 	}
+
+	required := revealed
+	t.Run("optional missing empty secret", func(t *testing.T) {
+		got := append([]revealedSecret{}, required...)
+		got = append(got, revealedSecret{Name: "tacacs-client-ca", Secret: ""})
+		if mism := matchConnSecretsToDisk(got, dir, idx); len(mism) != 0 {
+			t.Fatalf("missing optional + empty secret: %v", mism)
+		}
+	})
+	t.Run("optional missing nonempty secret", func(t *testing.T) {
+		got := append([]revealedSecret{}, required...)
+		got = append(got, revealedSecret{Name: "tacacs-client-ca", Secret: "-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----"})
+		mism := matchConnSecretsToDisk(got, dir, idx)
+		if len(mism) != 1 || !strings.Contains(mism[0], "tacacs-client-ca") {
+			t.Fatalf("missing optional + revealed secret: %v", mism)
+		}
+	})
+	t.Run("optional present equal", func(t *testing.T) {
+		pem := "-----BEGIN CERTIFICATE-----\nCLIENTCA\n-----END CERTIFICATE-----"
+		mustWrite("tacacs-client-ca.pem", pem+"\n")
+		t.Cleanup(func() { os.Remove(filepath.Join(dir, "tacacs-client-ca.pem")) })
+		got := append([]revealedSecret{}, required...)
+		got = append(got, revealedSecret{Name: "tacacs-client-ca", Secret: pem})
+		if mism := matchConnSecretsToDisk(got, dir, idx); len(mism) != 0 {
+			t.Fatalf("optional PEM equal: %v", mism)
+		}
+	})
+	t.Run("optional present unequal", func(t *testing.T) {
+		mustWrite("tacacs-client-ca.pem", "-----BEGIN CERTIFICATE-----\nCLIENTCA\n-----END CERTIFICATE-----\n")
+		t.Cleanup(func() { os.Remove(filepath.Join(dir, "tacacs-client-ca.pem")) })
+		got := append([]revealedSecret{}, required...)
+		got = append(got, revealedSecret{Name: "tacacs-client-ca", Secret: "other-pem"})
+		mism := matchConnSecretsToDisk(got, dir, idx)
+		if len(mism) != 1 || !strings.Contains(mism[0], "tacacs-client-ca") {
+			t.Fatalf("optional PEM unequal: %v", mism)
+		}
+	})
 }
 
 func TestConnCredIndexDefaultCatalog(t *testing.T) {
@@ -184,8 +233,31 @@ func TestCIWorkflowWritesCiDevProfile(t *testing.T) {
 			t.Errorf("ci.yml missing %q", needle)
 		}
 	}
-	if strings.Contains(s, "LAB_DEV_MODE: true") || strings.Contains(s, "LAB_DEV_MODE: 'true'") {
-		t.Fatal("ci.yml must not set LAB_DEV_MODE as process/job env (preflight on default)")
+	for _, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "LAB_DEV_MODE:") {
+			t.Fatalf("ci.yml must not set LAB_DEV_MODE as a YAML env key: %s", strings.TrimSpace(line))
+		}
+	}
+	var wf struct {
+		Jobs map[string]struct {
+			Env map[string]string `yaml:"env"`
+		} `yaml:"jobs"`
+	}
+	if err := yaml.Unmarshal(b, &wf); err != nil {
+		t.Fatal(err)
+	}
+	smokeEnv := wf.Jobs["smoke-dev"].Env
+	if smokeEnv["PROFILE"] != "ci-dev" {
+		t.Fatalf("smoke-dev env PROFILE=%q, want ci-dev", smokeEnv["PROFILE"])
+	}
+	if _, ok := smokeEnv["LAB_DEV_MODE"]; ok {
+		t.Fatal("smoke-dev must not set LAB_DEV_MODE as job env")
+	}
+	if len(smokeEnv) != 1 {
+		t.Fatalf("smoke-dev env = %v, want only PROFILE", smokeEnv)
+	}
+	if _, ok := wf.Jobs["test"].Env["LAB_DEV_MODE"]; ok {
+		t.Fatal("test job must not set LAB_DEV_MODE")
 	}
 	if !strings.Contains(s, "make test") {
 		t.Fatal("default CI job must keep make test (non-dev)")
@@ -204,6 +276,7 @@ func writeCatalogDisk(t *testing.T, root string, doc *DevCredentials) {
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      doc.Spec.Passwords.LabLDAPAlice + "\n",
 		"third_party/go-lab-ldap-mcp/secrets/runtime-ldap":                    doc.Spec.Passwords.LabLDAPRuntime + "\n",
 		"third_party/go-lab-ldap-mcp/secrets/dm.pw":                           doc.Spec.Passwords.LabLDAPDM + "\n",
+		"third_party/go-lab-ldap-mcp/secrets/directory.env":                   "DS_DM_PASSWORD=" + doc.Spec.Passwords.LabLDAPDM + "\n",
 		taclabDir + "/deployments/compose/secrets/api_admin_token":            doc.Spec.Tokens.LabTacacsAdmin,
 		taclabDir + "/deployments/compose/secrets/lab_admin_challenge_secret": doc.Spec.Passwords.TaclabChallenge,
 		taclabDir + "/deployments/compose/secrets/lab_switches_tacacs_secret": doc.Spec.SharedSecrets.TacacsLabSwitches,

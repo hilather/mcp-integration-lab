@@ -81,7 +81,7 @@ cp -a profiles/default profiles/teamx
 # edit profiles/teamx/profile.env: LAB_DEV_MODE=true
 make up PROFILE=teamx
 make smoke PROFILE=teamx
-make creds
+make creds PROFILE=teamx
 ```
 
 Tokens, Alice's bind password (`lab-dev-alice-12` on the default catalog), the mail admin password, and TacLab lab-user / AAA secrets come from `dev-credentials.yaml` and are the same on every clone using that catalog. `make smoke` then checks those catalog values on the wire. labinfo reveals them; `make creds` prints the shareable sheet (PEMs included; fails closed outside dev mode). Never enable this on a shared internet-facing host. Flip the knob back to `false` and run `mcplab secrets` to remint.

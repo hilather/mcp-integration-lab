@@ -581,9 +581,11 @@ func (s *smokeState) devCatalogScenario() {
 		fmt.Printf("      %s\n", m)
 	}
 
-	out, err := s.ldapsearch(fmt.Sprintf(
-		`ldapsearch -x -H ldaps://directory:3636 -D "uid=alice,ou=people,dc=example,dc=test" -w %q -b "uid=alice,ou=people,dc=example,dc=test" -s base dn`,
-		doc.Spec.Passwords.LabLDAPAlice))
+	// File-backed password: checkCatalogFiles already required user-alice
+	// equal the catalog; interpolating the catalog string into sh -c would
+	// mis-quote team values with $, backticks, or quotes.
+	out, err := s.ldapsearch(
+		`ldapsearch -x -H ldaps://directory:3636 -D "uid=alice,ou=people,dc=example,dc=test" -w "$(cat /s/user-alice)" -b "uid=alice,ou=people,dc=example,dc=test" -s base dn`)
 	s.check(err == nil && strings.Contains(out, "uid=alice,ou=people,dc=example,dc=test"),
 		fmt.Sprintf("Alice LDAPS bind uses catalog password (err=%v)", err))
 
@@ -653,6 +655,7 @@ func catalogFileExpects(doc *DevCredentials) []catalogFileExpect {
 		{"spec.passwords.labldapAlice", ll + "user-alice", doc.Spec.Passwords.LabLDAPAlice, ""},
 		{"spec.passwords.labldapRuntime", ll + "runtime-ldap", doc.Spec.Passwords.LabLDAPRuntime, ""},
 		{"spec.passwords.labldapDM", ll + "dm.pw", doc.Spec.Passwords.LabLDAPDM, ""},
+		{"spec.passwords.labldapDM(directory.env)", ll + "directory.env", "DS_DM_PASSWORD=" + doc.Spec.Passwords.LabLDAPDM, ""},
 		{"spec.passwords.taclabAdmin", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabAdmin, "lab-admin"},
 		{"spec.passwords.taclabAdminEnable", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabAdminEnable, "lab-admin-enable"},
 		{"spec.passwords.taclabReadonly", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabReadonly, "lab-readonly"},
