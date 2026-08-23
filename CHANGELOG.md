@@ -12,6 +12,9 @@ changes since the previous one (AGENTS.md rule 13).
 - **LabMITM v1.1.0** vendored as `third_party/go-lab-mitmproxy` with compose
   service `labmitm:local` (`--management-listen=:8088`), 0o644
   `secrets/labmitm-token`, and host ports 18888 (proxy) / 18088 (inspector).
+- **LabMITM** MCPJungle registration (`servers/labmitm.json`, appended to the
+  integration tool group) and labinfo catalog (proxy, inspector, REST /v1,
+  MCP, CA; `LABMITM_*` compose env for `${VAR}` expansion).
 
 ## [0.4.0] - 2026-08-20
 

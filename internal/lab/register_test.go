@@ -1,8 +1,10 @@
 package lab
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -55,11 +57,101 @@ func TestDefaultProfileRegistersLabmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true}
+	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true, "labmitm": true}
 	for _, name := range got {
 		delete(want, name)
 	}
 	if len(want) != 0 {
 		t.Fatalf("default profile servers = %v, missing %v", got, want)
+	}
+}
+
+func TestDefaultProfileIntegrationGroupIncludesLabmitm(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "profiles", "default", "mcpjungle", "groups", "integration.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var group struct {
+		IncludedServers []string `json:"included_servers"`
+	}
+	if err := json.Unmarshal(b, &group); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, name := range group.IncludedServers {
+		if name == "labmitm" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("included_servers = %v, want labmitm appended", group.IncludedServers)
+	}
+}
+
+func TestLoadTokensAndRegistrarEnvIncludeLabmitm(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"secrets/labdns-token":                                                      "dns-tok",
+		"third_party/go-lab-ldap-mcp/secrets/token-admin":                           "ldap-tok",
+		"third_party/go-lab-tacacs-mcp/deployments/compose/secrets/api_admin_token": "tac-tok",
+		"secrets/labinfo-token":                                                     "info-tok",
+		"secrets/labmail-token":                                                     "mail-tok",
+		"secrets/labmitm-token":                                                     "mitm-tok",
+		"secrets/mcp-client-token":                                                  "client-tok",
+	}
+	for rel, body := range files {
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := &Runner{Root: root, Env: []string{"FOO=bar"}}
+	tokens, err := r.loadTokens()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tokens["labmitm"] != "mitm-tok" {
+		t.Fatalf("labmitm token = %q, want mitm-tok", tokens["labmitm"])
+	}
+	env := r.registrarEnv(tokens)
+	found := false
+	for _, kv := range env {
+		if kv == "LABMITM_TOKEN=mitm-tok" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("registrarEnv missing LABMITM_TOKEN: %v", env)
+	}
+}
+
+func TestLoadTokensRequiresLabmitm(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"secrets/labdns-token":                                                      "dns-tok",
+		"third_party/go-lab-ldap-mcp/secrets/token-admin":                           "ldap-tok",
+		"third_party/go-lab-tacacs-mcp/deployments/compose/secrets/api_admin_token": "tac-tok",
+		"secrets/labinfo-token":                                                     "info-tok",
+		"secrets/labmail-token":                                                     "mail-tok",
+		"secrets/mcp-client-token":                                                  "client-tok",
+	}
+	for rel, body := range files {
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := &Runner{Root: root}
+	_, err := r.loadTokens()
+	if err == nil || !strings.Contains(err.Error(), "labmitm-token") {
+		t.Fatalf("error = %v, want missing labmitm-token", err)
 	}
 }
