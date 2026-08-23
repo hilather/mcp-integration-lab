@@ -7,6 +7,12 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Added
+
+- **LabMITM v1.1.0** vendored as `third_party/go-lab-mitmproxy` with compose
+  service `labmitm:local` (`--management-listen=:8088`), 0o644
+  `secrets/labmitm-token`, and host ports 18888 (proxy) / 18088 (inspector).
+
 ## [0.4.0] - 2026-08-20
 
 ### Changed

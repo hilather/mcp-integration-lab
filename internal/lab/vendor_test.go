@@ -24,6 +24,9 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.3" {
 		t.Fatalf("labmail pin = %q, want v1.0.0-rc.3", got["third_party/go-lab-maildev"])
 	}
+	if got["third_party/go-lab-mitmproxy"] != "v1.1.0" {
+		t.Fatalf("labmitm pin = %q, want v1.1.0", got["third_party/go-lab-mitmproxy"])
+	}
 }
 
 func TestRatarmountDebPin(t *testing.T) {

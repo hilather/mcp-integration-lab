@@ -38,6 +38,20 @@ func TestPublishedPortBindingsDedupesDNS(t *testing.T) {
 	}
 }
 
+func TestPublishedPortSpecsIncludesLabMITM(t *testing.T) {
+	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false}
+	for _, spec := range publishedPortSpecs {
+		if _, ok := want[spec.EnvKey]; ok {
+			want[spec.EnvKey] = true
+		}
+	}
+	for k, seen := range want {
+		if !seen {
+			t.Fatalf("publishedPortSpecs missing %s", k)
+		}
+	}
+}
+
 func TestIsLabContainer(t *testing.T) {
 	if !isLabContainer("mcplab-labdns-1") {
 		t.Fatal("expected mcplab container")
