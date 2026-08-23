@@ -129,7 +129,7 @@ PROFILE=default
 
         <h2 id="labdns">LabDNS</h2>
         <p><code>labdns/bootstrap.yaml</code> is the desired state, mounted read-only. After editing, <code>make reload APP=labdns</code>. MCP <code>dns_state_reset</code> returns the service to this file. Non-loopback peers present the bearer in <code>secrets/labdns-token</code>.</p>
-        <p>LabDNS <strong>v1.1.0</strong> serves an operator console at <code>GET /</code> on port 18080 (<code>spec.ui.enabled</code>, default true). Paste the bearer. Loopback Origins are allowed. A remote browser must list its Origin in <code>spec.management.allowedOrigins</code> (exact <code>http(s)://host[:port]</code>; no <code>"*"</code> sentinel).</p>
+        <p>LabDNS <strong>v1.1.1</strong> serves an operator console at <code>GET /</code> on port 18080 (<code>spec.ui.enabled</code>, default true). Paste the bearer. Loopback Origins are allowed. A remote browser must list its Origin in <code>spec.management.allowedOrigins</code> (exact <code>http(s)://host[:port]</code>; no <code>"*"</code> sentinel). Profile YAML sets <code>spec.management.mcp.allowLegacyClients: true</code> for MCPJungle.</p>
         <pre><code>apiVersion: labdns.dev/v1alpha1
 kind: LabDNS
 metadata:
@@ -141,6 +141,7 @@ spec:
   ui: { enabled: true }
   management:
     auth: { profile: bearer, secretRef: /etc/labdns/token }
+    mcp: { allowLegacyClients: true }
   defaults: { ttl: 30s, negativeTTL: 10s }
   zones:
     - id: lab-zone
@@ -155,7 +156,7 @@ spec:
         <p>Add a zone or a record here and <code>make reload APP=labdns</code>. Runtime records added through MCP vanish on <code>dns_state_reset</code>.</p>
 
         <h2 id="labldap">LabLDAP</h2>
-        <p><code>labldap/scenario.yaml</code> is a LabScenario. LabLDAP <strong>v0.3.0</strong> defaults to native <code>labldapd</code>; this lab still sets <code>directory.engine: native</code>. Management TLS from lab-CA files, mutation and password MCP tools enabled. After editing, <code>make reload APP=labldap</code> re-seeds ephemeral <code>/data</code>.</p>
+        <p><code>labldap/scenario.yaml</code> is a LabScenario. LabLDAP <strong>v0.4.1</strong> defaults to native <code>labldapd</code>; this lab still sets <code>directory.engine: native</code>. Management TLS from lab-CA files, mutation and password MCP tools enabled. After editing, <code>make reload APP=labldap</code> re-seeds ephemeral <code>/data</code>.</p>
         <pre><code>apiVersion: labldap.dev/v1alpha1
 kind: LabScenario
 metadata:
@@ -238,7 +239,7 @@ spec:
         <p>Point the system under test at <code><lab-host>:1025</code>. Read captured mail at <code>:1080</code>. Native REST is <code>/v1</code>; MCP is <code>/mcp</code>. Nothing is relayed.</p>
 
         <h2 id="labmitm">LabMITM</h2>
-        <p>Desired state is <code>labmitm/bootstrap.yaml</code> (LabMITM <strong>v1.1.0</strong>), a lab-owned overlay copy. <code>allowLegacyClients: true</code> is required for MCPJungle. Compose must pass <code>--management-listen=:8088</code>. After editing, <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates). The HTTP/1.1 data plane is unauthenticated. HTTPS intercept is <code>:443</code> only; CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt. Origin allowlist is exact Origins (loopback already allowed; no <code>"*"</code>). When <code>LAB_PUBLIC_HOST</code> is not loopback, add <code>http://&lt;LAB_PUBLIC_HOST&gt;:18088</code> or the inspector SPA 403s <code>/v1</code>.</p>
+        <p>Desired state is <code>labmitm/bootstrap.yaml</code> (LabMITM <strong>v1.1.1</strong>), a lab-owned overlay copy. <code>allowLegacyClients: true</code> is required for MCPJungle. Compose must pass <code>--management-listen=:8088</code>. After editing, <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates). The HTTP/1.1 data plane is unauthenticated. HTTPS intercept is <code>:443</code> only; CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt. Origin allowlist is exact Origins (loopback already allowed; no <code>"*"</code>). When <code>LAB_PUBLIC_HOST</code> is not loopback, add <code>http://&lt;LAB_PUBLIC_HOST&gt;:18088</code> or the inspector SPA 403s <code>/v1</code>.</p>
         <pre><code>apiVersion: labmitm.dev/v1alpha1
 kind: LabMITM
 metadata:

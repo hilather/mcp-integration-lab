@@ -21,7 +21,7 @@ networks:
 
 services:
   # ------------------------------------------------------------------ LabDNS
-  # Pinned go-lab-dns v1.1.0 (operator console on GET /). YAML edits:
+  # Pinned go-lab-dns v1.1.1 (operator console on GET /; allowLegacyClients in profile YAML). YAML edits:
   # `make reload APP=labdns` — not a full `make up`.
   labdns:
     build:

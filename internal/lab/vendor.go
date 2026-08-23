@@ -11,11 +11,11 @@ import (
 // reserved by the Go toolchain for module vendoring). Ref is a release tag
 // checked out on every `mcplab vendor`.
 var vendorRepos = []struct{ URL, Dest, Ref string }{
-	{"https://github.com/hilather/go-lab-dns", "third_party/go-lab-dns", "v1.1.0"},
-	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.3.0"},
-	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.3.0"},
+	{"https://github.com/hilather/go-lab-dns", "third_party/go-lab-dns", "v1.1.1"},
+	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.4.1"},
+	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.4.0"},
 	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.3"},
-	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.1.0"},
+	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.1.1"},
 }
 
 // Vendor clones or updates the service repos to their pinned refs and

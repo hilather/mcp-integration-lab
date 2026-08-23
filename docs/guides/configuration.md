@@ -167,7 +167,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 `make reload APP=labdns` recreates only LabDNS. Non-loopback peers
 present the bearer in `secrets/labdns-token`.
 
-LabDNS **v1.1.0** serves an operator console at `GET /` on
+LabDNS **v1.1.1** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
 the login screen. Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
@@ -197,6 +197,8 @@ spec:
     auth:
       profile: bearer
       secretRef: /etc/labdns/token
+    mcp:
+      allowLegacyClients: true  # MCPJungle
     # allowedOrigins: [http://lab.example:18080]  # remote console Origin
   defaults:
     ttl: 30s
@@ -218,7 +220,7 @@ records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.3.0** defaults to
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.4.1** defaults to
 the native engine (omitted `engine` compiles as `native`); this lab still
 sets `directory.engine: native` explicitly. Management TLS comes from
 lab-CA files, and `registerMutations` / `registerPassword` keep
@@ -357,7 +359,7 @@ restart.
 ## LabMITM
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
-lab-owned overlay copy — do not recopy from the v1.1.0 examples tree.
+lab-owned overlay copy — do not recopy from the upstream examples tree.
 `allowLegacyClients: true` is required for MCPJungle. Compose must pass
 `--management-listen=:8088`. After editing, `make reload APP=labmitm`
 (wipes captured flows; generate-mode CA rotates).

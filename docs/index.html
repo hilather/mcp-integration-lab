@@ -93,7 +93,7 @@
                 <li><strong>labldapd</strong> — 3389 / 3636</li>
                 <li><strong>control plane</strong> — 8443</li>
                 <li>native engine, lab CA</li>
-                <li>pinned v0.3.0</li>
+                <li>pinned v0.4.1</li>
               </ul>
             </div>
             <div class="topo-project">
@@ -102,7 +102,7 @@
                 <li><strong>taclabd</strong> — 49 / 300</li>
                 <li><strong>RADIUS</strong> — 1812 / 1813</li>
                 <li><strong>control</strong> — 18049</li>
-                <li>pinned v1.3.0</li>
+                <li>pinned v1.4.0</li>
               </ul>
             </div>
           </div>
@@ -119,17 +119,17 @@
         </div>
         <div class="cards">
           <article class="card">
-            <h3>LabDNS · v1.1.0</h3>
+            <h3>LabDNS · v1.1.1</h3>
             <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state; REST, MCP, and UI on the management plane.</p>
             <div class="meta"><span>10053 · 18080</span><a href="https://github.com/hilather/go-lab-dns">hilather/go-lab-dns</a></div>
           </article>
           <article class="card">
-            <h3>LabLDAP · v0.3.0</h3>
+            <h3>LabLDAP · v0.4.1</h3>
             <p>Native Go directory (labldapd) plus a control plane. Real LDAP/LDAPS on the wire, REST, MCP, and a browser UI.</p>
             <div class="meta"><span>3389 / 3636 · 8443</span><a href="https://github.com/hilather/go-lab-ldap-mcp">hilather/go-lab-ldap-mcp</a></div>
           </article>
           <article class="card">
-            <h3>TacLab · v1.3.0</h3>
+            <h3>TacLab · v1.4.0</h3>
             <p>TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance. REST, MCP, and an embedded operator UI.</p>
             <div class="meta"><span>49 / 300 · 1812 / 1813</span><a href="https://github.com/hilather/go-lab-tacacs-mcp">hilather/go-lab-tacacs-mcp</a></div>
           </article>
@@ -139,7 +139,7 @@
             <div class="meta"><span>1025 · 1080</span><a href="https://github.com/hilather/go-lab-maildev">hilather/go-lab-maildev</a></div>
           </article>
           <article class="card">
-            <h3>LabMITM · v1.1.0</h3>
+            <h3>LabMITM · v1.1.1</h3>
             <p>Laboratory HTTP(S) intercepting forward proxy with a flow-inspector UI, native <code>/v1</code>, and MCP. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only.</p>
             <div class="meta"><span>18888 · 18088</span><a href="https://github.com/hilather/go-lab-mitmproxy">hilather/go-lab-mitmproxy</a></div>
           </article>
@@ -223,12 +223,12 @@ make smoke
           <p>This repo owns configuration, secrets layout, and gateway policy. The services themselves are vendored or pulled as images.</p>
         </div>
         <div class="roles">
-          <div class="role"><a href="https://github.com/hilather/go-lab-dns">LabDNS</a><p>Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. YAML desired state, REST + MCP. Pinned v1.1.0.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-ldap-mcp">LabLDAP</a><p>Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned v0.3.0. <a href="https://hilather.github.io/go-lab-ldap-mcp/">Site</a>.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-dns">LabDNS</a><p>Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. YAML desired state, REST + MCP. Pinned v1.1.1.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-ldap-mcp">LabLDAP</a><p>Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned v0.4.1. <a href="https://hilather.github.io/go-lab-ldap-mcp/">Site</a>.</p></div>
           <div class="role"><a href="https://github.com/hilather/go-lab-tacacs-mcp">TacLab</a><p>TACACS+ lab appliance: RFC 8907 + RFC 9887 TLS 1.3, RADIUS, REST/MCP, embedded operator UI. <a href="https://hilather.github.io/go-lab-tacacs-mcp/">Site</a>.</p></div>
           <div class="role"><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a><p>Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. Pinned v0.1.24.</p></div>
           <div class="role"><a href="https://github.com/hilather/go-lab-maildev">LabMail</a><p>Receive-only SMTP lab appliance. Inbox UI, /email compat, /v1, MCP. Pinned v1.0.0-rc.3. Compose service name stays maildev.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-mitmproxy">LabMITM</a><p>Laboratory HTTP(S) intercepting forward proxy. Flow-inspector UI, /v1, MCP. Pinned v1.1.0. Data plane is unauthenticated; intercept is :443 only.</p></div>
+          <div class="role"><a href="https://github.com/hilather/go-lab-mitmproxy">LabMITM</a><p>Laboratory HTTP(S) intercepting forward proxy. Flow-inspector UI, /v1, MCP. Pinned v1.1.1. Data plane is unauthenticated; intercept is :443 only.</p></div>
           <div class="role"><a href="https://github.com/mcpjungle/MCPJungle">MCPJungle</a><p>Self-hosted MCP gateway — the single client endpoint. <a href="https://docs.mcpjungle.com">Docs</a>.</p></div>
           <div class="role"><a href="https://github.com/mark3labs/mcp-go">mcp-go</a><p>Go SDK for the Model Context Protocol. Powers labinfo and is the client generation spoken by the gateway.</p></div>
         </div>

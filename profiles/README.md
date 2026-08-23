@@ -26,7 +26,7 @@ document (`apiVersion: mcplab.dev/v1alpha1`; see `internal/lab/devcreds.go`).
 Parse is fail-closed: unknown fields are rejected, every token / password /
 shared-secret key is required (including `tokens.labmitm`), LabLDAP
 passwords must be at least 12 characters, and TacLab shared secrets must
-pass the appliance's v1.3.0 policy (length ≥16, ≥3 unicode character
+pass the appliance's shared-secret policy (length ≥16, ≥3 unicode character
 classes, exact-match known-weak list — not a substring match).
 
 The catalog is consumed only when `LAB_DEV_MODE=true` (never from

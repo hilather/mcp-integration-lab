@@ -28,6 +28,9 @@ spec:
     # Loopback Origins are already allowed. There is no "*" sentinel —
     # add e.g. http://lab.example:18080 when LAB_PUBLIC_HOST is not
     # localhost. Takes effect on the next request (no restart).
+    mcp:
+      # MCPJungle (older SDK) needs this. Default LabDNS pin is 2026-07-28.
+      allowLegacyClients: true
   access:
     clientGroups: []
   defaults:

@@ -7,6 +7,16 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-23
+
+### Changed
+
+- Vendor pins: LabDNS **v1.1.1**, LabLDAP **v0.4.1**, TacLab **v1.4.0**,
+  LabMITM **v1.1.1**. LabMail stays **v1.0.0-rc.3** (still latest). Dropped
+  `patches/go-lab-dns-relax-mcp-pin.patch`; LabDNS MCPJungle compatibility
+  is now `spec.management.mcp.allowLegacyClients: true` in the profile
+  bootstrap, same pattern as LabMail/LabMITM. No appliance patches remain.
+
 ## [0.6.0] - 2026-08-23
 
 ### Added

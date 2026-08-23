@@ -1,6 +1,6 @@
 # LabMITM desired state. Mounted read-only at /etc/labmitm/config.yaml.
-# lab-owned copy; do not recopy from the v1.1.0 examples tree (that tag
-# still lists labldap/labtacacs). allowLegacyClients is on so MCPJungle
+# lab-owned copy; do not recopy from the upstream examples tree without
+# reviewing allowHosts/Origins. allowLegacyClients is on so MCPJungle
 # can register without a LabMITM patch. Bind-mounted secret files must
 # be 0o644 (UID 65532). Reload: `make reload APP=labmitm` (wipes captured
 # flows; generate-mode CA rotates).

@@ -136,8 +136,8 @@ we work by.
   merging the vendored LabLDAP and TacLab compose projects onto the shared
   network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.1.0`,
-  LabLDAP `v0.3.0`, TacLab `v1.3.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.1.0`).
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.1.1`,
+  LabLDAP `v0.4.1`, TacLab `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.1.1`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.24`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -152,14 +152,15 @@ we work by.
 
 - Host ports 53 and 5353 collide with systemd-resolved/avahi; that's why DNS
   defaults to 10053.
-- LabDNS is pinned to **v1.1.0**. MCP is wired into `serve` upstream. The
-  vendored `patches/go-lab-dns-relax-mcp-pin.patch` only relaxes the
-  `2026-07-28` protocol pin because the gateway's client speaks an older
-  generation. Operator console is `GET /` on the management listener
-  (`spec.ui.enabled`, default true). Remote browsers need exact Origins in
-  `spec.management.allowedOrigins` (no `"*"` sentinel; loopback is already
-  allowed). `make reload APP=labdns` recreates only that container.
-- TacLab (pinned `v1.3.0`) still pins `2026-07-28` by default. Do **not**
+- LabDNS is pinned to **v1.1.1**. MCP is wired into `serve` upstream. Do
+  **not** patch it: the profile bootstrap sets
+  `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
+  register (default pin is still `2026-07-28`). Operator console is
+  `GET /` on the management listener (`spec.ui.enabled`, default true).
+  Remote browsers need exact Origins in `spec.management.allowedOrigins`
+  (no `"*"` sentinel; loopback is already allowed). `make reload
+  APP=labdns` recreates only that container.
+- TacLab (pinned `v1.4.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
@@ -197,7 +198,7 @@ we work by.
   committed. A failed directory recreate after a leaf rewrite leaves
   `.reload-pending` in that tls dir so the next `mcplab secrets` still
   reloads LabLDAP (SANs already matching is not enough).
-- LabLDAP is pinned to **v0.3.0**. Upstream `compose.yaml` is already
+- LabLDAP is pinned to **v0.4.1**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2
   `compose.native.yaml` alias. The overlay uses compose `!override` for
@@ -222,10 +223,10 @@ we work by.
   file; the archive bind mount must be writable (plan 2× compressed headroom).
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.1.0**. Desired state is
+- LabMITM is pinned to **v1.1.1**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
-  **lab-owned overlay copy** — do not recopy from the v1.1.0 examples tree
-  (that tag still lists labldap/labtacacs). Do **not** patch it:
+  **lab-owned overlay copy** — do not recopy from the upstream examples
+  tree without reviewing `allowHosts`/Origins. Do **not** patch it:
   `allowLegacyClients: true` is in the profile YAML. Binary
   `--management-listen` defaults to off; compose must pass
   `--management-listen=:8088` or HEALTHCHECK / REST / MCP / SPA stay

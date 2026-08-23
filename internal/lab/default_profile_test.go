@@ -31,6 +31,11 @@ func TestDefaultLabDNSBootstrapEnablesOperatorConsole(t *testing.T) {
 			UI struct {
 				Enabled bool `yaml:"enabled"`
 			} `yaml:"ui"`
+			Management struct {
+				MCP struct {
+					AllowLegacyClients bool `yaml:"allowLegacyClients"`
+				} `yaml:"mcp"`
+			} `yaml:"management"`
 		} `yaml:"spec"`
 	}
 	if err := yaml.Unmarshal(b, &doc); err != nil {
@@ -40,7 +45,10 @@ func TestDefaultLabDNSBootstrapEnablesOperatorConsole(t *testing.T) {
 		t.Fatalf("apiVersion=%q kind=%q", doc.APIVersion, doc.Kind)
 	}
 	if !doc.Spec.UI.Enabled {
-		t.Fatal("profiles/default/labdns/bootstrap.yaml: spec.ui.enabled must be true (LabDNS 1.1.0 operator console)")
+		t.Fatal("profiles/default/labdns/bootstrap.yaml: spec.ui.enabled must be true (LabDNS operator console)")
+	}
+	if !doc.Spec.Management.MCP.AllowLegacyClients {
+		t.Fatal("profiles/default/labdns/bootstrap.yaml: spec.management.mcp.allowLegacyClients must be true so MCPJungle can register")
 	}
 }
 
@@ -50,8 +58,8 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := string(b)
-	if !strings.Contains(raw, "lab-owned copy") || !strings.Contains(raw, "do not recopy from the v1.1.0 examples tree") {
-		t.Fatal("bootstrap header must say lab-owned copy; do not recopy from the v1.1.0 examples tree")
+	if !strings.Contains(raw, "lab-owned copy") || !strings.Contains(raw, "do not recopy from the upstream examples tree") {
+		t.Fatal("bootstrap header must say lab-owned copy; do not recopy from the upstream examples tree")
 	}
 	var doc struct {
 		APIVersion string `yaml:"apiVersion"`
