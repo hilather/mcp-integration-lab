@@ -7,6 +7,7 @@ spec:
     labdns:            ""
     labinfo:           "lab-dev-labinfo-token"
     labmail:           "lab-dev-labmail-token"
+    labmitm:           "lab-dev-labmitm-token"
     mcpClient:         "lab-dev-mcp-client-token"
     labldapAdmin:      "lab-dev-labldap-token-admin"
     labtacacsAdmin:    "lab-dev-labtacacs-token-admin"

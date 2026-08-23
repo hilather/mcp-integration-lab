@@ -50,6 +50,7 @@ type DevTokens struct {
 	LabDNS         string `yaml:"labdns"`
 	Labinfo        string `yaml:"labinfo"`
 	Labmail        string `yaml:"labmail"`
+	LabMITM        string `yaml:"labmitm"`
 	MCPClient      string `yaml:"mcpClient"`
 	LabLDAPAdmin   string `yaml:"labldapAdmin"`
 	LabTacacsAdmin string `yaml:"labtacacsAdmin"`
@@ -121,6 +122,7 @@ func (d *DevCredentials) Validate() error {
 		{"spec.tokens.labdns", d.Spec.Tokens.LabDNS},
 		{"spec.tokens.labinfo", d.Spec.Tokens.Labinfo},
 		{"spec.tokens.labmail", d.Spec.Tokens.Labmail},
+		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
 		{"spec.tokens.mcpClient", d.Spec.Tokens.MCPClient},
 		{"spec.tokens.labldapAdmin", d.Spec.Tokens.LabLDAPAdmin},
 		{"spec.tokens.labtacacsAdmin", d.Spec.Tokens.LabTacacsAdmin},

@@ -11,8 +11,9 @@ changes since the previous one (AGENTS.md rule 13).
 
 - Profile-owned `DevCredentials` catalog types (`mcplab.dev/v1alpha1`) with
   fail-closed parse (unknown fields rejected) and policy checks (every key
-  required, LabLDAP minLength, TacLab v1.3.0 shared-secret rules).
-  `mcplab secrets` does not reconcile from the catalog yet.
+  required, including `tokens.labmitm` after compose-in, LabLDAP minLength,
+  TacLab v1.3.0 shared-secret rules). `mcplab secrets` does not reconcile
+  from the catalog yet. The default profile does not ship `dev-credentials.yaml`.
 
 ## [0.5.0] - 2026-08-23
 
