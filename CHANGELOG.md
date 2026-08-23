@@ -9,12 +9,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Added
 
-- **LabMITM v1.1.0** vendored as `third_party/go-lab-mitmproxy` with compose
-  service `labmitm:local` (`--management-listen=:8088`), 0o644
-  `secrets/labmitm-token`, and host ports 18888 (proxy) / 18088 (inspector).
-- **LabMITM** MCPJungle registration (`servers/labmitm.json`, appended to the
-  integration tool group) and labinfo catalog (proxy, inspector, REST /v1,
-  MCP, CA; `LABMITM_*` compose env for `${VAR}` expansion).
+- **LabMITM v1.1.0** compose-in: `labmitm:local` (`--management-listen=:8088`),
+  0o644 `secrets/labmitm-token`, host ports **18888** (unauthenticated HTTP/1.1
+  proxy) / **18088** (inspector / REST / MCP). HTTPS intercept is **:443 only**;
+  CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt. MCP server `labmitm` is
+  in the integration tool group. `make smoke` drives a host-side ProxyURL GET
+  and `mitm_flows_wait`; `make reload APP=labmitm` recreates the container
+  (wipes flows). Preflight warns (never fails) when `LAB_PUBLIC_HOST` is not
+  loopback and `originAllowlist` is empty.
 
 ## [0.4.0] - 2026-08-20
 

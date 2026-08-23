@@ -35,9 +35,9 @@ secrets:
 fixtures:
 	go run ./cmd/mcplab fixtures
 
-# Recreate one app. APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs
+# Recreate one app. APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 reload:
-	@test -n "$(APP)" || { echo "usage: make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs" >&2; exit 2; }
+	@test -n "$(APP)" || { echo "usage: make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm" >&2; exit 2; }
 	go run ./cmd/mcplab reload $(APP)
 
 labldap-up:

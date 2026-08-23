@@ -28,6 +28,7 @@ profiles/<name>/
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
+  labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group
@@ -103,6 +104,8 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `MAILDEV_SMTP_PORT` | `1025` | Receive-only SMTP ingest. |
 | `MAILDEV_WEB_PORT` | `1080` | LabMail UI + `/email` + `/v1` + MCP. |
 | `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Frozen at `admin` (YAML does not interpolate this). Password is minted. |
+| `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
+| `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL. Set this to the name remote testers use. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. |
@@ -120,7 +123,7 @@ bump, or a profile switch.
 After that, recreate **one** application:
 
 ```bash
-make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs
+make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 # equivalent: mcplab reload <app>
 ```
 
@@ -134,6 +137,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs
 | gateway container itself | `make reload APP=mcpjungle` | tmpfs SQLite wiped, then `register` |
 | `labldap/scenario.yaml` | `make reload APP=labldap` | ephemeral `/data` re-seeded from the scenario |
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
+| `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates |
 
 `make labldap-up` / `make labtacacs-up` are idempotent project bring-up
 (the path `make up` uses). They do not force-recreate a running directory.
@@ -327,6 +331,57 @@ Point the system under test at `<lab-host>:1025`. Read captured mail at
 in `secrets/labmail-token`). Nothing is relayed. Captured mail is wiped on
 restart.
 
+## LabMITM
+
+Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
+lab-owned overlay copy — do not recopy from the v1.1.0 examples tree.
+`allowLegacyClients: true` is required for MCPJungle. Compose must pass
+`--management-listen=:8088`. After editing, `make reload APP=labmitm`
+(wipes captured flows; generate-mode CA rotates).
+
+The HTTP/1.1 data plane is **unauthenticated**. Do not publish without a
+network boundary. HTTPS intercept is **:443 only**; CONNECT to LabLDAP
+LDAPS or TacLab TLS is tunnel-not-decrypt. `allowHosts` is HTTP-useful
+compose DNS (`*.lab`, labdns, labinfo, maildev, mcpjungle, control,
+taclab).
+
+Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
+`"private"`). When `LAB_PUBLIC_HOST` is not loopback, add
+`http://<LAB_PUBLIC_HOST>:18088` (or the profile's `LABMITM_WEB_PORT`)
+or the inspector SPA 403s `/v1`. Preflight warns (never fails) if the
+allowlist is empty.
+
+```yaml
+apiVersion: labmitm.dev/v1alpha1
+kind: LabMITM
+metadata:
+  name: lab-proxy
+spec:
+  listeners:
+    proxy: { address: ":8888" }
+    management: { address: ":8088", restPath: /v1, mcpPath: /mcp }
+  proxy:
+    hostname: labmitm.lab
+    targets:
+      allowHosts: ["*.lab", labdns, labinfo, maildev, mcpjungle, control, taclab]
+  tls:
+    intercept: true
+    ports: [443]
+  management:
+    auth:
+      mode: bearer
+      tokens:
+        - { id: admin, secretFile: /run/secrets/labmitm-token, role: administrator }
+    mcp:
+      allowLegacyClients: true
+    originAllowlist: []
+```
+
+Point systems under test at `<lab-host>:18888` as `HTTP_PROXY` /
+`HTTPS_PROXY`. Inspector / REST / MCP is `:18088` (bearer in
+`secrets/labmitm-token`). Install `GET /v1/ca` into the SUT trust store
+for HTTPS intercept.
+
 ## NFS
 
 `NFS_ARCHIVE_DIR` holds the empty-root fixture `.tar.zst` (`fixtures.tar.zst`
@@ -406,8 +461,8 @@ The curated tool group — this is what most agents should attach to:
 ```json
 {
   "name": "integration",
-  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail"]
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm"]
 }
 ```
 

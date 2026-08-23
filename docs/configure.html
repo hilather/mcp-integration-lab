@@ -37,6 +37,7 @@
         <a href="#labldap">LabLDAP</a>
         <a href="#taclab">TacLab</a>
         <a href="#mail">LabMail</a>
+        <a href="#labmitm">LabMITM</a>
         <a href="#nfs">NFS</a>
         <a href="#labinfo">labinfo catalog</a>
         <a href="#gateway">MCPJungle</a>
@@ -61,6 +62,7 @@
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
+  labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group</code></pre>
@@ -108,6 +110,8 @@ PROFILE=default
             <tr><td><code>MAILDEV_SMTP_PORT</code></td><td>1025</td><td>Receive-only SMTP ingest.</td></tr>
             <tr><td><code>MAILDEV_WEB_PORT</code></td><td>1080</td><td>LabMail UI + /email + /v1 + MCP.</td></tr>
             <tr><td><code>MAILDEV_WEB_USER</code></td><td>admin</td><td>Web basic-auth user. Frozen at admin. Password is minted.</td></tr>
+            <tr><td><code>LABMITM_PROXY_PORT</code></td><td>18888</td><td>Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT).</td></tr>
+            <tr><td><code>LABMITM_WEB_PORT</code></td><td>18088</td><td>LabMITM inspector UI + /v1 + MCP.</td></tr>
             <tr><td><code>LABINFO_PORT</code></td><td>18090</td><td>Service-directory MCP.</td></tr>
             <tr><td><code>LAB_PUBLIC_HOST</code></td><td>localhost</td><td>Hostname labinfo puts in every URL.</td></tr>
             <tr><td><code>LAB_DEV_MODE</code></td><td>false</td><td>Single security knob.</td></tr>
@@ -119,8 +123,8 @@ PROFILE=default
 
         <h2 id="reload">Reload one app (not a full redeploy)</h2>
         <p><code>make up</code> vendors, mints secrets, builds every image, and starts all three compose projects. Use it for first bring-up, a vendor pin bump, or a profile switch. After that, recreate one application:</p>
-        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs</code></pre>
-        <p>YAML edits for LabDNS, LabMail, labinfo, or LabLDAP do not need a full stack bounce. Gateway JSON is <code>make register</code> (no container restart). Gateway <em>container</em> reload also re-registers because SQLite is tmpfs. LabLDAP reload re-seeds ephemeral <code>/data</code>. Mail reload wipes the inbox.</p>
+        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm</code></pre>
+        <p>YAML edits for LabDNS, LabMail, LabMITM, labinfo, or LabLDAP do not need a full stack bounce. Gateway JSON is <code>make register</code> (no container restart). Gateway <em>container</em> reload also re-registers because SQLite is tmpfs. LabLDAP reload re-seeds ephemeral <code>/data</code>. Mail reload wipes the inbox. LabMITM reload wipes captured flows.</p>
 
         <h2 id="labdns">LabDNS</h2>
         <p><code>labdns/bootstrap.yaml</code> is the desired state, mounted read-only. After editing, <code>make reload APP=labdns</code>. MCP <code>dns_state_reset</code> returns the service to this file. Non-loopback peers present the bearer in <code>secrets/labdns-token</code>.</p>
@@ -232,6 +236,33 @@ spec:
     originAllowlist: ["*"]</code></pre>
         <p>Point the system under test at <code><lab-host>:1025</code>. Read captured mail at <code>:1080</code>. Native REST is <code>/v1</code>; MCP is <code>/mcp</code>. Nothing is relayed.</p>
 
+        <h2 id="labmitm">LabMITM</h2>
+        <p>Desired state is <code>labmitm/bootstrap.yaml</code> (LabMITM <strong>v1.1.0</strong>), a lab-owned overlay copy. <code>allowLegacyClients: true</code> is required for MCPJungle. Compose must pass <code>--management-listen=:8088</code>. After editing, <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates). The HTTP/1.1 data plane is unauthenticated. HTTPS intercept is <code>:443</code> only; CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt. Origin allowlist is exact Origins (loopback already allowed; no <code>"*"</code>). When <code>LAB_PUBLIC_HOST</code> is not loopback, add <code>http://&lt;LAB_PUBLIC_HOST&gt;:18088</code> or the inspector SPA 403s <code>/v1</code>.</p>
+        <pre><code>apiVersion: labmitm.dev/v1alpha1
+kind: LabMITM
+metadata:
+  name: lab-proxy
+spec:
+  listeners:
+    proxy: { address: ":8888" }
+    management: { address: ":8088", restPath: /v1, mcpPath: /mcp }
+  proxy:
+    hostname: labmitm.lab
+    targets:
+      allowHosts: ["*.lab", labdns, labinfo, maildev, mcpjungle, control, taclab]
+  tls:
+    intercept: true
+    ports: [443]
+  management:
+    auth:
+      mode: bearer
+      tokens:
+        - { id: admin, secretFile: /run/secrets/labmitm-token, role: administrator }
+    mcp:
+      allowLegacyClients: true
+    originAllowlist: []</code></pre>
+        <p>Point systems under test at <code><lab-host>:18888</code> as <code>HTTP_PROXY</code>. Inspector / REST / MCP is <code>:18088</code> (bearer in <code>secrets/labmitm-token</code>).</p>
+
         <h2 id="nfs">NFS</h2>
         <p><code>NFS_ARCHIVE_DIR</code> holds the empty-root fixture <code>.tar.zst</code> (<code>fixtures.tar.zst</code> contains only <code>./</code>) after <code>make fixtures</code>. The export is writable: <code>-w</code> overlay plus live commit (<code>NFS_COMMIT_OVERLAY_INTERVAL</code>, default 15m, and on process exit). <code>NFS_DATA_DIR</code> is indexes plus the durable overlay. Plan ~2× compressed size on the archive dir during a commit.</p>
         <pre><code>NFS_PORT=20490
@@ -278,8 +309,8 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <p>The curated tool group — this is what most agents should attach to:</p>
         <pre><code>{
   "name": "integration",
-  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail"]
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm"]
 }</code></pre>
         <p>Gateway SQLite sits on tmpfs; <code>make register</code> reapplies the JSON. Mode follows <code>LAB_DEV_MODE</code> unless you pin <code>MCPJUNGLE_MODE</code>.</p>
 

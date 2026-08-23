@@ -55,7 +55,7 @@ cd mcp-integration-lab
 make up
 make smoke</code></pre>
         <p><code>make up</code> is idempotent. It clones pinned vendors into <code>third_party/</code>, applies patches, mints gitignored secrets, builds local images, starts three compose projects on <code>mcplab-shared</code>, and registers every MCP server with the gateway. First run is image-build heavy.</p>
-        <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, and mail.</p>
+        <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM.</p>
 
         <h2 id="client">Attach an MCP client</h2>
         <p>The default profile runs the gateway in enterprise mode. Clients send a bearer token. Drop the header only if you set <code>LAB_DEV_MODE=true</code>.</p>
@@ -82,7 +82,7 @@ ldapsearch -H ldaps://<lab-host>:3636 \
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt</code></pre>
-        <p>Point outbound SMTP at <code><lab-host>:1025</code> and read captured mail in the LabMail UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under <code>third_party/go-lab-tacacs-mcp/deployments/compose/secrets/</code> and a Message-Authenticator attribute.</p>
+        <p>Point outbound SMTP at <code><lab-host>:1025</code> and read captured mail in the LabMail UI on port 1080. Nothing is relayed. RADIUS PAP needs the shared secret under <code>third_party/go-lab-tacacs-mcp/deployments/compose/secrets/</code> and a Message-Authenticator attribute. Point HTTP clients at <code><lab-host>:18888</code> as <code>HTTP_PROXY</code> (unauthenticated; intercept is <code>:443</code> only). The inspector is <code>:18088</code>.</p>
 
         <h2 id="profile">Pick a profile</h2>
         <p>Copy <code>profiles/default</code> to <code>profiles/teamx</code>, edit ports and YAML, then:</p>
@@ -99,7 +99,8 @@ make reload APP=nfs         # ratarmount image / overlay interval
 make reload APP=labinfo     # labinfo/services.yaml
 make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
 make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
-make reload APP=labtacacs   # TacLab compose project</code></pre>
+make reload APP=labtacacs   # TacLab compose project
+make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows</code></pre>
         <p>Same as <code>mcplab reload &lt;app&gt;</code>. Sibling services stay up. Use full <code>make up</code> after a vendor pin bump, a profile switch, or first bring-up.</p>
 
         <h2 id="stop">Stop and reset</h2>

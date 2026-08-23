@@ -63,6 +63,13 @@
             <p><strong>Auth.</strong> Web Basic user <code>admin</code> (frozen). Password and MCP bearer minted by <code>mcplab secrets</code> (<code>maildev-web-password</code>, <code>labmail-token</code>, both 0o644).</p>
           </article>
           <article class="card">
+            <h3>LabMITM — <a href="https://github.com/hilather/go-lab-mitmproxy">hilather/go-lab-mitmproxy</a></h3>
+            <p>Laboratory HTTP(S) intercepting forward proxy. Pinned v1.1.0. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt).</p>
+            <p><strong>Connect.</strong> HTTP proxy <code><host>:18888</code>. Inspector / <code>/v1</code> / MCP at <code><host>:18088</code>.</p>
+            <p><strong>Configure.</strong> <code>profiles/<name>/labmitm/bootstrap.yaml</code>. Exact Origins (no <code>"*"</code>). Reload: <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates).</p>
+            <p><strong>Auth.</strong> Management bearer in <code>secrets/labmitm-token</code> (0o644). Proxy data plane has no Proxy-Authorization.</p>
+          </article>
+          <article class="card">
             <h3>ratarmount-rs — <a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></h3>
             <p>Writable archive-backed userspace NFSv3 export (empty-root <code>.tar.zst</code>, 15m overlay commit). Pinned v0.1.24; NFSv4.1 is in the package, this lab stays on v3.</p>
             <p><strong>Connect.</strong> <code>mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 <host>:/ /mnt</code></p>
