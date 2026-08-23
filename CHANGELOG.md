@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-23
+
 ### Added
 
 - When `LAB_DEV_MODE=true`, `mcplab secrets` reconciles LabDNS, LabMail,
