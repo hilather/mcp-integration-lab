@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -76,26 +75,9 @@ func TestApplyDevSecretsPasswordsTxtFormat(t *testing.T) {
 		t.Fatalf("first apply: %+v", res)
 	}
 	body := mustRead(t, filepath.Join(dir, "PASSWORDS.txt"))
-	if !bytes.HasSuffix(body, []byte("\n")) {
-		t.Fatal("PASSWORDS.txt must end with newline")
-	}
-	want := []string{
-		"lab-admin=LabAdmin-Dev-Pass-01!",
-		"lab-admin-enable=LabEnable-Dev-Pass-01!",
-		"lab-readonly=LabReadonly-Dev-Pass-01!",
-		"lab-disabled=LabDisabled-Dev-Pass-01!",
-		"lab-admin-challenge=LabChallenge-Dev-Pass-01!",
-	}
-	got := string(body)
-	for _, line := range want {
-		if !strings.Contains(got, line+"\n") && !strings.HasSuffix(got, line+"\n") {
-			if !strings.Contains(got, line) {
-				t.Errorf("missing %q in PASSWORDS.txt:\n%s", line, got)
-			}
-		}
-	}
-	if !strings.Contains(got, "lab-admin=LabAdmin-Dev-Pass-01!\n") {
-		t.Fatalf("lab-admin= format:\n%s", got)
+	want := passwordsBody(testCatalog())
+	if !bytes.Equal(body, want) {
+		t.Fatalf("PASSWORDS.txt\ngot:\n%s\nwant:\n%s", body, want)
 	}
 	info, err := os.Stat(filepath.Join(dir, "PASSWORDS.txt"))
 	if err != nil {

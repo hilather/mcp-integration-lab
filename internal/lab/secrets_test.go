@@ -134,6 +134,42 @@ func fakeLabgen(root string, force bool) error {
 	return nil
 }
 
+// fakeLabgenAlways is a pin-bump stand-in: labgen -force always rewrites
+// random TacLab secrets, even if catalog files already exist.
+func fakeLabgenAlways(root string) error {
+	dir := filepath.Join(root, taclabDir, "deployments", "compose", "secrets")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for _, name := range []string{
+		"api_admin_token",
+		"lab_switches_tacacs_secret",
+		"lab_switches_radius_secret",
+		"lab_admin_challenge_secret",
+		"lab_admin_argon2id",
+		"lab_admin_enable_argon2id",
+		"lab_readonly_argon2id",
+		"lab_disabled_argon2id",
+	} {
+		path := filepath.Join(dir, name)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err := writeRandHexFile(path, 32, 0o444, false); err != nil {
+			return err
+		}
+	}
+	pw := strings.Join([]string{
+		"lab-admin=rand-admin",
+		"lab-admin-enable=rand-enable",
+		"lab-readonly=rand-readonly",
+		"lab-disabled=rand-disabled",
+		"lab-admin-challenge=rand-challenge",
+		"",
+	}, "\n")
+	return os.WriteFile(filepath.Join(dir, "PASSWORDS.txt"), []byte(pw), 0o600)
+}
+
 func writeRandHexFile(path string, n int, mode os.FileMode, newline bool) error {
 	buf := make([]byte, n)
 	if _, err := rand.Read(buf); err != nil {
@@ -181,41 +217,13 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 		"third_party/go-lab-ldap-mcp/secrets/runtime-ldap":  "lab-dev-runtime-12",
 		"third_party/go-lab-ldap-mcp/secrets/dm.pw":         "lab-dev-dm-password-12",
 		"third_party/go-lab-ldap-mcp/secrets/directory.env": "DS_DM_PASSWORD=lab-dev-dm-password-12",
-		taclabSecretRel("api_admin_token"):                  "lab-dev-labtacacs-token-admin",
-		taclabSecretRel("lab_switches_tacacs_secret"):       "LabDev-Switches-Tacacs-01",
-		taclabSecretRel("lab_switches_radius_secret"):       "LabDev-Switches-Radius-01",
-		taclabSecretRel("lab_admin_challenge_secret"):       "LabChallenge-Dev-Pass-01!",
 	}
 	for rel, exp := range want {
 		if got := readTrim(t, r, rel); got != exp {
 			t.Errorf("%s = %q, want %q", rel, got, exp)
 		}
 	}
-	for _, name := range []string{"api_admin_token", "lab_switches_tacacs_secret", "lab_switches_radius_secret", "lab_admin_challenge_secret"} {
-		b := mustRead(t, r.path(taclabSecretRel(name)))
-		if bytes.Contains(b, []byte("\n")) {
-			t.Errorf("%s has trailing newline", name)
-		}
-	}
-	pw := string(mustRead(t, r.path(taclabSecretRel("PASSWORDS.txt"))))
-	if !strings.Contains(pw, "lab-admin=LabAdmin-Dev-Pass-01!\n") {
-		t.Fatalf("PASSWORDS.txt lab-admin=:\n%s", pw)
-	}
-	phcChecks := []struct{ file, password string }{
-		{"lab_admin_argon2id", "LabAdmin-Dev-Pass-01!"},
-		{"lab_admin_enable_argon2id", "LabEnable-Dev-Pass-01!"},
-		{"lab_readonly_argon2id", "LabReadonly-Dev-Pass-01!"},
-		{"lab_disabled_argon2id", "LabDisabled-Dev-Pass-01!"},
-	}
-	for _, h := range phcChecks {
-		b := mustRead(t, r.path(taclabSecretRel(h.file)))
-		if bytes.Contains(b, []byte("\n")) {
-			t.Errorf("%s has newline", h.file)
-		}
-		if err := taclabcfg.VerifyArgon2id(b, []byte(h.password)); err != nil {
-			t.Errorf("%s: %v", h.file, err)
-		}
-	}
+	assertTaclabCatalog(t, r)
 	m, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
 	if err != nil {
 		t.Fatalf("dev-mode marker missing: %v", err)
@@ -514,6 +522,17 @@ func TestSecretsMatchingCatalogDoesNotReload(t *testing.T) {
 	}
 }
 
+func TestSecretsDevPinsTaclabAfterForcedLabgen(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	r.deps.ensureTaclab = func(force bool) error {
+		return fakeLabgenAlways(r.Root)
+	}
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	assertTaclabCatalog(t, r)
+}
+
 func TestSecretsTaclabTokenChangeFlagsRegister(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
 	if err := r.Secrets(); err != nil {
@@ -609,6 +628,51 @@ func TestSecretsEnterDevRetriesLabTacacsWhenPending(t *testing.T) {
 
 func taclabSecretRel(name string) string {
 	return taclabDir + "/deployments/compose/secrets/" + name
+}
+
+func assertTaclabCatalog(t *testing.T, r *Runner) {
+	t.Helper()
+	plain := map[string]string{
+		"api_admin_token":            "lab-dev-labtacacs-token-admin",
+		"lab_switches_tacacs_secret": "LabDev-Switches-Tacacs-01",
+		"lab_switches_radius_secret": "LabDev-Switches-Radius-01",
+		"lab_admin_challenge_secret": "LabChallenge-Dev-Pass-01!",
+	}
+	for name, exp := range plain {
+		b := mustRead(t, r.path(taclabSecretRel(name)))
+		if bytes.Contains(b, []byte("\n")) {
+			t.Errorf("%s has newline", name)
+		}
+		if string(b) != exp {
+			t.Errorf("%s = %q, want %q", name, b, exp)
+		}
+	}
+	pw := string(mustRead(t, r.path(taclabSecretRel("PASSWORDS.txt"))))
+	for _, line := range []string{
+		"lab-admin=LabAdmin-Dev-Pass-01!",
+		"lab-admin-enable=LabEnable-Dev-Pass-01!",
+		"lab-readonly=LabReadonly-Dev-Pass-01!",
+		"lab-disabled=LabDisabled-Dev-Pass-01!",
+		"lab-admin-challenge=LabChallenge-Dev-Pass-01!",
+	} {
+		if !strings.Contains(pw, line+"\n") {
+			t.Errorf("PASSWORDS.txt missing %q\\n:\n%s", line, pw)
+		}
+	}
+	for _, h := range []struct{ file, password string }{
+		{"lab_admin_argon2id", "LabAdmin-Dev-Pass-01!"},
+		{"lab_admin_enable_argon2id", "LabEnable-Dev-Pass-01!"},
+		{"lab_readonly_argon2id", "LabReadonly-Dev-Pass-01!"},
+		{"lab_disabled_argon2id", "LabDisabled-Dev-Pass-01!"},
+	} {
+		b := mustRead(t, r.path(taclabSecretRel(h.file)))
+		if bytes.Contains(b, []byte("\n")) {
+			t.Errorf("%s has newline", h.file)
+		}
+		if err := taclabcfg.VerifyArgon2id(b, []byte(h.password)); err != nil {
+			t.Errorf("%s: %v", h.file, err)
+		}
+	}
 }
 
 func TestAlreadyReloaded(t *testing.T) {
