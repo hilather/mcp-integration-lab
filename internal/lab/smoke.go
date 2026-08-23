@@ -157,8 +157,9 @@ func (s *smokeState) ldapScenario() {
 	acctOut, err := s.invoke("labldap__ldap_get_account_state", fmt.Sprintf(`{"id":%q}`, user))
 	s.check(err == nil && strings.Contains(acctOut, `"enabled":true`), "ldap_get_account_state for "+user)
 
-	// Data-plane checks from inside the docker network (the lab LDAPS cert's
-	// SAN is the compose hostname). Alice has suffix read via the staff ACL.
+	// Data-plane checks from inside the docker network (the lab LDAPS cert
+	// always has DNS SAN directory; LAB_PUBLIC_HOST is an extra SAN for
+	// remote clients). Alice has suffix read via the staff ACL.
 	secrets := filepath.Join(s.r.Root, "third_party", "go-lab-ldap-mcp", "secrets")
 	ldapsearch := func(script string) (string, error) {
 		return s.r.capture(".", "docker", "run", "--rm", "--network", "mcplab-shared",

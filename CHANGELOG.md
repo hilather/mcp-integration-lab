@@ -24,6 +24,13 @@ changes since the previous one (AGENTS.md rule 13).
   TacLab client certs). `mcplab creds` / `make creds` prints the same
   shareable sheet from files on disk; it fails closed outside
   `LAB_DEV_MODE` and never prints TLS private keys.
+- LabLDAP leaf certs minted by `mcplab secrets` include `LAB_PUBLIC_HOST`
+  as a DNS SAN, or as an IP SAN when that value is an IPv4/IPv6 literal.
+  Extra SANs are mode-independent (first mint and re-sign use the same
+  set) so remote LDAPS and control HTTPS verify without skipping hostname
+  checks. Existing labs re-sign leaves with the current CA — the CA
+  private key is not rotated or committed. `Secrets()` reloads LabLDAP
+  when those leaves change.
 
 ### Changed
 

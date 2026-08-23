@@ -31,7 +31,7 @@ type devModeMarker struct {
 // secretsDeps overrides subprocesses and docker for tests without a daemon.
 type secretsDeps struct {
 	setupsecrets    func(force bool) error
-	setuptls        func() error
+	ensureTLS       func() (labTLSResult, error)
 	ensureTaclab    func(force bool) error
 	containerExists func(name string) (bool, error)
 	reloadMain      func(service string) error
@@ -56,10 +56,11 @@ type secretChanges struct {
 	labldapAdmin   bool
 	labtacacs      bool
 	labtacacsAdmin bool
+	labldapTLS     bool
 }
 
 func (c secretChanges) labldap() bool {
-	return c.labldapAlice || c.labldapRuntime || c.labldapDM || c.labldapAdmin
+	return c.labldapAlice || c.labldapRuntime || c.labldapDM || c.labldapAdmin || c.labldapTLS
 }
 
 func (c secretChanges) labtacacsReload() bool {
@@ -105,6 +106,7 @@ func enterDevReloadChanges() secretChanges {
 // Secrets generates or reconciles lab secrets. Non-dev mints random files
 // if missing. Dev mode (LAB_DEV_MODE only — never MCPJUNGLE_MODE) writes
 // the active profile's dev-credentials.yaml. Leaving dev mode remints.
+// Both modes run labtlsEnsure so LabLDAP leaves include LAB_PUBLIC_HOST.
 // When containers already exist, Secrets() reloads them; Up skips those
 // names via reloadedThisRun.
 func (r *Runner) Secrets() error {
@@ -167,7 +169,8 @@ func (r *Runner) secretsEnterDev(marker string) error {
 		return err
 	}
 
-	if err := r.labldapSetuptls(); err != nil {
+	tls, err := r.ensureLabLDAPTLS()
+	if err != nil {
 		return err
 	}
 	if err := writeTokenIfMissing(r.path("secrets/labmitm-token"), 0o644); err != nil {
@@ -179,6 +182,9 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	reload := ch
 	if forceConsumers {
 		reload = enterDevReloadChanges()
+	}
+	if tls.leavesRewritten() {
+		reload.labldapTLS = true
 	}
 	if err := r.applySecretReloads(reload, false); err != nil {
 		return err
@@ -194,13 +200,14 @@ func (r *Runner) secretsLeaveDev(marker string) error {
 	if err := r.leaveDevRemint(); err != nil {
 		return err
 	}
-	if err := r.labldapSetuptls(); err != nil {
+	tls, err := r.ensureLabLDAPTLS()
+	if err != nil {
 		return err
 	}
 	if err := r.stageLabinfoCreds(); err != nil {
 		return err
 	}
-	if err := r.applySecretReloads(secretChanges{}, true); err != nil {
+	if err := r.applySecretReloads(secretChanges{labldapTLS: tls.leavesRewritten()}, true); err != nil {
 		return err
 	}
 	if err := os.Remove(marker); err != nil && !os.IsNotExist(err) {
@@ -232,7 +239,8 @@ func (r *Runner) secretsRandomMint() error {
 	if err := r.labldapSetupsecrets(false); err != nil {
 		return err
 	}
-	if err := r.labldapSetuptls(); err != nil {
+	tls, err := r.ensureLabLDAPTLS()
+	if err != nil {
 		return err
 	}
 	if err := r.generateTaclabLab(false); err != nil {
@@ -240,6 +248,11 @@ func (r *Runner) secretsRandomMint() error {
 	}
 	if err := r.stageLabinfoCreds(); err != nil {
 		return err
+	}
+	if tls.leavesRewritten() {
+		if err := r.applySecretReloads(secretChanges{labldapTLS: true}, false); err != nil {
+			return err
+		}
 	}
 	fmt.Println("secrets ready")
 	return nil
@@ -363,12 +376,16 @@ func (r *Runner) labldapSetupsecrets(force bool) error {
 	return r.run("third_party/go-lab-ldap-mcp", "go", args...)
 }
 
-func (r *Runner) labldapSetuptls() error {
-	if r.deps != nil && r.deps.setuptls != nil {
-		return r.deps.setuptls()
+func (r *Runner) ensureLabLDAPTLS() (labTLSResult, error) {
+	if r.deps != nil && r.deps.ensureTLS != nil {
+		return r.deps.ensureTLS()
 	}
-	return r.run("third_party/go-lab-ldap-mcp", "go", "run", "./tools/setuptls", "generate",
-		"--dir", "secrets/tls", "--host", "directory", "--management")
+	dir := r.path("third_party/go-lab-ldap-mcp/secrets/tls")
+	host := ""
+	if r.Prof != nil {
+		host = r.Prof.Get("LAB_PUBLIC_HOST", "localhost")
+	}
+	return labtlsEnsure(dir, host)
 }
 
 func (r *Runner) generateTaclabLab(force bool) error {

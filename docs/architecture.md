@@ -66,8 +66,11 @@ flowchart LR
   `make register` reapplies the JSON configs in the active profile's
   `mcpjungle/` directory, which are the source of truth.
 - LabLDAP's control plane serves TLS from a lab-CA-signed cert
-  (`setuptls generate --management` + scenario `tls.mode: files`); the gateway
-  trusts the CA via `SSL_CERT_FILE`.
+  (`labtls.Ensure` + scenario `tls.mode: files`); the gateway trusts the
+  CA via `SSL_CERT_FILE`. Leaves include DNS SAN `directory`/`control`
+  plus `LAB_PUBLIC_HOST` as a DNS or IP SAN in both modes. The CA
+  private key stays under `third_party/go-lab-ldap-mcp/secrets/tls/` and
+  is not committed.
 
 ## Configuration ownership
 
@@ -147,7 +150,9 @@ Internal hops always use static bearer tokens on an isolated docker network.
   apply. labinfo redacts credentials and only describes auth. Secret files
   are random-if-missing. Leaving dev mode (marker `secrets/.lab-dev-mode`)
   unlinks and remints orchestrator tokens, runs LabLDAP `setupsecrets --force`,
-  and `labgen -force`.
+  and `labgen -force`. LabLDAP TLS is not rotated (extra SANs are
+  mode-independent); leaves may still be re-signed if `LAB_PUBLIC_HOST`
+  is missing from the SAN set.
 - Dev (`LAB_DEV_MODE=true` → gateway `development`): no client auth, and the
   labinfo tools reveal credentials — `endpoints_list` each web service's
   token, `connections_list` the on-the-wire secrets (LDAP bind password,
@@ -162,7 +167,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
   from reveal. `Secrets()` reloads running containers whose files changed
   (or when the marker is missing / `reloads` is not `done`, so a crash
-  retries against leftover LabLDAP `/data`) and re-registers the gateway
+  retries against leftover LabLDAP `/data`, or when LabLDAP leaves were
+  re-signed for `LAB_PUBLIC_HOST`) and re-registers the gateway
   when registrar tokens change; `make up` skips those apps.
   `mcplab creds` / `make creds` prints the same sheet from files on disk
   (fails closed outside dev; never prints TLS private keys).
@@ -223,8 +229,9 @@ per-persona tool groups and OTel metrics scraping.
   account-workflow tools (`ldap_get_account_state`, expire/lock/enable)
   register because the profile sets `registerMutations` and
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
-  (`ca.crt`); switching from a leftover 389 volume is a re-bootstrap
-  (`LabLDAPUp` wipes uid-389 `/data`).
+  (`ca.crt`) minted by `labtls.Ensure` (replaces skip-if-exists
+  `setuptls generate`); switching from a leftover 389 volume is a
+  re-bootstrap (`LabLDAPUp` wipes uid-389 `/data`).
 - LabMail is pinned to **v1.0.0-rc.3**. MCP pin is relaxed with upstream
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (same idea as TacLab; no LabMail patch). Compose service name and labinfo

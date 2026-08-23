@@ -221,7 +221,7 @@ How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md). Agent working rules: [AGE
 dig @<lab-host> -p 10053 ns1.lab.test
 
 # LDAPS — trust third_party/go-lab-ldap-mcp/secrets/tls/ca.crt
-# cert SAN is "directory"
+# cert SAN is "directory" plus LAB_PUBLIC_HOST (DNS or IP, both modes)
 ldapsearch -H ldaps://<lab-host>:3636 \
   -D 'uid=alice,ou=people,dc=example,dc=test' -W \
   -b dc=example,dc=test '(uid=alice)'

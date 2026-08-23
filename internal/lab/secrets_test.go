@@ -57,7 +57,6 @@ func installTestSecretsDeps(r *Runner, exists map[string]bool) {
 		setupsecrets: func(force bool) error {
 			return fakeSetupsecrets(r.Root, force)
 		},
-		setuptls: func() error { return fakeSetuptls(r.Root) },
 		ensureTaclab: func(force bool) error {
 			return fakeLabgen(r.Root, force)
 		},
@@ -710,6 +709,109 @@ func assertTaclabCatalog(t *testing.T, r *Runner) {
 		if err := taclabcfg.VerifyArgon2id(b, []byte(h.password)); err != nil {
 			t.Errorf("%s: %v", h.file, err)
 		}
+	}
+}
+
+func TestSecretsPublicHostChangeReloadsLabLDAP(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	assertVendorTLS(t, r, "lab.example.test")
+	tlsDir := r.path("third_party/go-lab-ldap-mcp/secrets/tls")
+	caKey := mustRead(t, filepath.Join(tlsDir, "ca.key"))
+
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var labldap, registered, gateway bool
+	var mains []string
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	r.deps.register = func() error { registered = true; return nil }
+	r.deps.reloadGateway = func() error { gateway = true; return nil }
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap || !r.alreadyReloaded("labldap") {
+		t.Fatalf("leaf re-sign must reloadLabLDAP; reloadedThisRun=%v", r.reloadedThisRun)
+	}
+	if registered || gateway || len(mains) != 0 {
+		t.Fatalf("TLS re-sign is not a registrarEnv change: register=%v gateway=%v mains=%v", registered, gateway, mains)
+	}
+	if !bytes.Equal(caKey, mustRead(t, filepath.Join(tlsDir, "ca.key"))) {
+		t.Fatal("must not rotate ca.key")
+	}
+	assertVendorTLS(t, r, "203.0.113.10")
+}
+
+func TestSecretsNonDevSANChangeReloadsLabLDAP(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	tlsDir := r.path("third_party/go-lab-ldap-mcp/secrets/tls")
+	caKey := mustRead(t, filepath.Join(tlsDir, "ca.key"))
+
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "2001:db8::10"
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var labldap bool
+	var hits []string
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	r.deps.reloadMain = func(s string) error { hits = append(hits, s); return nil }
+	r.deps.reloadGateway = func() error { hits = append(hits, "gateway"); return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap || !r.alreadyReloaded("labldap") {
+		t.Fatal("non-dev leaf re-sign must reloadLabLDAP")
+	}
+	if len(hits) != 0 {
+		t.Fatalf("TLS re-sign must not bounce other apps: %v", hits)
+	}
+	if !bytes.Equal(caKey, mustRead(t, filepath.Join(tlsDir, "ca.key"))) {
+		t.Fatal("must not rotate ca.key")
+	}
+	assertVendorTLS(t, r, "2001:db8::10")
+}
+
+func TestSecretsLeaveDevSANResignReloadsLabLDAP(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	tlsDir := r.path("third_party/go-lab-ldap-mcp/secrets/tls")
+	caKey := mustRead(t, filepath.Join(tlsDir, "ca.key"))
+
+	r.Prof.Values["LAB_DEV_MODE"] = "false"
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var labldap bool
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap {
+		t.Fatal("leave-dev leaf re-sign must still reloadLabLDAP")
+	}
+	if !bytes.Equal(caKey, mustRead(t, filepath.Join(tlsDir, "ca.key"))) {
+		t.Fatal("leave-dev must not rotate ca.key")
+	}
+	assertVendorTLS(t, r, "203.0.113.10")
+}
+
+func assertVendorTLS(t *testing.T, r *Runner, publicHost string) {
+	t.Helper()
+	tlsDir := r.path("third_party/go-lab-ldap-mcp/secrets/tls")
+	assertDirectorySANs(t, mustCert(t, filepath.Join(tlsDir, "directory.crt")), publicHost)
+	assertManagementSANs(t, mustCert(t, filepath.Join(tlsDir, "management.crt")), publicHost)
+	if _, err := os.Stat(r.path("secrets/tls/ca.crt")); !os.IsNotExist(err) {
+		t.Fatalf("must not write repo-root secrets/tls: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tlsDir, "ca.key")); err != nil {
+		t.Fatal(err)
 	}
 }
 

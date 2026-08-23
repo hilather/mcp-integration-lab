@@ -44,7 +44,7 @@
           <article class="card">
             <h3>LabLDAP — <a href="https://github.com/hilather/go-lab-ldap-mcp">hilather/go-lab-ldap-mcp</a></h3>
             <p>Native Go directory (labldapd) plus a control plane. Pinned v0.3.0 (native is the default engine).</p>
-            <p><strong>Connect.</strong> <code>ldaps://<host>:3636</code> (SAN <code>directory</code>) or LDAP + StartTLS. UI at <code>https://<host>:8443/</code>.</p>
+            <p><strong>Connect.</strong> <code>ldaps://<host>:3636</code> (SAN <code>directory</code> plus <code>LAB_PUBLIC_HOST</code> as DNS or IP) or LDAP + StartTLS. UI at <code>https://<host>:8443/</code>.</p>
             <p><strong>Configure.</strong> <code>profiles/<name>/labldap/scenario.yaml</code>. Native engine, lab CA, mutation and password MCP tools enabled. Reload: <code>make reload APP=labldap</code> (re-seeds ephemeral <code>/data</code>).</p>
             <p><strong>Auth.</strong> Control plane: <code>token-admin</code>. Bind as <code>uid=alice,ou=people,dc=example,dc=test</code>.</p>
           </article>

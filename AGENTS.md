@@ -185,10 +185,16 @@ we work by.
   files. Its RADIUS/UDP listener requires Message-Authenticator (RFC 3579)
   — `internal/radius` implements that for the smoke test. RadSec (TCP 2083)
   and inbound DAS (UDP 3799) are published but default off.
-- LabLDAP's LDAPS cert SAN is `directory`: verify from a container on
-  `mcplab-shared` (as the smoke test does) or use a hosts entry. Trust
+- LabLDAP's LDAPS cert always has DNS SAN `directory` (smoke binds
+  `ldaps://directory:3636` on `mcplab-shared`). `mcplab secrets` also
+  adds `LAB_PUBLIC_HOST` as a DNS SAN, or as an IP SAN when that value
+  is an IPv4/IPv6 literal — first mint and re-sign use the same set, in
+  both modes. Never pass `setuptls --host "$LAB_PUBLIC_HOST"`: that
+  replaces `directory` and breaks smoke. Trust
   `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt` (lab CA); native
   `labldapd` serves that cert directly — there is no 389 instance-CA.
+  The CA private key stays on the host under that tls dir and is not
+  committed.
 - LabLDAP is pinned to **v0.3.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2

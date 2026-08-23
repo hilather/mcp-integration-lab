@@ -106,7 +106,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `LABDNS_DNS_PORT` | `10053` | DNS data plane (udp+tcp). `53` usually collides with systemd-resolved. |
 | `LABDNS_REST_PORT` | `18080` | LabDNS REST `/v1` + MCP `/mcp` + operator console `GET /`. |
 | `LABLDAP_LDAP_PORT` | `3389` | LDAP (StartTLS). Cleartext simple bind is disabled. |
-| `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory`. |
+| `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS or IP). |
 | `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
 | `MCP_GATEWAY_PORT` | `8080` | MCPJungle streamable HTTP. |
 | `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3 (writable overlay). |
@@ -123,7 +123,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
-| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL. Set this to the name remote testers use. |
+| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs (both modes). Set this to the name or address remote testers use. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
 | `NFS_ARCHIVE_DIR` | `.data/nfs` | Empty-root `fixtures.tar.zst` (writable; live commit replaces it). |
@@ -134,9 +134,9 @@ different `LABDNS_DNS_PORT` in your team profile.
 
 `make up` vendors, mints or reconciles secrets, builds every image, starts three compose
 projects, and registers the gateway. Use it for first bring-up, a vendor pin
-bump, or a profile switch. After a `dev-credentials.yaml` or `LAB_DEV_MODE`
-edit, `mcplab secrets` reloads running apps whose files changed; `make up`
-skips those names.
+bump, or a profile switch. After a `dev-credentials.yaml` or `LAB_DEV_MODE` edit, or a
+`LAB_PUBLIC_HOST` SAN change, `mcplab secrets` reloads running apps
+whose files changed; `make up` skips those names.
 
 After that, recreate **one** application:
 
@@ -273,8 +273,11 @@ spec:
 ```
 
 - Bind as `uid=alice,ou=people,dc=example,dc=test`.
-- LDAPS cert SAN is `directory`. Trust
-  `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt`.
+- LDAPS cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS name, or an
+  IP SAN when that value is an IPv4/IPv6 literal). Extra SANs are
+  mode-independent. Trust
+  `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt`. The CA private key
+  is not committed.
 - Add users, groups, and ACLs in this file. MCP mutations are ephemeral.
 
 ## TacLab
@@ -501,7 +504,9 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   random-if-missing. If `secrets/.lab-dev-mode` is present from a previous
   dev bring-up, `mcplab secrets` remints orchestrator tokens, force-runs
   LabLDAP `setupsecrets` and TacLab `labgen`, reloads running containers,
-  and removes the marker last. LabLDAP TLS is not rotated.
+  and removes the marker last. LabLDAP TLS is not rotated (extra SANs
+  are mode-independent; leaves may still be re-signed if
+  `LAB_PUBLIC_HOST` is missing).
 - **true** — open gateway, labinfo reveals web tokens and connection
   secrets (LDAP bind password, RADIUS and TACACS+ shared secrets, TacLab
   lab-user passwords, LabLDAP CA PEM), and `mcplab secrets` writes this

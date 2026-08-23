@@ -79,7 +79,7 @@ ldapsearch -H ldaps://<lab-host>:3636 \
   -D 'uid=alice,ou=people,dc=example,dc=test' -W \
   -b dc=example,dc=test '(uid=alice)'
 # trust third_party/go-lab-ldap-mcp/secrets/tls/ca.crt
-# cert SAN is 'directory'
+# cert SAN is 'directory' plus LAB_PUBLIC_HOST (DNS or IP, both modes)
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt</code></pre>
@@ -90,7 +90,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <pre><code>cp .env.example .env
 # PROFILE=teamx
 make up PROFILE=teamx</code></pre>
-        <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name remote testers use. That hostname is what labinfo puts in every URL. Full reference: <a href="configure.html">Configure</a>.</p>
+        <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name or address remote testers use. That value is what labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs in both modes. Full reference: <a href="configure.html">Configure</a>.</p>
 
         <h2 id="dev">Easy connect (dev mode)</h2>
         <p>For a throwaway local lab, set <code>LAB_DEV_MODE=true</code> in <strong>that profile's</strong> <code>profile.env</code> (not process env on <code>default</code> — preflight rejects the drift). Then <code>make up</code>. Tokens, Alice's bind password (<code>lab-dev-alice-12</code> on the default catalog), the mail admin password, and TacLab lab-user / AAA secrets come from <code>dev-credentials.yaml</code> and are the same on every clone using that catalog. labinfo reveals them; <code>make creds</code> prints the shareable sheet (PEMs included; fails closed outside dev mode). Never enable this on a shared internet-facing host. Flip the knob back to <code>false</code> and run <code>mcplab secrets</code> to remint.</p>

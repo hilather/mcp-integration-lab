@@ -52,7 +52,7 @@ ldapsearch -H ldaps://<lab-host>:3636 \
   -D 'uid=alice,ou=people,dc=example,dc=test' -W \
   -b dc=example,dc=test '(uid=alice)'
 # trust third_party/go-lab-ldap-mcp/secrets/tls/ca.crt
-# cert SAN is 'directory'
+# cert SAN is 'directory' plus LAB_PUBLIC_HOST (DNS or IP, both modes)
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
@@ -70,7 +70,7 @@ cp .env.example .env
 make up PROFILE=teamx
 ```
 
-Set `LAB_PUBLIC_HOST` to the DNS name remote testers use. That hostname is what labinfo puts in every URL. Full reference: [configuration.md](configuration.md).
+Set `LAB_PUBLIC_HOST` to the DNS name or address remote testers use. That value is what labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs in both modes. Full reference: [configuration.md](configuration.md).
 
 ## Easy connect (dev mode)
 
