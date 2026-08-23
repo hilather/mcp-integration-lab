@@ -19,9 +19,8 @@ const (
 	// LabLDAP scenario passwordPolicy.minLength (profiles/default).
 	labldapPasswordMinLength = 12
 
-	// TacLab v1.3.0 labgen YAML: security.*.minimum_length_characters /
-	// minimum_character_classes. Copied with isKnownWeakSecret from
-	// internal/config/secretpolicy.go — config.Validate does not read secret files.
+	// TacLab v1.3.0 internal/config/secretpolicy.go (config.Validate does
+	// not read secret files).
 	taclabSharedSecretMinLen     = 16
 	taclabSharedSecretMinClasses = 3
 )
@@ -39,8 +38,6 @@ type DevCredentialsMeta struct {
 	Name string `yaml:"name"`
 }
 
-// DevCredentialsSpec holds every catalog secret. Every key is required;
-// there is no spec.defaults.password fallback.
 type DevCredentialsSpec struct {
 	Tokens        DevTokens        `yaml:"tokens"`
 	Passwords     DevPasswords     `yaml:"passwords"`
@@ -75,7 +72,6 @@ type DevSharedSecrets struct {
 	RadiusLabSwitches string `yaml:"radiusLabSwitches"`
 }
 
-// LoadDevCredentials parses path with KnownFields(true) and Validate.
 func LoadDevCredentials(path string) (*DevCredentials, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -165,9 +161,6 @@ func (d *DevCredentials) Validate() error {
 	return nil
 }
 
-// checkSharedSecret copies TacLab v1.3.0 CheckSharedSecret
-// (internal/config/secretpolicy.go): length, unicode character classes, and
-// exact-match known-weak list. Not a substring match.
 func checkSharedSecret(secret, path string) error {
 	raw := []byte(secret)
 	if taclabSharedSecretMinLen > 0 && len(raw) < taclabSharedSecretMinLen {
