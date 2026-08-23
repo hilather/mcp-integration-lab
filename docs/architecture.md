@@ -66,8 +66,11 @@ flowchart LR
   `make register` reapplies the JSON configs in the active profile's
   `mcpjungle/` directory, which are the source of truth.
 - LabLDAP's control plane serves TLS from a lab-CA-signed cert
-  (`setuptls generate --management` + scenario `tls.mode: files`); the gateway
-  trusts the CA via `SSL_CERT_FILE`.
+  (`labtlsEnsure` in `internal/lab` + scenario `tls.mode: files`); the gateway trusts the
+  CA via `SSL_CERT_FILE`. Leaves include DNS SAN `directory`/`control`
+  plus `LAB_PUBLIC_HOST` as a DNS or IP SAN in both modes. The CA
+  private key stays under `third_party/go-lab-ldap-mcp/secrets/tls/` and
+  is not committed.
 
 ## Configuration ownership
 
@@ -93,10 +96,14 @@ TacLab is generated rather than hand-written: its `labgen` tool materializes
 the full lab baseline (combined TACACS+RADIUS config, PKI, shared secrets,
 lab-user passwords) into `third_party/go-lab-tacacs-mcp/deployments/compose/`
 on first `mcplab secrets`; the lab runs that bundle as compose project
-`labtacacs` with an overlay for the shared network, and the profile only owns
-the host ports (`TACLAB_*`).
+`labtacacs` with an overlay for the shared network, and the profile owns
+the host ports (`TACLAB_*`). In `LAB_DEV_MODE=true`, `internal/taclabcfg`
+pins the secret files to `dev-credentials.yaml` after labgen (PKI and YAML
+stay generated).
 
-Outside profiles: `secrets/`, `third_party/*/secrets/` — generated, gitignored.
+Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
+`profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
+default profile ships `lab-dev-*` values) and is inert unless `LAB_DEV_MODE=true`.
 Container storage is profile-definable (`NFS_ARCHIVE_DIR`, `NFS_DATA_DIR`);
 the NFS work dir is a host bind mount so it gets real disk for indexes and
 the durable write overlay. The archive dir is also writable: live overlay
@@ -140,13 +147,34 @@ Internal hops always use static bearer tokens on an isolated docker network.
 
 - Hardened (`LAB_DEV_MODE=false` → gateway `enterprise`): clients must present
   the token in `secrets/mcp-client-token`; per-client server allow-lists
-  apply. labinfo redacts credentials and only describes auth.
+  apply. labinfo redacts credentials and only describes auth. Secret files
+  are random-if-missing. Leaving dev mode (marker `secrets/.lab-dev-mode`)
+  unlinks and remints orchestrator tokens, runs LabLDAP `setupsecrets --force`,
+  and `labgen -force`. LabLDAP TLS is not rotated (extra SANs are
+  mode-independent); leaves may still be re-signed if `LAB_PUBLIC_HOST`
+  is missing from the SAN set.
 - Dev (`LAB_DEV_MODE=true` → gateway `development`): no client auth, and the
   labinfo tools reveal credentials — `endpoints_list` each web service's
   token, `connections_list` the on-the-wire secrets (LDAP bind password,
-  RADIUS shared secret) — all staged world-readable in
+  RADIUS and TACACS+ shared secrets, TacLab lab-user passwords, LabLDAP CA
+  PEM, optional TacLab client certs) — all staged world-readable in
   `secrets/labinfo-creds/` (lab-grade static secrets, gitignored).
-  `MCPJUNGLE_MODE` can be pinned explicitly to decouple the two.
+  `mcplab secrets` writes the active profile's `dev-credentials.yaml` into
+  those files, including TacLab lab-user passwords and AAA shared secrets
+  after labgen (fail-closed if the catalog is missing; no merge with
+  `default`). The default profile ships `lab-dev-*` values; they are inert
+  unless this knob is on. Catalog reconcile never inspects `MCPJUNGLE_MODE`.
+  `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
+  from reveal. `Secrets()` reloads running containers whose files changed
+  (or when the marker is missing / `reloads` is not `done`, so a crash
+  retries against leftover LabLDAP `/data`, or when LabLDAP leaves were
+  re-signed for `LAB_PUBLIC_HOST`) and re-registers the gateway
+  when registrar tokens change; `make up` skips those apps.
+  `mcplab creds` / `make creds` prints the same sheet from files on disk
+  (fails closed outside dev; never prints TLS private keys).
+  Dev-mode `make smoke` asserts those catalog values on the wire (Alice
+  bind, RADIUS `taclabAdmin`, `connections_list` equal to disk).
+  Default-profile smoke stays on random secrets and redaction.
 
 labinfo's catalog (`profiles/<name>/labinfo/services.yaml`) requires a
 `connection` block per service — protocol endpoints, client parameters (LDAP
@@ -195,7 +223,8 @@ per-persona tool groups and OTel metrics scraping.
   turns it on after `labgen`). There is no TacLab patch in `patches/`.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
   RADIUS Challenge/EAP/MS-CHAP/PEAP, named Cisco-AVPair, optional RadSec
-  (TCP 2083, default off) and inbound DAS (UDP 3799, default off).
+  (TCP 2083, default off) and inbound DAS (UDP 3799, default off). Dev mode
+  post-processes secret files after labgen; it does not patch the vendor.
 - LabLDAP is pinned to release **v0.3.0**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
@@ -203,8 +232,9 @@ per-persona tool groups and OTel metrics scraping.
   account-workflow tools (`ldap_get_account_state`, expire/lock/enable)
   register because the profile sets `registerMutations` and
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
-  (`ca.crt`); switching from a leftover 389 volume is a re-bootstrap
-  (`LabLDAPUp` wipes uid-389 `/data`).
+  (`ca.crt`) minted by `labtlsEnsure` (replaces skip-if-exists
+  `setuptls generate`); switching from a leftover 389 volume is a
+  re-bootstrap (`LabLDAPUp` wipes uid-389 `/data`).
 - LabMail is pinned to **v1.0.0-rc.3**. MCP pin is relaxed with upstream
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (same idea as TacLab; no LabMail patch). Compose service name and labinfo

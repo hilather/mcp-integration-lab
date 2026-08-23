@@ -22,11 +22,13 @@ Usage: mcplab <command> [args]
   register       (re)apply gateway config from the active profile
   preflight      fail fast on profile drift and unavailable host ports
   smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM scenario through the gateway
+                 (dev mode also asserts catalog values on the wire)
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
                  labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
-  secrets        generate tokens, LabLDAP secrets, lab CA, TacLab lab dir
+  secrets        generate or reconcile tokens/passwords (mode-aware); ensure LabLDAP TLS SANs; reload running apps
+  creds          print the shareable credentials sheet (dev mode only)
   fixtures       build the NFS fixture archive + work dir
   labldap-up     bring up only the LabLDAP compose project (idempotent)
   labldap-down   stop only the LabLDAP compose project
@@ -78,6 +80,7 @@ func main() {
 		"smoke":          r.Smoke,
 		"vendor":         r.Vendor,
 		"secrets":        r.Secrets,
+		"creds":          r.Creds,
 		"fixtures":       r.Fixtures,
 		"labldap-up":     r.LabLDAPUp,
 		"labldap-down":   func() error { return r.LabLDAPDown(false) },

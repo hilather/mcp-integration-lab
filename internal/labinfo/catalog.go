@@ -4,10 +4,13 @@
 // mount options, and connection credentials), rendered for agents so they can
 // direct users to the right URL and help configure clients against the lab.
 // Credentials are included only when the profile enables dev mode
-// (LAB_DEV_MODE).
+// (LAB_DEV_MODE). Tokens, passwords, and shared secrets are then
+// profile-owned (dev-credentials.yaml); lab-ca and TacLab client PEMs
+// are this lab's generated files and are not catalog-stable.
 package labinfo
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -75,9 +78,10 @@ type ConnEndpoint struct {
 // a RADIUS shared secret). Usage must say what the secret is for; File points
 // at the staged copy under /run/lab-secrets.
 type ConnCredential struct {
-	Name  string `yaml:"name"`
-	File  string `yaml:"file"`
-	Usage string `yaml:"usage"`
+	Name     string `yaml:"name"`
+	File     string `yaml:"file"`
+	Usage    string `yaml:"usage"`
+	Optional bool   `yaml:"optional,omitempty"`
 }
 
 // Load parses a catalog YAML file.
@@ -125,13 +129,13 @@ type Endpoints struct {
 
 // EndpointInfo is one rendered service entry.
 type EndpointInfo struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Description string         `json:"description,omitempty"`
-	URLs        []URL          `json:"urls"`
-	Note        string         `json:"note,omitempty"`
-	Credential  *RevealedCred  `json:"credential,omitempty"`
-	Auth        string         `json:"auth,omitempty"`
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description,omitempty"`
+	URLs        []URL         `json:"urls"`
+	Note        string        `json:"note,omitempty"`
+	Credential  *RevealedCred `json:"credential,omitempty"`
+	Auth        string        `json:"auth,omitempty"`
 }
 
 // RevealedCred carries the secret; only present in dev mode.
@@ -244,6 +248,10 @@ func (c *Catalog) RenderConnections(devMode bool, lookup func(string) string, re
 			if devMode {
 				secret, err := readSecret(cr.File)
 				if err != nil {
+					if cr.Optional && errors.Is(err, os.ErrNotExist) {
+						info.Credentials = append(info.Credentials, rc)
+						continue
+					}
 					return nil, fmt.Errorf("service %s: connection credential %s: %w", s.ID, cr.Name, err)
 				}
 				rc.Secret = strings.TrimSpace(secret)

@@ -19,6 +19,13 @@ type Runner struct {
 	Root string
 	Prof *profile.Profile
 	Env  []string
+
+	// reloadedThisRun records apps Secrets() already reloaded so Up does
+	// not LabLDAPUp / LabTacacsUp them again this process.
+	reloadedThisRun map[string]bool
+
+	// deps overrides subprocesses and docker. Production leaves it nil.
+	deps *secretsDeps
 }
 
 // New resolves the active profile and prepares the process environment used

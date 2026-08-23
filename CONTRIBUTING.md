@@ -13,6 +13,11 @@ make up && make smoke
 make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 ```
 
+CI runs `make test` on the default (non-dev) profile, then copies
+`profiles/default` to gitignored `profiles/ci-dev/` with
+`LAB_DEV_MODE=true` in that `profile.env` and runs `make up && make smoke`
+there. Do not set `LAB_DEV_MODE=true` as process env on `default`.
+
 ## Where things belong
 
 | Kind of change | Put it here |
@@ -23,9 +28,11 @@ make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtaca
 | Upstream fix you need now | `patches/` — and open a PR on the upstream repo |
 | User-facing docs | `docs/` (HTML site) and `docs/guides/` |
 
-Do not edit `third_party/` in place. Do not commit anything under
-`secrets/` or `third_party/*/secrets/`. Do not hardcode a port in
-`docker-compose.yaml` — add a variable to `profile.env`.
+Do not edit `third_party/` in place. Do not commit generated files under
+`secrets/` or `third_party/*/secrets/`. Documented lab-only values in
+`profiles/*/dev-credentials.yaml` are allowed and inert unless
+`LAB_DEV_MODE=true`. Do not hardcode a port in `docker-compose.yaml` —
+add a variable to `profile.env`.
 
 Every new service needs three things: a compose service, a
 `mcpjungle/servers/<name>.json` whose filename matches the JSON `name`,

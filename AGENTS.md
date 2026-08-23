@@ -36,9 +36,10 @@ we work by.
    test against the lab; host ports are profile-defined, container-internal
    ports are irrelevant. Don't bind new services to loopback; do give them
    bearer/TLS auth like the existing ones.
-6. **Never commit secrets.** `secrets/` and `third_party/*/secrets/` are generated
-   by `mcplab secrets` and gitignored. Tokens are static bearer credentials
-   for the lab only.
+6. **Never commit generated/runtime secrets.** `secrets/` and
+   `third_party/*/secrets/` are produced by `mcplab secrets` and gitignored.
+   Documented lab-only values in `profiles/<name>/dev-credentials.yaml` are
+   allowed and are inert unless `LAB_DEV_MODE=true`.
 7. **Never edit `third_party/` in place as the fix.** Vendored repos are cloned by
    `mcplab vendor`. If an upstream change is needed: add a patch in
    `patches/` (applied idempotently by `mcplab vendor`), document it in
@@ -70,12 +71,20 @@ we work by.
  it; new ports go in the labinfo service's compose environment so `${VAR}`
  expansion sees them.
 10. **Dev mode is one knob: `LAB_DEV_MODE` in the profile.** `true` opens the
- gateway (MCPJungle development mode, no client auth) and makes labinfo
- reveal credentials (web-service tokens and connection secrets alike);
- `false` (default) hardens the gateway
-    (enterprise: client tokens + ACLs) and labinfo only describes how auth
-    works. `MCPJUNGLE_MODE` may still be pinned explicitly to decouple the
-    two. Never default a shared/team profile to dev mode.
+ gateway (MCPJungle development mode, no client auth), makes labinfo
+ reveal credentials (web-service tokens and connection secrets alike,
+ including the LabLDAP CA PEM, TacLab lab-user passwords, and the TACACS+
+ shared secret), and reconciles secret files from that profile's
+ `dev-credentials.yaml` (no merge with `default`; fail-closed if the
+ catalog is missing). `mcplab creds` / `make creds` prints the same sheet
+ from files on disk (fails closed outside dev; never prints TLS private
+ keys). `false` (default) hardens the gateway (enterprise: client tokens +
+ ACLs), labinfo only describes how auth works, and minting stays
+ random-if-missing. Leaving dev mode remints orchestrator tokens,
+ `setupsecrets --force`, and `labgen -force`; `Secrets()` reloads running
+ containers. `MCPJUNGLE_MODE` may still be pinned explicitly to decouple
+ gateway mode from catalog reconcile and labinfo reveal. Never default a
+ shared/team profile to dev mode.
 11. **The mail sink never sends mail.** Compose service name and labinfo
     catalog id stay `maildev` for the swap release (rename later, not in
     the image-pin change). The image is LabMail (`go-lab-maildev`, pinned
@@ -153,7 +162,11 @@ we work by.
 - TacLab (pinned `v1.3.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
-  strict. Bumping the vendor pin re-runs `labgen -force`.
+  strict. Bumping the vendor pin re-runs `labgen -force`. In
+  `LAB_DEV_MODE=true`, `applyDevTaclabSecrets` then pins token, shared
+  secrets, challenge, `PASSWORDS.txt`, and Argon2id verifiers from the
+  catalog (PHC rewrite only when `VerifyArgon2id` fails). PKI and YAML
+  stay labgen's.
 - LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and
@@ -172,10 +185,18 @@ we work by.
   files. Its RADIUS/UDP listener requires Message-Authenticator (RFC 3579)
   — `internal/radius` implements that for the smoke test. RadSec (TCP 2083)
   and inbound DAS (UDP 3799) are published but default off.
-- LabLDAP's LDAPS cert SAN is `directory`: verify from a container on
-  `mcplab-shared` (as the smoke test does) or use a hosts entry. Trust
+- LabLDAP's LDAPS cert always has DNS SAN `directory` (smoke binds
+  `ldaps://directory:3636` on `mcplab-shared`). `mcplab secrets` also
+  adds `LAB_PUBLIC_HOST` as a DNS SAN, or as an IP SAN when that value
+  is an IPv4/IPv6 literal — first mint and re-sign use the same set, in
+  both modes. Never pass `setuptls --host "$LAB_PUBLIC_HOST"`: that
+  replaces `directory` and breaks smoke. Trust
   `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt` (lab CA); native
   `labldapd` serves that cert directly — there is no 389 instance-CA.
+  The CA private key stays on the host under that tls dir and is not
+  committed. A failed directory recreate after a leaf rewrite leaves
+  `.reload-pending` in that tls dir so the next `mcplab secrets` still
+  reloads LabLDAP (SANs already matching is not enough).
 - LabLDAP is pinned to **v0.3.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2
@@ -225,4 +246,14 @@ we work by.
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,
-  profile switch, or first bring-up.
+  profile switch, or first bring-up. After a catalog or `LAB_DEV_MODE`
+  change, `mcplab secrets` is enough: it reloads running apps whose files
+  changed (and `Register()` if any registrarEnv token changed). `make up`
+  skips those names so they are not bounced twice.
+- Dev-mode smoke (`LAB_DEV_MODE=true` in the active `profile.env`) asserts
+  catalog values on the wire: Alice's bind password, RADIUS Accept for
+  catalog `taclabAdmin`, and `connections_list` secrets equal disk files.
+  Default-profile smoke stays random secrets and redaction. Never set
+  `LAB_DEV_MODE=true` as process env on `default` (preflight). CI copies
+  `profiles/default` to gitignored `profiles/ci-dev/` and flips the knob
+  there.

@@ -9,11 +9,42 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Added
 
-- Profile-owned `DevCredentials` catalog types (`mcplab.dev/v1alpha1`) with
-  fail-closed parse (unknown fields rejected) and policy checks (every key
-  required, including `tokens.labmitm` after compose-in, LabLDAP minLength,
-  TacLab v1.3.0 shared-secret rules). `mcplab secrets` does not reconcile
-  from the catalog yet. The default profile does not ship `dev-credentials.yaml`.
+- When `LAB_DEV_MODE=true`, `mcplab secrets` reconciles LabDNS, LabMail,
+  labinfo, LabMITM, MCP client, LabLDAP tokens/passwords, and TacLab
+  lab-user passwords plus AAA shared secrets from the profile's
+  `dev-credentials.yaml`. The default profile ships the `lab-dev-*`
+  catalog (inert unless that knob is on). Alice's bind password, mail
+  Basic, RADIUS/TACACS shared secrets, and the well-known tokens are
+  then the same on every clone of that profile. Leaving dev mode remints
+  those files and reloads running containers; `mcplab secrets` is enough
+  after a catalog or mode change. An interrupted enter-dev retries those
+  reloads even if files already match.
+- labinfo `connections_list` in dev mode now includes the LabLDAP CA PEM,
+  TacLab lab-user passwords, and the TACACS+ shared secret (plus optional
+  TacLab client certs). `mcplab creds` / `make creds` prints the same
+  shareable sheet from files on disk; it fails closed outside
+  `LAB_DEV_MODE` and never prints TLS private keys.
+- LabLDAP leaf certs minted by `mcplab secrets` include `LAB_PUBLIC_HOST`
+  as a DNS SAN, or as an IP SAN when that value is an IPv4/IPv6 literal.
+  Extra SANs are mode-independent (first mint and re-sign use the same
+  set) so remote LDAPS and control HTTPS verify without skipping hostname
+  checks. Existing labs re-sign leaves with the current CA — the CA
+  private key is not rotated or committed. `Secrets()` reloads LabLDAP
+  when those leaves change, and retries that reload on the next
+  `mcplab secrets` if it failed (SANs already matching is not enough).
+- `make smoke` in `LAB_DEV_MODE` asserts Alice's LDAPS bind, RADIUS Accept
+  for catalog `taclabAdmin`, and labinfo `connections_list` secrets equal
+  the profile catalog / disk files (`devMode=true`). CI copies
+  `profiles/default` to gitignored `profiles/ci-dev/` with
+  `LAB_DEV_MODE=true` in that `profile.env` and runs that smoke; the
+  default-profile job stays non-dev (random secrets, redaction). Never
+  set `LAB_DEV_MODE=true` as process env on `default`.
+
+### Changed
+
+- AGENTS.md rule 6: never commit generated/runtime secrets (`secrets/`,
+  `third_party/*/secrets/`); documented lab-only values in
+  `dev-credentials.yaml` are allowed and inert unless `LAB_DEV_MODE=true`.
 
 ## [0.5.0] - 2026-08-23
 

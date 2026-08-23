@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,5 +127,40 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 	}
 	if len(doc.Spec.Management.OriginAllowlist) != 0 {
 		t.Fatalf("originAllowlist = %v, want empty", doc.Spec.Management.OriginAllowlist)
+	}
+}
+
+func TestDefaultProfileDevCredentials(t *testing.T) {
+	dir := defaultProfileDir(t)
+	env, err := os.ReadFile(filepath.Join(dir, "profile.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(env, []byte("LAB_DEV_MODE=false")) {
+		t.Fatal("default profile must keep LAB_DEV_MODE=false")
+	}
+	for _, line := range strings.Split(string(env), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "LAB_DEV_MODE=") && line != "LAB_DEV_MODE=false" {
+			t.Fatalf("LAB_DEV_MODE must stay false, got %q", line)
+		}
+	}
+
+	got, err := LoadDevCredentials(filepath.Join(dir, "dev-credentials.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := got.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	want, err := LoadDevCredentials(testdataDevcreds("valid.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *got != *want {
+		t.Fatalf("profiles/default/dev-credentials.yaml drifted from testdata/devcreds/valid.yaml\ngot  %+v\nwant %+v", got, want)
 	}
 }

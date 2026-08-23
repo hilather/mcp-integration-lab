@@ -12,9 +12,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/hilather/mcp-integration-lab/internal/labinfo"
 	"github.com/hilather/mcp-integration-lab/internal/mcpout"
 	"github.com/hilather/mcp-integration-lab/internal/profile"
 	"github.com/hilather/mcp-integration-lab/internal/radius"
@@ -39,6 +41,7 @@ func (r *Runner) Smoke() error {
 	s.maildevScenario()
 	s.labmitmScenario()
 	s.labinfoScenario()
+	s.devCatalogScenario()
 
 	fmt.Printf("\n== smoke summary: %d passed, %d failed\n", s.pass, s.fail)
 	if s.fail > 0 {
@@ -50,6 +53,10 @@ func (r *Runner) Smoke() error {
 type smokeState struct {
 	r          *Runner
 	pass, fail int
+}
+
+func (s *smokeState) devMode() bool {
+	return profile.IsTrue(s.r.Prof.Get("LAB_DEV_MODE", "false"))
 }
 
 func (s *smokeState) step(name string) { fmt.Printf("\n== %s\n", name) }
@@ -81,6 +88,13 @@ func (s *smokeState) invoke(tool, input string) (string, error) {
 		return "", err
 	}
 	return mcpout.ExtractText(out)
+}
+
+func (s *smokeState) ldapsearch(script string) (string, error) {
+	secrets := filepath.Join(s.r.Root, "third_party", "go-lab-ldap-mcp", "secrets")
+	return s.r.capture(".", "docker", "run", "--rm", "--network", "mcplab-shared",
+		"-v", secrets+":/s:ro", "-e", "LDAPTLS_CACERT=/s/tls/ca.crt",
+		"--entrypoint", "sh", "labldap-bootstrap:dev", "-c", script)
 }
 
 // lookup resolves name against the lab DNS on its published host port.
@@ -157,20 +171,14 @@ func (s *smokeState) ldapScenario() {
 	acctOut, err := s.invoke("labldap__ldap_get_account_state", fmt.Sprintf(`{"id":%q}`, user))
 	s.check(err == nil && strings.Contains(acctOut, `"enabled":true`), "ldap_get_account_state for "+user)
 
-	// Data-plane checks from inside the docker network (the lab LDAPS cert's
-	// SAN is the compose hostname). Alice has suffix read via the staff ACL.
-	secrets := filepath.Join(s.r.Root, "third_party", "go-lab-ldap-mcp", "secrets")
-	ldapsearch := func(script string) (string, error) {
-		return s.r.capture(".", "docker", "run", "--rm", "--network", "mcplab-shared",
-			"-v", secrets+":/s:ro", "-e", "LDAPTLS_CACERT=/s/tls/ca.crt",
-			"--entrypoint", "sh", "labldap-bootstrap:dev", "-c", script)
-	}
-
-	out, err := ldapsearch(fmt.Sprintf(
+	// Data-plane checks from inside the docker network (the lab LDAPS cert
+	// always has DNS SAN directory; LAB_PUBLIC_HOST is an extra SAN for
+	// remote clients). Alice has suffix read via the staff ACL.
+	out, err := s.ldapsearch(fmt.Sprintf(
 		`ldapsearch -x -H ldaps://directory:3636 -D "uid=alice,ou=people,dc=example,dc=test" -w "$(cat /s/user-alice)" -b "dc=example,dc=test" "(uid=%s)" uid`, user))
 	s.check(err == nil && strings.Contains(out, "uid: "+user), "ldapsearch found "+user+" via LDAPS")
 
-	_, err = ldapsearch(fmt.Sprintf(
+	_, err = s.ldapsearch(fmt.Sprintf(
 		`ldapsearch -x -H ldaps://directory:3636 -D "uid=%s,ou=people,dc=example,dc=test" -w "%s" -b "uid=%s,ou=people,dc=example,dc=test" -s base dn`,
 		user, password, user))
 	s.check(err == nil, user+" can bind with the agent-set password")
@@ -421,12 +429,12 @@ func labgenPassword(path, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, line := range strings.Split(string(b), "\n") {
-		if v, ok := strings.CutPrefix(line, name+"="); ok {
-			return strings.TrimSpace(v), nil
-		}
+	pw := parseLabgenPasswords(b)
+	v, ok := pw[name]
+	if !ok {
+		return "", fmt.Errorf("%s: no entry for %q", path, name)
 	}
-	return "", fmt.Errorf("%s: no entry for %q", path, name)
+	return v, nil
 }
 
 func readTrimmed(path string) (string, error) {
@@ -460,7 +468,7 @@ func (s *smokeState) labinfoScenario() {
 		return
 	}
 
-	devMode := profile.IsTrue(s.r.Prof.Get("LAB_DEV_MODE", "false"))
+	devMode := s.devMode()
 	s.check(eps.DevMode == devMode, fmt.Sprintf("devMode flag matches profile (%v)", devMode))
 
 	gatewayPort := s.r.Prof.Get("MCP_GATEWAY_PORT", "8080")
@@ -505,6 +513,7 @@ func (s *smokeState) labinfoScenario() {
 			} `json:"endpoints"`
 			Parameters  map[string]string `json:"parameters"`
 			Credentials []struct {
+				Name   string `json:"name"`
 				Usage  string `json:"usage"`
 				Secret string `json:"secret"`
 			} `json:"credentials"`
@@ -551,4 +560,198 @@ func (s *smokeState) labinfoScenario() {
 	s.check(foundBaseDN, "labldap parameters include the base DN")
 	s.check(connSecretsRevealed == devMode,
 		fmt.Sprintf("connection secrets revealed only in dev mode (revealed=%v)", connSecretsRevealed))
+}
+
+// devCatalogScenario runs only when LAB_DEV_MODE is on so default-profile
+// smoke stays random secrets and redaction.
+func (s *smokeState) devCatalogScenario() {
+	if !s.devMode() {
+		return
+	}
+	s.step("dev catalog on the wire")
+
+	doc, err := LoadDevCredentials(filepath.Join(s.r.Prof.Dir, "dev-credentials.yaml"))
+	if !s.check(err == nil, fmt.Sprintf("load profile dev-credentials.yaml (err=%v)", err)) {
+		return
+	}
+
+	mism := checkCatalogFiles(s.r.Root, doc)
+	s.check(len(mism) == 0, fmt.Sprintf("every catalog value equals disk (%d mismatch(es))", len(mism)))
+	for _, m := range mism {
+		fmt.Printf("      %s\n", m)
+	}
+
+	// File-backed password: checkCatalogFiles already required user-alice
+	// equal the catalog; interpolating the catalog string into sh -c would
+	// mis-quote team values with $, backticks, or quotes.
+	out, err := s.ldapsearch(
+		`ldapsearch -x -H ldaps://directory:3636 -D "uid=alice,ou=people,dc=example,dc=test" -w "$(cat /s/user-alice)" -b "uid=alice,ou=people,dc=example,dc=test" -s base dn`)
+	s.check(err == nil && strings.Contains(out, "uid=alice,ou=people,dc=example,dc=test"),
+		fmt.Sprintf("Alice LDAPS bind uses catalog password (err=%v)", err))
+
+	port := s.r.Prof.Get("TACLAB_RADIUS_ACCESS_PORT", "1812")
+	code, err := radiusAuth("127.0.0.1:"+port, "lab-admin",
+		doc.Spec.Passwords.TaclabAdmin, doc.Spec.SharedSecrets.RadiusLabSwitches)
+	s.check(err == nil && code == radius.CodeAccessAccept,
+		fmt.Sprintf("RADIUS Access-Accept for catalog taclabAdmin (code=%d, err=%v)", code, err))
+
+	s.checkConnectionsEqualDisk()
+}
+
+func (s *smokeState) checkConnectionsEqualDisk() {
+	out, err := s.invoke("labinfo__connections_list", "{}")
+	var conns struct {
+		DevMode  bool `json:"devMode"`
+		Services []struct {
+			Credentials []struct {
+				Name   string `json:"name"`
+				Secret string `json:"secret"`
+			} `json:"credentials"`
+		} `json:"services"`
+	}
+	if err == nil {
+		err = json.Unmarshal([]byte(out), &conns)
+	}
+	if !s.check(err == nil && conns.DevMode, fmt.Sprintf("connections_list devMode=true (err=%v)", err)) {
+		return
+	}
+	cat, err := labinfo.Load(filepath.Join(s.r.Prof.Dir, "labinfo", "services.yaml"))
+	if !s.check(err == nil, fmt.Sprintf("load labinfo catalog (err=%v)", err)) {
+		return
+	}
+	var revealed []revealedSecret
+	for _, svc := range conns.Services {
+		for _, cr := range svc.Credentials {
+			revealed = append(revealed, revealedSecret{Name: cr.Name, Secret: cr.Secret})
+		}
+	}
+	mism := matchConnSecretsToDisk(revealed, s.r.path("secrets/labinfo-creds"), connCredIndex(cat))
+	s.check(len(mism) == 0, fmt.Sprintf("connections_list secrets equal disk files (%d mismatch(es))", len(mism)))
+	for _, m := range mism {
+		fmt.Printf("      %s\n", m)
+	}
+}
+
+// catalogFileExpect is one catalog key and the file that must equal it
+// after reconcile. PasswordsKey selects a PASSWORDS.txt entry.
+type catalogFileExpect struct {
+	Key          string
+	Rel          string
+	Want         string
+	PasswordsKey string
+}
+
+func catalogFileExpects(doc *DevCredentials) []catalogFileExpect {
+	ll := "third_party/go-lab-ldap-mcp/secrets/"
+	ts := taclabDir + "/deployments/compose/secrets/"
+	return []catalogFileExpect{
+		{"spec.tokens.labdns", "secrets/labdns-token", doc.Spec.Tokens.LabDNS, ""},
+		{"spec.tokens.labinfo", "secrets/labinfo-token", doc.Spec.Tokens.Labinfo, ""},
+		{"spec.tokens.labmail", "secrets/labmail-token", doc.Spec.Tokens.Labmail, ""},
+		{"spec.tokens.labmitm", "secrets/labmitm-token", doc.Spec.Tokens.LabMITM, ""},
+		{"spec.tokens.mcpClient", "secrets/mcp-client-token", doc.Spec.Tokens.MCPClient, ""},
+		{"spec.tokens.labldapAdmin", ll + "token-admin", doc.Spec.Tokens.LabLDAPAdmin, ""},
+		{"spec.tokens.labtacacsAdmin", ts + "api_admin_token", doc.Spec.Tokens.LabTacacsAdmin, ""},
+		{"spec.passwords.maildevWeb", "secrets/maildev-web-password", doc.Spec.Passwords.MaildevWeb, ""},
+		{"spec.passwords.labldapAlice", ll + "user-alice", doc.Spec.Passwords.LabLDAPAlice, ""},
+		{"spec.passwords.labldapRuntime", ll + "runtime-ldap", doc.Spec.Passwords.LabLDAPRuntime, ""},
+		{"spec.passwords.labldapDM", ll + "dm.pw", doc.Spec.Passwords.LabLDAPDM, ""},
+		{"spec.passwords.labldapDM(directory.env)", ll + "directory.env", "DS_DM_PASSWORD=" + doc.Spec.Passwords.LabLDAPDM, ""},
+		{"spec.passwords.taclabAdmin", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabAdmin, "lab-admin"},
+		{"spec.passwords.taclabAdminEnable", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabAdminEnable, "lab-admin-enable"},
+		{"spec.passwords.taclabReadonly", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabReadonly, "lab-readonly"},
+		{"spec.passwords.taclabDisabled", ts + "PASSWORDS.txt", doc.Spec.Passwords.TaclabDisabled, "lab-disabled"},
+		{"spec.passwords.taclabChallenge", ts + "lab_admin_challenge_secret", doc.Spec.Passwords.TaclabChallenge, ""},
+		{"spec.sharedSecrets.tacacsLabSwitches", ts + "lab_switches_tacacs_secret", doc.Spec.SharedSecrets.TacacsLabSwitches, ""},
+		{"spec.sharedSecrets.radiusLabSwitches", ts + "lab_switches_radius_secret", doc.Spec.SharedSecrets.RadiusLabSwitches, ""},
+	}
+}
+
+func checkCatalogFiles(root string, doc *DevCredentials) []string {
+	var mismatches []string
+	for _, e := range catalogFileExpects(doc) {
+		path := filepath.Join(root, e.Rel)
+		var got string
+		var err error
+		if e.PasswordsKey != "" {
+			got, err = labgenPassword(path, e.PasswordsKey)
+		} else {
+			got, err = readTrimmed(path)
+		}
+		if err != nil {
+			mismatches = append(mismatches, e.Key+": "+err.Error())
+			continue
+		}
+		if got != e.Want {
+			mismatches = append(mismatches, fmt.Sprintf("%s: %s = %q, want %q", e.Key, e.Rel, got, e.Want))
+		}
+	}
+	sort.Strings(mismatches)
+	return mismatches
+}
+
+type connCredMeta struct {
+	Service  string
+	Basename string
+	Optional bool
+}
+
+func connCredIndex(cat *labinfo.Catalog) map[string]connCredMeta {
+	out := make(map[string]connCredMeta)
+	if cat == nil {
+		return out
+	}
+	for _, svc := range cat.Services {
+		if svc.Connection == nil {
+			continue
+		}
+		for _, cr := range svc.Connection.Credentials {
+			out[cr.Name] = connCredMeta{
+				Service:  svc.ID,
+				Basename: filepath.Base(cr.File),
+				Optional: cr.Optional,
+			}
+		}
+	}
+	return out
+}
+
+type revealedSecret struct {
+	Name   string
+	Secret string
+}
+
+func matchConnSecretsToDisk(revealed []revealedSecret, stagedDir string, idx map[string]connCredMeta) []string {
+	seen := map[string]bool{}
+	var mismatches []string
+	for _, r := range revealed {
+		seen[r.Name] = true
+		meta, ok := idx[r.Name]
+		if !ok {
+			mismatches = append(mismatches, "unknown connections_list credential "+r.Name)
+			continue
+		}
+		got, err := readTrimmed(filepath.Join(stagedDir, meta.Basename))
+		if err != nil {
+			if meta.Optional && os.IsNotExist(err) {
+				if r.Secret != "" {
+					mismatches = append(mismatches, r.Name+": optional file missing but secret revealed")
+				}
+				continue
+			}
+			mismatches = append(mismatches, r.Name+": "+err.Error())
+			continue
+		}
+		if r.Secret != got {
+			mismatches = append(mismatches, fmt.Sprintf("%s: connections_list %q != disk %q", r.Name, r.Secret, got))
+		}
+	}
+	for name, meta := range idx {
+		if seen[name] || meta.Optional {
+			continue
+		}
+		mismatches = append(mismatches, "missing connections_list credential "+name)
+	}
+	sort.Strings(mismatches)
+	return mismatches
 }

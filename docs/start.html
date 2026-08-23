@@ -33,6 +33,7 @@
         <a href="#client">Attach an MCP client</a>
         <a href="#planes">Hit a data plane</a>
         <a href="#profile">Pick a profile</a>
+        <a href="#dev">Easy connect (dev mode)</a>
         <a href="#reload">Reload one app</a>
         <a href="#stop">Stop and reset</a>
       </aside>
@@ -55,7 +56,7 @@ cd mcp-integration-lab
 make up
 make smoke</code></pre>
         <p><code>make up</code> is idempotent. It clones pinned vendors into <code>third_party/</code>, applies patches, mints gitignored secrets, builds local images, starts three compose projects on <code>mcplab-shared</code>, and registers every MCP server with the gateway. First run is image-build heavy.</p>
-        <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM.</p>
+        <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with <code>LAB_DEV_MODE=true</code> it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog <code>taclabAdmin</code>, <code>connections_list</code> secrets equal the files on disk, <code>devMode=true</code>).</p>
 
         <h2 id="client">Attach an MCP client</h2>
         <p>The default profile runs the gateway in enterprise mode. Clients send a bearer token. Drop the header only if you set <code>LAB_DEV_MODE=true</code>.</p>
@@ -78,7 +79,7 @@ ldapsearch -H ldaps://<lab-host>:3636 \
   -D 'uid=alice,ou=people,dc=example,dc=test' -W \
   -b dc=example,dc=test '(uid=alice)'
 # trust third_party/go-lab-ldap-mcp/secrets/tls/ca.crt
-# cert SAN is 'directory'
+# cert SAN is 'directory' plus LAB_PUBLIC_HOST (DNS or IP, both modes)
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt</code></pre>
@@ -89,7 +90,17 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <pre><code>cp .env.example .env
 # PROFILE=teamx
 make up PROFILE=teamx</code></pre>
-        <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name remote testers use. That hostname is what labinfo puts in every URL. Full reference: <a href="configure.html">Configure</a>.</p>
+        <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name or address remote testers use. That value is what labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs in both modes. Full reference: <a href="configure.html">Configure</a>.</p>
+
+        <h2 id="dev">Easy connect (dev mode)</h2>
+        <p>For a throwaway local lab, copy the default profile and set <code>LAB_DEV_MODE=true</code> in <strong>that profile's</strong> <code>profile.env</code> (not process env on <code>default</code> — preflight rejects the drift):</p>
+        <pre><code>cp -a profiles/default profiles/teamx
+# edit profiles/teamx/profile.env: LAB_DEV_MODE=true
+make up PROFILE=teamx
+make smoke PROFILE=teamx
+make creds PROFILE=teamx</code></pre>
+        <p>Tokens, Alice's bind password (<code>lab-dev-alice-12</code> on the default catalog), the mail admin password, and TacLab lab-user / AAA secrets come from <code>dev-credentials.yaml</code> and are the same on every clone using that catalog. <code>make smoke</code> then checks those catalog values on the wire. labinfo reveals them; <code>make creds</code> prints the shareable sheet (PEMs included; fails closed outside dev mode). Never enable this on a shared internet-facing host. Flip the knob back to <code>false</code> and run <code>mcplab secrets</code> to remint.</p>
+        <p>CI does the same with a gitignored <code>profiles/ci-dev/</code> (copy of <code>default</code>, <code>LAB_DEV_MODE=true</code> in that <code>profile.env</code>). The default-profile unit-test job stays non-dev.</p>
 
         <h2 id="reload">Reload one app (not a full redeploy)</h2>
         <p><code>make up</code> rebuilds everything. After you edit one service's YAML, reload only that app:</p>
