@@ -16,6 +16,8 @@ changes since the previous one (AGENTS.md rule 13).
   Basic, and the well-known tokens are then the same on every clone of
   that profile. Leaving dev mode remints those files and reloads running
   containers; `mcplab secrets` is enough after a catalog or mode change.
+  An interrupted enter-dev retries those reloads even if files already
+  match.
 
 ### Changed
 

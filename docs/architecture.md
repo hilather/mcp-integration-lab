@@ -157,8 +157,9 @@ Internal hops always use static bearer tokens on an isolated docker network.
   unless this knob is on. Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
   from reveal. `Secrets()` reloads running containers whose files changed
-  and re-registers the gateway when registrar tokens change; `make up`
-  skips those apps.
+  (or when the marker is missing / `reloads` is not `done`, so a crash
+  retries against leftover LabLDAP `/data`) and re-registers the gateway
+  when registrar tokens change; `make up` skips those apps.
 
 labinfo's catalog (`profiles/<name>/labinfo/services.yaml`) requires a
 `connection` block per service — protocol endpoints, client parameters (LDAP

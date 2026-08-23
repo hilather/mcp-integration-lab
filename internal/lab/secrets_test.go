@@ -183,8 +183,12 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 			t.Errorf("%s = %q, want %q", rel, got, exp)
 		}
 	}
-	if _, err := os.Stat(r.path(devModeMarkerRel)); err != nil {
+	m, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
 		t.Fatalf("dev-mode marker missing: %v", err)
+	}
+	if m.reloads != reloadsDone {
+		t.Fatalf("reloads=%q, want %s", m.reloads, reloadsDone)
 	}
 }
 
@@ -358,6 +362,89 @@ func TestSecretsTokenAdminChangeFlagsRegister(t *testing.T) {
 	}
 	for _, s := range mains {
 		t.Errorf("unexpected main reload %s", s)
+	}
+}
+
+func TestSecretsEnterDevRetriesReloadsWhenPending(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	prev, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prev.reloads != reloadsDone {
+		t.Fatalf("precondition reloads=%q", prev.reloads)
+	}
+	if err := writeDevModeMarker(r.path(devModeMarkerRel), r.Prof.Name, prev.catalogSHA, reloadsPending); err != nil {
+		t.Fatal(err)
+	}
+
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var labldap bool
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	r.deps.reloadMain = func(string) error { return nil }
+	r.deps.reloadGateway = func() error { return nil }
+	r.deps.register = func() error { return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap || !r.alreadyReloaded("labldap") {
+		t.Fatal("pending enter-dev must reloadLabLDAP even when plaintext matches")
+	}
+	if got := readTrim(t, r, "third_party/go-lab-ldap-mcp/secrets/user-alice"); got != "lab-dev-alice-12" {
+		t.Fatalf("Alice = %q, want catalog", got)
+	}
+	done, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done.reloads != reloadsDone {
+		t.Fatalf("reloads=%q after retry, want %s", done.reloads, reloadsDone)
+	}
+}
+
+func TestSecretsEnterDevRetriesReloadsWhenMarkerMissing(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(r.path(devModeMarkerRel)); err != nil {
+		t.Fatal(err)
+	}
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var labldap bool
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap {
+		t.Fatal("missing marker must reload running LabLDAP even when plaintext matches")
+	}
+	if got := readTrim(t, r, "third_party/go-lab-ldap-mcp/secrets/user-alice"); got != "lab-dev-alice-12" {
+		t.Fatalf("Alice = %q, want catalog", got)
+	}
+}
+
+func TestSecretsLeaveDevKeepsMarkerIfComposePsFails(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_DEV_MODE"] = "false"
+	installTestSecretsDeps(r, nil)
+	r.deps.containerExists = func(string) (bool, error) {
+		return false, errors.New("compose ps failed")
+	}
+	err := r.Secrets()
+	if err == nil || !strings.Contains(err.Error(), "compose ps failed") {
+		t.Fatalf("want compose ps failure, got %v", err)
+	}
+	if _, statErr := os.Stat(r.path(devModeMarkerRel)); statErr != nil {
+		t.Fatalf("marker must remain when inspect fails: %v", statErr)
 	}
 }
 

@@ -15,7 +15,17 @@ import (
 	"github.com/hilather/mcp-integration-lab/internal/taclabcfg"
 )
 
-const devModeMarkerRel = "secrets/.lab-dev-mode"
+const (
+	devModeMarkerRel = "secrets/.lab-dev-mode"
+	reloadsPending   = "pending"
+	reloadsDone      = "done"
+)
+
+type devModeMarker struct {
+	profile    string
+	catalogSHA string
+	reloads    string
+}
 
 // secretsDeps overrides subprocesses and docker for tests without a daemon.
 type secretsDeps struct {
@@ -63,6 +73,23 @@ func (c secretChanges) count() int {
 	return n
 }
 
+// enterDevReloadChanges reloads every catalog consumer Secrets() owns in
+// PR 2. Used when enter-dev did not finish reloads (marker missing or
+// reloads!=done), so leftover LabLDAP /data cannot keep a pre-catalog hash.
+func enterDevReloadChanges() secretChanges {
+	return secretChanges{
+		labdnsToken:    true,
+		labinfoToken:   true,
+		labmailToken:   true,
+		maildevWeb:     true,
+		mcpClientToken: true,
+		labldapAlice:   true,
+		labldapRuntime: true,
+		labldapDM:      true,
+		labldapAdmin:   true,
+	}
+}
+
 // Secrets generates or reconciles lab secrets. Non-dev mints random files
 // if missing. Dev mode (LAB_DEV_MODE only — never MCPJUNGLE_MODE) writes
 // the active profile's dev-credentials.yaml. Leaving dev mode remints.
@@ -96,7 +123,10 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if err != nil {
 		return err
 	}
-	prevHash := readMarkerCatalogSHA(marker)
+	prev, prevErr := parseDevModeMarkerFile(marker)
+	if prevErr != nil && !os.IsNotExist(prevErr) {
+		return prevErr
+	}
 	ch, err := r.applyDevCatalog(doc)
 	if err != nil {
 		return err
@@ -109,10 +139,13 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	}
 
 	newHash := sha256Hex(raw)
-	if prevHash != "" && prevHash != newHash {
+	if prev.catalogSHA != "" && prev.catalogSHA != newHash {
 		fmt.Printf("dev-credentials.yaml changed; reconciled %d files\n", ch.count())
 	}
-	if err := writeDevModeMarker(marker, r.Prof.Name, newHash); err != nil {
+	// Sample before flipping the marker to pending so a finished enter-dev
+	// stays a no-op when plaintext already matches.
+	forceConsumers := os.IsNotExist(prevErr) || prev.reloads != reloadsDone
+	if err := writeDevModeMarker(marker, r.Prof.Name, newHash, reloadsPending); err != nil {
 		return err
 	}
 
@@ -125,7 +158,14 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if err := r.stageLabinfoCreds(); err != nil {
 		return err
 	}
-	if err := r.applySecretReloads(ch, false); err != nil {
+	reload := ch
+	if forceConsumers {
+		reload = enterDevReloadChanges()
+	}
+	if err := r.applySecretReloads(reload, false); err != nil {
+		return err
+	}
+	if err := writeDevModeMarker(marker, r.Prof.Name, newHash, reloadsDone); err != nil {
 		return err
 	}
 	fmt.Println("secrets ready")
@@ -255,24 +295,38 @@ func (r *Runner) leaveDevRemint() error {
 	return r.generateTaclabLab(true)
 }
 
-func writeDevModeMarker(path, profileName, catalogSHA string) error {
-	body := fmt.Sprintf("profile=%s\ncatalog-sha256=%s\ntimestamp=%s\n",
-		profileName, catalogSHA, time.Now().UTC().Format(time.RFC3339))
+func writeDevModeMarker(path, profileName, catalogSHA, reloads string) error {
+	body := fmt.Sprintf("profile=%s\ncatalog-sha256=%s\ntimestamp=%s\nreloads=%s\n",
+		profileName, catalogSHA, time.Now().UTC().Format(time.RFC3339), reloads)
 	return os.WriteFile(path, []byte(body), 0o644)
 }
 
-func readMarkerCatalogSHA(path string) string {
+func parseDevModeMarkerFile(path string) (devModeMarker, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return ""
+		return devModeMarker{}, err
 	}
+	return parseDevModeMarker(b), nil
+}
+
+func parseDevModeMarker(b []byte) devModeMarker {
+	var m devModeMarker
 	for _, line := range strings.Split(string(b), "\n") {
 		k, v, ok := strings.Cut(line, "=")
-		if ok && k == "catalog-sha256" {
-			return strings.TrimSpace(v)
+		if !ok {
+			continue
+		}
+		v = strings.TrimSpace(v)
+		switch k {
+		case "profile":
+			m.profile = v
+		case "catalog-sha256":
+			m.catalogSHA = v
+		case "reloads":
+			m.reloads = v
 		}
 	}
-	return ""
+	return m
 }
 
 func sha256Hex(b []byte) string {
@@ -476,53 +530,73 @@ func (r *Runner) serviceExists(name string) (bool, error) {
 		return false, fmt.Errorf("internal: unknown service %q", name)
 	}
 	if err != nil {
-		return false, nil
+		return false, fmt.Errorf("inspect %s: %w", name, err)
 	}
 	return strings.TrimSpace(out) != "", nil
 }
 
 func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
-	exists := func(name string) bool {
-		ok, err := r.serviceExists(name)
-		return err == nil && ok
-	}
-
-	if err := r.reloadMainIf(exists, "labdns", leaveDev || ch.labdnsToken); err != nil {
+	if err := r.reloadMainIf("labdns", leaveDev || ch.labdnsToken); err != nil {
 		return err
 	}
-	if err := r.reloadMainIf(exists, "maildev", leaveDev || ch.labmailToken || ch.maildevWeb); err != nil {
+	if err := r.reloadMainIf("maildev", leaveDev || ch.labmailToken || ch.maildevWeb); err != nil {
 		return err
 	}
-	if err := r.reloadMainIf(exists, "labinfo", leaveDev || ch.labinfoToken); err != nil {
+	if err := r.reloadMainIf("labinfo", leaveDev || ch.labinfoToken); err != nil {
 		return err
 	}
 
 	registrar := leaveDev || ch.registrarEnv()
-	if registrar && exists("mcpjungle") {
-		if leaveDev || ch.mcpClientToken {
-			if err := r.doReloadGateway(); err != nil {
+	if registrar {
+		ok, err := r.serviceExists("mcpjungle")
+		if err != nil {
+			return err
+		}
+		if ok {
+			if leaveDev || ch.mcpClientToken {
+				if err := r.doReloadGateway(); err != nil {
+					return err
+				}
+			} else if err := r.doRegister(); err != nil {
 				return err
 			}
-		} else if err := r.doRegister(); err != nil {
-			return err
 		}
 	}
 
-	if (leaveDev || ch.labldap()) && exists("labldap") {
-		if err := r.doReloadLabLDAP(); err != nil {
+	if leaveDev || ch.labldap() {
+		ok, err := r.serviceExists("labldap")
+		if err != nil {
 			return err
 		}
+		if ok {
+			if err := r.doReloadLabLDAP(); err != nil {
+				return err
+			}
+		}
 	}
-	if leaveDev && exists("labtacacs") {
-		if err := r.doReloadLabTacacs(); err != nil {
+	if leaveDev {
+		ok, err := r.serviceExists("labtacacs")
+		if err != nil {
 			return err
+		}
+		if ok {
+			if err := r.doReloadLabTacacs(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (r *Runner) reloadMainIf(exists func(string) bool, service string, needed bool) error {
-	if !needed || !exists(service) {
+func (r *Runner) reloadMainIf(service string, needed bool) error {
+	if !needed {
+		return nil
+	}
+	ok, err := r.serviceExists(service)
+	if err != nil {
+		return err
+	}
+	if !ok {
 		return nil
 	}
 	return r.doReloadMain(service)
