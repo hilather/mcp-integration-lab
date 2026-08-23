@@ -151,7 +151,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
 - Dev (`LAB_DEV_MODE=true` → gateway `development`): no client auth, and the
   labinfo tools reveal credentials — `endpoints_list` each web service's
   token, `connections_list` the on-the-wire secrets (LDAP bind password,
-  RADIUS shared secret) — all staged world-readable in
+  RADIUS and TACACS+ shared secrets, TacLab lab-user passwords, LabLDAP CA
+  PEM, optional TacLab client certs) — all staged world-readable in
   `secrets/labinfo-creds/` (lab-grade static secrets, gitignored).
   `mcplab secrets` writes the active profile's `dev-credentials.yaml` into
   those files, including TacLab lab-user passwords and AAA shared secrets
@@ -163,6 +164,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
   (or when the marker is missing / `reloads` is not `done`, so a crash
   retries against leftover LabLDAP `/data`) and re-registers the gateway
   when registrar tokens change; `make up` skips those apps.
+  `mcplab creds` / `make creds` prints the same sheet from files on disk
+  (fails closed outside dev; never prints TLS private keys).
 
 labinfo's catalog (`profiles/<name>/labinfo/services.yaml`) requires a
 `connection` block per service — protocol endpoints, client parameters (LDAP

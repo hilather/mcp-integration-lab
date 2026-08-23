@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -300,6 +301,147 @@ func defaultProfileLookup(t *testing.T) (func(string) string, error) {
 		return nil, err
 	}
 	return func(k string) string { return m[k] }, nil
+}
+
+func TestDefaultCatalogConnectionCredentialsRedactOutsideDev(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := defaultProfileLookup(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := cat.RenderConnections(false, env, func(string) (string, error) {
+		t.Fatal("readSecret must not be called outside dev mode")
+		return "", nil
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]string{
+		"gateway": {
+			"mcp-client-token",
+		},
+		"labdns": nil,
+		"labldap": {
+			"bind-password-alice",
+			"lab-ca",
+		},
+		"labtacacs": {
+			"radius-shared-secret",
+			"tacacs-shared-secret",
+			"lab-admin-password",
+			"lab-admin-enable",
+			"lab-readonly-password",
+			"tacacs-client-ca",
+			"tacacs-client-ok-cert",
+		},
+		"maildev": {
+			"labmail-token",
+		},
+		"nfs": nil,
+	}
+	if len(got.Services) != len(want) {
+		t.Fatalf("services = %d, want %d complete catalog (got ids %v)", len(got.Services), len(want), serviceIDs(got))
+	}
+	raw, _ := json.Marshal(got)
+	if strings.Contains(string(raw), `"secret"`) {
+		t.Errorf("wire format carries a secret field outside dev mode: %s", raw)
+	}
+	seen := map[string]bool{}
+	for _, s := range got.Services {
+		if s.ID == "labinfo" {
+			t.Fatal("do not add a labinfo catalog service for labinfo-token")
+		}
+		seen[s.ID] = true
+		exp, ok := want[s.ID]
+		if !ok {
+			t.Errorf("unexpected catalog service %q", s.ID)
+			continue
+		}
+		gotNames := make([]string, 0, len(s.Credentials))
+		for _, c := range s.Credentials {
+			gotNames = append(gotNames, c.Name)
+			if c.Secret != "" || c.Usage == "" {
+				t.Errorf("%s credential %s: secret=%q usage=%q", s.ID, c.Name, c.Secret, c.Usage)
+			}
+		}
+		if exp == nil {
+			exp = []string{}
+		}
+		if !slices.Equal(gotNames, exp) {
+			t.Errorf("%s credentials = %v, want complete set %v", s.ID, gotNames, exp)
+		}
+	}
+	for id := range want {
+		if !seen[id] {
+			t.Errorf("default catalog missing service %q", id)
+		}
+	}
+}
+
+func serviceIDs(got *Connections) []string {
+	ids := make([]string, 0, len(got.Services))
+	for _, s := range got.Services {
+		ids = append(ids, s.ID)
+	}
+	return ids
+}
+
+func TestConnectionsOptionalMissingFileInDevMode(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "services.yaml")
+	body := `services:
+  - id: labtacacs
+    name: TacLab
+    urls:
+      - name: UI
+        url: http://x/
+    connection:
+      endpoints:
+        - name: TACACS+
+          protocol: tacacs+
+          address: x:49
+      credentials:
+        - name: tacacs-client-ca
+          file: /run/lab-secrets/tacacs-client-ca.pem
+          usage: client CA
+          optional: true
+        - name: radius-shared-secret
+          file: /run/lab-secrets/labtacacs-radius-secret
+          usage: RADIUS secret
+`
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := c.RenderConnections(true, func(string) string { return "" }, func(p string) (string, error) {
+		if p == "/run/lab-secrets/tacacs-client-ca.pem" {
+			return "", os.ErrNotExist
+		}
+		if p == "/run/lab-secrets/labtacacs-radius-secret" {
+			return "rad-secret\n", nil
+		}
+		t.Errorf("unexpected secret path %q", p)
+		return "", os.ErrNotExist
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	creds := got.Services[0].Credentials
+	if len(creds) != 2 {
+		t.Fatalf("credentials = %+v", creds)
+	}
+	if creds[0].Name != "tacacs-client-ca" || creds[0].Secret != "" {
+		t.Errorf("optional missing cert: %+v", creds[0])
+	}
+	if creds[1].Name != "radius-shared-secret" || creds[1].Secret != "rad-secret" {
+		t.Errorf("required secret: %+v", creds[1])
+	}
 }
 
 func TestLoadRejectsInvalid(t *testing.T) {

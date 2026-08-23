@@ -9,6 +9,7 @@
 package labinfo
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -76,9 +77,10 @@ type ConnEndpoint struct {
 // a RADIUS shared secret). Usage must say what the secret is for; File points
 // at the staged copy under /run/lab-secrets.
 type ConnCredential struct {
-	Name  string `yaml:"name"`
-	File  string `yaml:"file"`
-	Usage string `yaml:"usage"`
+	Name     string `yaml:"name"`
+	File     string `yaml:"file"`
+	Usage    string `yaml:"usage"`
+	Optional bool   `yaml:"optional,omitempty"`
 }
 
 // Load parses a catalog YAML file.
@@ -245,6 +247,10 @@ func (c *Catalog) RenderConnections(devMode bool, lookup func(string) string, re
 			if devMode {
 				secret, err := readSecret(cr.File)
 				if err != nil {
+					if cr.Optional && errors.Is(err, os.ErrNotExist) {
+						info.Credentials = append(info.Credentials, rc)
+						continue
+					}
 					return nil, fmt.Errorf("service %s: connection credential %s: %w", s.ID, cr.Name, err)
 				}
 				rc.Secret = strings.TrimSpace(secret)

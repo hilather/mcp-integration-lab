@@ -3,7 +3,7 @@
 SHELL := /bin/bash
 export PROFILE
 
-.PHONY: help up down reset register preflight smoke vendor secrets fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down test
+.PHONY: help up down reset register preflight smoke vendor secrets creds fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down test
 
 help:
 	@go run ./cmd/mcplab 2>&1 || true
@@ -31,6 +31,9 @@ vendor:
 
 secrets:
 	go run ./cmd/mcplab secrets
+
+creds:
+	go run ./cmd/mcplab creds
 
 fixtures:
 	go run ./cmd/mcplab fixtures

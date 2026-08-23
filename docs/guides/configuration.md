@@ -430,7 +430,11 @@ Every service in `labinfo/services.yaml` must carry a `connection`
 block — labinfo refuses to start without one. URLs are `${VAR}`
 templates over the profile env. Host comes from `LAB_PUBLIC_HOST`.
 Credentials point at staged copies under `secrets/labinfo-creds/` and
-are revealed only when `LAB_DEV_MODE=true`.
+are revealed only when `LAB_DEV_MODE=true`. The default catalog includes
+the LabLDAP CA PEM, TacLab lab-user passwords, the TACACS+ shared secret,
+and optional TacLab client certs. There is no labinfo catalog service for
+the inbound `labinfo-token`. `mcplab creds` / `make creds` prints the same
+sheet from those staged files (dev mode only).
 
 A single service, trimmed from the default catalog:
 
@@ -499,11 +503,13 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   LabLDAP `setupsecrets` and TacLab `labgen`, reloads running containers,
   and removes the marker last. LabLDAP TLS is not rotated.
 - **true** — open gateway, labinfo reveals web tokens and connection
-  secrets (LDAP bind password, RADIUS shared secret), and `mcplab secrets`
-  writes this profile's `dev-credentials.yaml` (fail-closed if missing or
-  incomplete; no merge with `default`), including TacLab lab-user
-  passwords and AAA shared secrets after `labgen`. The default profile ships
-  `lab-dev-*` values; they are inert unless this knob is on. Never
+  secrets (LDAP bind password, RADIUS and TACACS+ shared secrets, TacLab
+  lab-user passwords, LabLDAP CA PEM), and `mcplab secrets` writes this
+  profile's `dev-credentials.yaml` (fail-closed if missing or incomplete;
+  no merge with `default`), including TacLab lab-user passwords and AAA
+  shared secrets after `labgen`. The default profile ships `lab-dev-*`
+  values; they are inert unless this knob is on. `make creds` prints the
+  shareable sheet from files on disk (never TLS private keys). Never
   default a shared team profile to dev mode. Set the knob in **that
   profile's** `profile.env` (process env on `default` fails preflight).
 

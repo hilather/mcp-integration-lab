@@ -19,6 +19,11 @@ changes since the previous one (AGENTS.md rule 13).
   those files and reloads running containers; `mcplab secrets` is enough
   after a catalog or mode change. An interrupted enter-dev retries those
   reloads even if files already match.
+- labinfo `connections_list` in dev mode now includes the LabLDAP CA PEM,
+  TacLab lab-user passwords, and the TACACS+ shared secret (plus optional
+  TacLab client certs). `mcplab creds` / `make creds` prints the same
+  shareable sheet from files on disk; it fails closed outside
+  `LAB_DEV_MODE` and never prints TLS private keys.
 
 ### Changed
 

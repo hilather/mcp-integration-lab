@@ -72,16 +72,19 @@ we work by.
  expansion sees them.
 10. **Dev mode is one knob: `LAB_DEV_MODE` in the profile.** `true` opens the
  gateway (MCPJungle development mode, no client auth), makes labinfo
- reveal credentials (web-service tokens and connection secrets alike),
- and reconciles secret files from that profile's `dev-credentials.yaml`
- (no merge with `default`; fail-closed if the catalog is missing).
- `false` (default) hardens the gateway (enterprise: client tokens + ACLs),
- labinfo only describes how auth works, and minting stays random-if-missing.
- Leaving dev mode remints orchestrator tokens, `setupsecrets --force`, and
- `labgen -force`; `Secrets()` reloads running containers. `MCPJUNGLE_MODE`
- may still be pinned explicitly to decouple gateway mode from catalog
- reconcile and labinfo reveal. Never default a shared/team profile to
- dev mode.
+ reveal credentials (web-service tokens and connection secrets alike,
+ including the LabLDAP CA PEM, TacLab lab-user passwords, and the TACACS+
+ shared secret), and reconciles secret files from that profile's
+ `dev-credentials.yaml` (no merge with `default`; fail-closed if the
+ catalog is missing). `mcplab creds` / `make creds` prints the same sheet
+ from files on disk (fails closed outside dev; never prints TLS private
+ keys). `false` (default) hardens the gateway (enterprise: client tokens +
+ ACLs), labinfo only describes how auth works, and minting stays
+ random-if-missing. Leaving dev mode remints orchestrator tokens,
+ `setupsecrets --force`, and `labgen -force`; `Secrets()` reloads running
+ containers. `MCPJUNGLE_MODE` may still be pinned explicitly to decouple
+ gateway mode from catalog reconcile and labinfo reveal. Never default a
+ shared/team profile to dev mode.
 11. **The mail sink never sends mail.** Compose service name and labinfo
     catalog id stay `maildev` for the swap release (rename later, not in
     the image-pin change). The image is LabMail (`go-lab-maildev`, pinned

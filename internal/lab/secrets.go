@@ -447,39 +447,106 @@ func (r *Runner) taclabVendorRef() (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-// stageLabinfoCreds copies the credentials the labinfo service may reveal
-// (dev mode only) into secrets/labinfo-creds/, world-readable so the
-// unprivileged container (uid 65532) can read them: web/REST surface tokens
-// plus the connection credentials served by connections_list (LDAP bind
-// password, RADIUS shared secret). Lab-grade tradeoff: these are static lab
-// secrets, the directory is gitignored, and exposure via the MCP tools is
-// still gated on LAB_DEV_MODE.
+// labinfoStageCopy is one always-on copy into secrets/labinfo-creds/.
+// Optional sources (TacLab client certs) are skipped if missing; required
+// sources fail closed so catalog file: entries cannot dangle.
+type labinfoStageCopy struct {
+	src      string
+	dst      string
+	optional bool
+}
+
+// labinfoCredFiles is the copy table for stageLabinfoCreds. Dest names
+// must stay lockstep with catalog file: basenames (plus labinfo-token,
+// which is inbound auth for the labinfo container, not a catalog service).
+var labinfoCredFiles = []labinfoStageCopy{
+	{src: "secrets/labinfo-token", dst: "labinfo-token"},
+	{src: "secrets/labdns-token", dst: "labdns-token"},
+	{src: "secrets/mcp-client-token", dst: "mcp-client-token"},
+	{src: "secrets/labmail-token", dst: "labmail-token"},
+	{src: "secrets/maildev-web-password", dst: "maildev-web-password"},
+	{src: "secrets/labmitm-token", dst: "labmitm-token"},
+	{src: "third_party/go-lab-ldap-mcp/secrets/token-admin", dst: "labldap-token-admin"},
+	{src: "third_party/go-lab-ldap-mcp/secrets/user-alice", dst: "labldap-user-alice"},
+	{src: "third_party/go-lab-ldap-mcp/secrets/tls/ca.crt", dst: "labldap-ca.crt"},
+	{src: taclabDir + "/deployments/compose/secrets/api_admin_token", dst: "labtacacs-token-admin"},
+	{src: taclabDir + "/deployments/compose/secrets/lab_switches_radius_secret", dst: "labtacacs-radius-secret"},
+	{src: taclabDir + "/deployments/compose/secrets/lab_switches_tacacs_secret", dst: "labtacacs-tacacs-secret"},
+	{src: taclabDir + "/deployments/compose/certs-public/client-ca.pem", dst: "tacacs-client-ca.pem", optional: true},
+	{src: taclabDir + "/deployments/compose/certs-public/client-ok.pem", dst: "tacacs-client-ok.pem", optional: true},
+}
+
+const labinfoPasswordsSrc = taclabDir + "/deployments/compose/secrets/PASSWORDS.txt"
+
+// labinfoPasswordKeys splits labgen PASSWORDS.txt (written in both modes)
+// into staged files. Catalog file: entries use lab-admin, lab-admin-enable,
+// and lab-readonly.
+var labinfoPasswordKeys = []struct{ key, dst string }{
+	{"lab-admin", "labtacacs-lab-admin"},
+	{"lab-admin-enable", "labtacacs-lab-admin-enable"},
+	{"lab-readonly", "labtacacs-lab-readonly"},
+	{"lab-disabled", "labtacacs-lab-disabled"},
+	{"lab-admin-challenge", "labtacacs-lab-admin-challenge"},
+}
+
+// stageLabinfoCreds copies credentials labinfo may reveal into
+// secrets/labinfo-creds/ (0o644, uid 65532). Always-on so catalog file:
+// paths exist after mcplab secrets in both modes; reveal stays gated on
+// LAB_DEV_MODE inside labinfo.
 func (r *Runner) stageLabinfoCreds() error {
 	dir := r.path("secrets/labinfo-creds")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	for src, dst := range map[string]string{
-		"secrets/labinfo-token":                                               "labinfo-token",
-		"secrets/labdns-token":                                                "labdns-token",
-		"secrets/mcp-client-token":                                            "mcp-client-token",
-		"secrets/labmail-token":                                               "labmail-token",
-		"secrets/maildev-web-password":                                        "maildev-web-password",
-		"secrets/labmitm-token":                                               "labmitm-token",
-		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "labldap-token-admin",
-		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "labldap-user-alice",
-		taclabDir + "/deployments/compose/secrets/api_admin_token":            "labtacacs-token-admin",
-		taclabDir + "/deployments/compose/secrets/lab_switches_radius_secret": "labtacacs-radius-secret",
-	} {
-		b, err := os.ReadFile(r.path(src))
+	for _, f := range labinfoCredFiles {
+		b, err := os.ReadFile(r.path(f.src))
 		if err != nil {
+			if f.optional && os.IsNotExist(err) {
+				continue
+			}
 			return fmt.Errorf("stage labinfo creds: %w", err)
 		}
-		if err := os.WriteFile(dir+"/"+dst, b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, f.dst), b, 0o644); err != nil {
+			return err
+		}
+	}
+	return r.stageLabinfoPasswords(dir)
+}
+
+func (r *Runner) stageLabinfoPasswords(dir string) error {
+	src := r.path(labinfoPasswordsSrc)
+	b, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("stage labinfo creds: %w", err)
+	}
+	pw := parseLabgenPasswords(b)
+	for _, k := range labinfoPasswordKeys {
+		v, ok := pw[k.key]
+		if !ok {
+			return fmt.Errorf("stage labinfo creds: %s: no entry for %q", src, k.key)
+		}
+		if err := os.WriteFile(filepath.Join(dir, k.dst), []byte(v+"\n"), 0o644); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// parseLabgenPasswords reads labgen PASSWORDS.txt `name=value` lines.
+func parseLabgenPasswords(b []byte) map[string]string {
+	out := make(map[string]string)
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func writeTokenIfMissing(path string, mode os.FileMode) error {

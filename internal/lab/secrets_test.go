@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hilather/mcp-integration-lab/internal/labinfo"
 	"github.com/hilather/mcp-integration-lab/internal/profile"
 	"github.com/hilather/mcp-integration-lab/internal/taclabcfg"
 )
@@ -56,7 +57,7 @@ func installTestSecretsDeps(r *Runner, exists map[string]bool) {
 		setupsecrets: func(force bool) error {
 			return fakeSetupsecrets(r.Root, force)
 		},
-		setuptls: func() error { return nil },
+		setuptls: func() error { return fakeSetuptls(r.Root) },
 		ensureTaclab: func(force bool) error {
 			return fakeLabgen(r.Root, force)
 		},
@@ -112,12 +113,24 @@ func fakeSetupsecrets(root string, force bool) error {
 	return writeRand("token-admin", 32)
 }
 
+func fakeSetuptls(root string) error {
+	dir := filepath.Join(root, "third_party", "go-lab-ldap-mcp", "secrets", "tls")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, "ca.crt")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	return os.WriteFile(path, []byte("-----BEGIN CERTIFICATE-----\nTESTCA\n-----END CERTIFICATE-----\n"), 0o644)
+}
+
 func fakeLabgen(root string, force bool) error {
 	dir := filepath.Join(root, taclabDir, "deployments", "compose", "secrets")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	for _, name := range []string{"api_admin_token", "lab_switches_radius_secret"} {
+	for _, name := range []string{"api_admin_token", "lab_switches_radius_secret", "lab_switches_tacacs_secret"} {
 		path := filepath.Join(dir, name)
 		if !force {
 			if _, err := os.Stat(path); err == nil {
@@ -128,6 +141,31 @@ func fakeLabgen(root string, force bool) error {
 			return err
 		}
 		if err := writeRandHexFile(path, 32, 0o444, false); err != nil {
+			return err
+		}
+	}
+	pwPath := filepath.Join(dir, "PASSWORDS.txt")
+	if force {
+		if err := os.Remove(pwPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if _, err := os.Stat(pwPath); err != nil {
+		body := "# labgen PASSWORDS.txt\n" +
+			"lab-admin=fake-lab-admin\n" +
+			"lab-admin-enable=fake-lab-admin-enable\n" +
+			"lab-readonly=fake-lab-readonly\n" +
+			"lab-disabled=fake-lab-disabled\n" +
+			"lab-admin-challenge=fake-lab-admin-challenge\n"
+		if force {
+			body = "# labgen PASSWORDS.txt\n" +
+				"lab-admin=rotated-lab-admin\n" +
+				"lab-admin-enable=rotated-lab-admin-enable\n" +
+				"lab-readonly=rotated-lab-readonly\n" +
+				"lab-disabled=rotated-lab-disabled\n" +
+				"lab-admin-challenge=rotated-lab-admin-challenge\n"
+		}
+		if err := os.WriteFile(pwPath, []byte(body), 0o600); err != nil {
 			return err
 		}
 	}
@@ -766,4 +804,175 @@ func TestWriteTokenIfMissingChmodsExistingTo0644(t *testing.T) {
 	if fi.Mode().Perm() != 0o644 {
 		t.Fatalf("mode = %04o, want 0644", fi.Mode().Perm())
 	}
+}
+
+func TestParseLabgenPasswords(t *testing.T) {
+	got := parseLabgenPasswords([]byte(`# header
+lab-admin=Alpha
+lab-admin-enable=Bravo
+lab-readonly=Charlie
+
+lab-disabled=Delta
+lab-admin-challenge=Echo
+`))
+	want := map[string]string{
+		"lab-admin":           "Alpha",
+		"lab-admin-enable":    "Bravo",
+		"lab-readonly":        "Charlie",
+		"lab-disabled":        "Delta",
+		"lab-admin-challenge": "Echo",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("len=%d want %d: %#v", len(got), len(want), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s=%q, want %q", k, got[k], v)
+		}
+	}
+}
+
+func TestStageLabinfoCredsLockstepWithCatalog(t *testing.T) {
+	cat, err := labinfo.Load(filepath.Join("..", "..", "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	staged := map[string]bool{}
+	for _, f := range labinfoCredFiles {
+		staged[f.dst] = true
+	}
+	for _, k := range labinfoPasswordKeys {
+		staged[k.dst] = true
+	}
+	for _, s := range cat.Services {
+		if s.ID == "labinfo" {
+			t.Fatal("do not add a labinfo catalog service for labinfo-token")
+		}
+		if s.Credential != nil {
+			dst := filepath.Base(s.Credential.File)
+			if !staged[dst] {
+				t.Errorf("catalog %s web credential file %s is not staged", s.ID, dst)
+			}
+		}
+		if s.Connection == nil {
+			continue
+		}
+		for _, c := range s.Connection.Credentials {
+			dst := filepath.Base(c.File)
+			if !staged[dst] {
+				t.Errorf("catalog %s connection credential %s file %s is not staged", s.ID, c.Name, dst)
+			}
+		}
+	}
+}
+
+func TestStageLabinfoCredsSplitsPasswordsWithoutApplyDev(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	if err := writeStageSources(r, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stageLabinfoCreds(); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"labtacacs-lab-admin":           "split-admin",
+		"labtacacs-lab-admin-enable":    "split-enable",
+		"labtacacs-lab-readonly":        "split-readonly",
+		"labtacacs-lab-disabled":        "split-disabled",
+		"labtacacs-lab-admin-challenge": "split-challenge",
+		"labtacacs-tacacs-secret":       "tacacs-secret-bytes",
+		"labldap-ca.crt":                "-----BEGIN CERTIFICATE-----\nLABCA\n-----END CERTIFICATE-----",
+	}
+	for dst, exp := range want {
+		got := strings.TrimSpace(string(mustRead(t, r.path("secrets/labinfo-creds/"+dst))))
+		if got != exp {
+			t.Errorf("%s = %q, want %q", dst, got, exp)
+		}
+	}
+	if _, err := os.Stat(r.path("secrets/labinfo-creds/tacacs-client-ca.pem")); !os.IsNotExist(err) {
+		t.Fatalf("optional missing client CA should not be staged: %v", err)
+	}
+}
+
+func TestStageLabinfoCredsFailsClosedOnMissingRequired(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	if err := writeStageSources(r, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(r.path("third_party/go-lab-ldap-mcp/secrets/tls/ca.crt")); err != nil {
+		t.Fatal(err)
+	}
+	err := r.stageLabinfoCreds()
+	if err == nil || !strings.Contains(err.Error(), "ca.crt") {
+		t.Fatalf("want fail-closed missing ca.crt, got %v", err)
+	}
+}
+
+func TestStageLabinfoCredsCopiesOptionalClientCerts(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	if err := writeStageSources(r, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.stageLabinfoCreds(); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(mustRead(t, r.path("secrets/labinfo-creds/tacacs-client-ca.pem")))); got != "-----BEGIN CERTIFICATE-----\nCLIENTCA\n-----END CERTIFICATE-----" {
+		t.Fatalf("client-ca = %q", got)
+	}
+	if got := strings.TrimSpace(string(mustRead(t, r.path("secrets/labinfo-creds/tacacs-client-ok.pem")))); got != "-----BEGIN CERTIFICATE-----\nCLIENTOK\n-----END CERTIFICATE-----" {
+		t.Fatalf("client-ok = %q", got)
+	}
+}
+
+func TestSecretsNonDevStagesPasswordsSplit(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(string(mustRead(t, r.path("secrets/labinfo-creds/labtacacs-lab-admin"))))
+	if got != "fake-lab-admin" {
+		t.Fatalf("staged lab-admin = %q, want split from PASSWORDS.txt without applyDev", got)
+	}
+	if _, err := os.Stat(r.path("secrets/labinfo-creds/labtacacs-tacacs-secret")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(r.path("secrets/labinfo-creds/labldap-ca.crt")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeStageSources(r *Runner, withOptionalCerts bool) error {
+	files := map[string]string{
+		"secrets/labinfo-token":                                               "info-token\n",
+		"secrets/labdns-token":                                                "dns-token\n",
+		"secrets/mcp-client-token":                                            "mcp-token\n",
+		"secrets/labmail-token":                                               "mail-token\n",
+		"secrets/maildev-web-password":                                        "mail-pass\n",
+		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "ldap-admin\n",
+		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "alice-pw\n",
+		"third_party/go-lab-ldap-mcp/secrets/tls/ca.crt":                      "-----BEGIN CERTIFICATE-----\nLABCA\n-----END CERTIFICATE-----\n",
+		taclabDir + "/deployments/compose/secrets/api_admin_token":            "tac-admin",
+		taclabDir + "/deployments/compose/secrets/lab_switches_radius_secret": "radius-secret-bytes",
+		taclabDir + "/deployments/compose/secrets/lab_switches_tacacs_secret": "tacacs-secret-bytes",
+		taclabDir + "/deployments/compose/secrets/PASSWORDS.txt": "# header\n" +
+			"lab-admin=split-admin\n" +
+			"lab-admin-enable=split-enable\n" +
+			"lab-readonly=split-readonly\n" +
+			"lab-disabled=split-disabled\n" +
+			"lab-admin-challenge=split-challenge\n",
+	}
+	if withOptionalCerts {
+		files[taclabDir+"/deployments/compose/certs-public/client-ca.pem"] = "-----BEGIN CERTIFICATE-----\nCLIENTCA\n-----END CERTIFICATE-----\n"
+		files[taclabDir+"/deployments/compose/certs-public/client-ok.pem"] = "-----BEGIN CERTIFICATE-----\nCLIENTOK\n-----END CERTIFICATE-----\n"
+	}
+	for rel, body := range files {
+		path := r.path(rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }

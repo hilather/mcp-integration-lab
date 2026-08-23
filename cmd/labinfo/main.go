@@ -85,7 +85,7 @@ func serve(args []string) int {
 	})
 
 	connectionsTool := mcp.NewTool("connections_list",
-		mcp.WithDescription("Get the protocol-level connection details needed to configure a client or system under test against each lab service: protocol endpoints (SMTP, LDAP/LDAPS, DNS, NFS, TACACS+, RADIUS, MCP) with host:port, client parameters (LDAP base/bind DNs and OUs, DNS zones, NFS mount options, AAA specifics), and the connection credentials (bind passwords, shared secrets, tokens). Secrets are revealed only in dev mode, where values are profile-owned (dev-credentials.yaml); otherwise each credential's usage explains what it is for and how to obtain it."),
+		mcp.WithDescription("Get the protocol-level connection details needed to configure a client or system under test against each lab service: protocol endpoints (SMTP, LDAP/LDAPS, DNS, NFS, TACACS+, RADIUS, MCP) with host:port, client parameters (LDAP base/bind DNs and OUs, DNS zones, NFS mount options, AAA specifics), and the connection credentials (bind passwords, RADIUS/TACACS+ shared secrets, TacLab lab-user passwords, LabLDAP CA PEM, tokens). Secrets are revealed only in dev mode, where values are profile-owned (dev-credentials.yaml); otherwise each credential's usage explains what it is for and how to obtain it."),
 		mcp.WithString("service",
 			mcp.Description("Optional service id to return a single service's connection details (e.g. maildev, labldap); omit for all services."),
 		),

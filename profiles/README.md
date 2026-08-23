@@ -35,3 +35,5 @@ The catalog is consumed only when `LAB_DEV_MODE=true` (never from
 is no merge with `default` — a team profile that enables dev mode must
 have its own complete catalog. TacLab lab-user passwords and AAA shared
 secrets are pinned from this file after `labgen` (PKI stays generated).
+After `make up` (or `mcplab secrets`), `make creds` prints the shareable
+sheet from staged files.

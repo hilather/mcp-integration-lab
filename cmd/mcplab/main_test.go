@@ -46,6 +46,19 @@ func TestCLIUsageDocumentsReload(t *testing.T) {
 	}
 }
 
+func TestCLIUsageDocumentsCreds(t *testing.T) {
+	out, err := runMcplab(t)
+	if err == nil {
+		t.Fatal("expected non-zero exit for usage")
+	}
+	if !strings.Contains(out, "creds") {
+		t.Fatalf("usage missing creds:\n%s", out)
+	}
+	if !strings.Contains(out, "dev mode only") {
+		t.Fatalf("usage missing creds restriction:\n%s", out)
+	}
+}
+
 func TestCLIReloadRequiresApp(t *testing.T) {
 	out, err := runMcplab(t, "reload")
 	if err == nil {
