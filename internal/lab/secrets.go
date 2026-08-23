@@ -20,6 +20,9 @@ const (
 	devModeMarkerRel = "secrets/.lab-dev-mode"
 	reloadsPending   = "pending"
 	reloadsDone      = "done"
+	// Sidecar so a failed directory recreate is retried even after SANs
+	// already match (same class as enter-dev reloads=pending).
+	labldapTLSReloadPendingRel = "third_party/go-lab-ldap-mcp/secrets/tls/.reload-pending"
 )
 
 type devModeMarker struct {
@@ -173,6 +176,9 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if err != nil {
 		return err
 	}
+	if err := r.persistLabLDAPTLSReloadIf(tls.leavesRewritten()); err != nil {
+		return err
+	}
 	if err := writeTokenIfMissing(r.path("secrets/labmitm-token"), 0o644); err != nil {
 		return err
 	}
@@ -183,7 +189,7 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if forceConsumers {
 		reload = enterDevReloadChanges()
 	}
-	if tls.leavesRewritten() {
+	if tls.leavesRewritten() || r.labldapTLSReloadPending() {
 		reload.labldapTLS = true
 	}
 	if err := r.applySecretReloads(reload, false); err != nil {
@@ -204,10 +210,13 @@ func (r *Runner) secretsLeaveDev(marker string) error {
 	if err != nil {
 		return err
 	}
+	if err := r.persistLabLDAPTLSReloadIf(tls.leavesRewritten()); err != nil {
+		return err
+	}
 	if err := r.stageLabinfoCreds(); err != nil {
 		return err
 	}
-	if err := r.applySecretReloads(secretChanges{labldapTLS: tls.leavesRewritten()}, true); err != nil {
+	if err := r.applySecretReloads(secretChanges{labldapTLS: tls.leavesRewritten() || r.labldapTLSReloadPending()}, true); err != nil {
 		return err
 	}
 	if err := os.Remove(marker); err != nil && !os.IsNotExist(err) {
@@ -243,13 +252,16 @@ func (r *Runner) secretsRandomMint() error {
 	if err != nil {
 		return err
 	}
+	if err := r.persistLabLDAPTLSReloadIf(tls.leavesRewritten()); err != nil {
+		return err
+	}
 	if err := r.generateTaclabLab(false); err != nil {
 		return err
 	}
 	if err := r.stageLabinfoCreds(); err != nil {
 		return err
 	}
-	if tls.leavesRewritten() {
+	if tls.leavesRewritten() || r.labldapTLSReloadPending() {
 		if err := r.applySecretReloads(secretChanges{labldapTLS: true}, false); err != nil {
 			return err
 		}
@@ -386,6 +398,33 @@ func (r *Runner) ensureLabLDAPTLS() (labTLSResult, error) {
 		host = r.Prof.Get("LAB_PUBLIC_HOST", "localhost")
 	}
 	return labtlsEnsure(dir, host)
+}
+
+func (r *Runner) labldapTLSReloadPendingPath() string {
+	return r.path(labldapTLSReloadPendingRel)
+}
+
+func (r *Runner) labldapTLSReloadPending() bool {
+	_, err := os.Stat(r.labldapTLSReloadPendingPath())
+	return err == nil
+}
+
+func (r *Runner) persistLabLDAPTLSReloadIf(rewritten bool) error {
+	if !rewritten {
+		return nil
+	}
+	path := r.labldapTLSReloadPendingPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte("pending\n"), 0o644)
+}
+
+func (r *Runner) clearLabLDAPTLSReloadPending() error {
+	if err := os.Remove(r.labldapTLSReloadPendingPath()); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func (r *Runner) generateTaclabLab(force bool) error {
@@ -692,7 +731,7 @@ func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
 		}
 	}
 
-	if leaveDev || ch.labldap() {
+	if leaveDev || ch.labldap() || r.labldapTLSReloadPending() {
 		ok, err := r.serviceExists("labldap")
 		if err != nil {
 			return err
@@ -701,6 +740,9 @@ func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
 			if err := r.doReloadLabLDAP(); err != nil {
 				return err
 			}
+		}
+		if err := r.clearLabLDAPTLSReloadPending(); err != nil {
+			return err
 		}
 	}
 	if leaveDev || ch.labtacacsReload() {

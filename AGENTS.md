@@ -194,7 +194,9 @@ we work by.
   `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt` (lab CA); native
   `labldapd` serves that cert directly — there is no 389 instance-CA.
   The CA private key stays on the host under that tls dir and is not
-  committed.
+  committed. A failed directory recreate after a leaf rewrite leaves
+  `.reload-pending` in that tls dir so the next `mcplab secrets` still
+  reloads LabLDAP (SANs already matching is not enough).
 - LabLDAP is pinned to **v0.3.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2

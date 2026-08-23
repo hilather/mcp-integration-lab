@@ -30,7 +30,8 @@ changes since the previous one (AGENTS.md rule 13).
   set) so remote LDAPS and control HTTPS verify without skipping hostname
   checks. Existing labs re-sign leaves with the current CA — the CA
   private key is not rotated or committed. `Secrets()` reloads LabLDAP
-  when those leaves change.
+  when those leaves change, and retries that reload on the next
+  `mcplab secrets` if it failed (SANs already matching is not enough).
 
 ### Changed
 

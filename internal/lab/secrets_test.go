@@ -743,6 +743,9 @@ func TestSecretsPublicHostChangeReloadsLabLDAP(t *testing.T) {
 		t.Fatal("must not rotate ca.key")
 	}
 	assertVendorTLS(t, r, "203.0.113.10")
+	if r.labldapTLSReloadPending() {
+		t.Fatal("successful reload must clear TLS pending")
+	}
 }
 
 func TestSecretsNonDevSANChangeReloadsLabLDAP(t *testing.T) {
@@ -774,6 +777,112 @@ func TestSecretsNonDevSANChangeReloadsLabLDAP(t *testing.T) {
 		t.Fatal("must not rotate ca.key")
 	}
 	assertVendorTLS(t, r, "2001:db8::10")
+	if r.labldapTLSReloadPending() {
+		t.Fatal("successful reload must clear TLS pending")
+	}
+}
+
+func TestSecretsNonDevTLSReloadRetriedWhenPending(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	r.deps.reloadLabLDAP = func() error { return errors.New("reload failed") }
+	err := r.Secrets()
+	if err == nil || !strings.Contains(err.Error(), "reload failed") {
+		t.Fatalf("want reload failure, got %v", err)
+	}
+	if !r.labldapTLSReloadPending() {
+		t.Fatal("pending TLS reload marker must remain after failure")
+	}
+	assertVendorTLS(t, r, "203.0.113.10")
+
+	var n int
+	r.deps.reloadLabLDAP = func() error { n++; return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("second Secrets with complete SANs must still reloadLabLDAP, n=%d", n)
+	}
+	if !r.alreadyReloaded("labldap") {
+		t.Fatal("retry must mark labldap reloaded")
+	}
+	if r.labldapTLSReloadPending() {
+		t.Fatal("pending marker must clear after successful reload")
+	}
+}
+
+func TestSecretsNonDevTLSReloadPendingWhenInspectFails(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, nil)
+	r.deps.containerExists = func(string) (bool, error) {
+		return false, errors.New("compose ps failed")
+	}
+	err := r.Secrets()
+	if err == nil || !strings.Contains(err.Error(), "compose ps failed") {
+		t.Fatalf("want inspect failure, got %v", err)
+	}
+	if !r.labldapTLSReloadPending() {
+		t.Fatal("inspect failure must not drop the TLS reload pending marker")
+	}
+
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var n int
+	r.deps.reloadLabLDAP = func() error { n++; return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("retry after inspect failure must reloadLabLDAP, n=%d", n)
+	}
+	if r.labldapTLSReloadPending() {
+		t.Fatal("pending marker must clear after successful reload")
+	}
+}
+
+func TestSecretsNonDevTLSPendingClearedWhenDirectoryAbsent(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", nil)
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if r.labldapTLSReloadPending() {
+		t.Fatal("first mint with no directory must not leave a pending reload")
+	}
+}
+
+func TestSecretsDevSANChangeReloadRetriedWhenPending(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	r.deps.reloadLabLDAP = func() error { return errors.New("reload failed") }
+	if err := r.Secrets(); err == nil {
+		t.Fatal("expected reload failure")
+	}
+	if !r.labldapTLSReloadPending() {
+		t.Fatal("dev SAN rewrite must persist TLS reload pending")
+	}
+
+	var n int
+	r.deps.reloadLabLDAP = func() error { n++; return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("dev retry with complete SANs must still reloadLabLDAP, n=%d", n)
+	}
+	if r.labldapTLSReloadPending() {
+		t.Fatal("pending marker must clear after successful reload")
+	}
 }
 
 func TestSecretsLeaveDevSANResignReloadsLabLDAP(t *testing.T) {

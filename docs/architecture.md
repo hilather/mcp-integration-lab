@@ -66,7 +66,7 @@ flowchart LR
   `make register` reapplies the JSON configs in the active profile's
   `mcpjungle/` directory, which are the source of truth.
 - LabLDAP's control plane serves TLS from a lab-CA-signed cert
-  (`labtls.Ensure` + scenario `tls.mode: files`); the gateway trusts the
+  (`labtlsEnsure` in `internal/lab` + scenario `tls.mode: files`); the gateway trusts the
   CA via `SSL_CERT_FILE`. Leaves include DNS SAN `directory`/`control`
   plus `LAB_PUBLIC_HOST` as a DNS or IP SAN in both modes. The CA
   private key stays under `third_party/go-lab-ldap-mcp/secrets/tls/` and
@@ -229,7 +229,7 @@ per-persona tool groups and OTel metrics scraping.
   account-workflow tools (`ldap_get_account_state`, expire/lock/enable)
   register because the profile sets `registerMutations` and
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
-  (`ca.crt`) minted by `labtls.Ensure` (replaces skip-if-exists
+  (`ca.crt`) minted by `labtlsEnsure` (replaces skip-if-exists
   `setuptls generate`); switching from a leftover 389 volume is a
   re-bootstrap (`LabLDAPUp` wipes uid-389 `/data`).
 - LabMail is pinned to **v1.0.0-rc.3**. MCP pin is relaxed with upstream

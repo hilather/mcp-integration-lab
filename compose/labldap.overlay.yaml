@@ -5,7 +5,7 @@
 # 1. Rewires the `lab` network onto the shared external network so the MCP
 #    gateway (separate compose project) can reach `control:8443`.
 # 2. Extends secret-prep to also stage the lab-CA-signed management cert/key
-#    (minted by labtls.Ensure, including a LAB_PUBLIC_HOST SAN) into the
+#    (minted by labtlsEnsure, including a LAB_PUBLIC_HOST SAN) into the
 #    control-secrets volume, so the control plane can serve verifiable TLS
 #    (`tls.mode: files` in our scenario) instead of a self-signed runtime cert.
 # 3. Re-publishes the data plane (LDAP/LDAPS) and control plane (HTTPS) on all

@@ -123,7 +123,7 @@ PROFILE=default
         </table>
 
         <h2 id="reload">Reload one app (not a full redeploy)</h2>
-        <p><code>make up</code> vendors, mints secrets, builds every image, and starts all three compose projects. Use it for first bring-up, a vendor pin bump, or a profile switch. After that, recreate one application:</p>
+        <p><code>make up</code> vendors, mints or reconciles secrets, builds every image, starts all three compose projects, and registers the gateway. Use it for first bring-up, a vendor pin bump, or a profile switch. After a <code>dev-credentials.yaml</code> or <code>LAB_DEV_MODE</code> edit, or a <code>LAB_PUBLIC_HOST</code> SAN change, <code>mcplab secrets</code> reloads running apps whose files changed; <code>make up</code> skips those names. After that, recreate one application:</p>
         <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm</code></pre>
         <p>YAML edits for LabDNS, LabMail, LabMITM, labinfo, or LabLDAP do not need a full stack bounce. Gateway JSON is <code>make register</code> (no container restart). Gateway <em>container</em> reload also re-registers because SQLite is tmpfs. LabLDAP reload re-seeds ephemeral <code>/data</code>. Mail reload wipes the inbox. LabMITM reload wipes captured flows.</p>
 
