@@ -1,0 +1,111 @@
+# LabMITM desired state. Mounted read-only at /etc/labmitm/config.yaml.
+# lab-owned copy; do not recopy from the v1.1.0 examples tree (that tag
+# still lists labldap/labtacacs). allowLegacyClients is on so MCPJungle
+# can register without a LabMITM patch. Bind-mounted secret files must
+# be 0o644 (UID 65532). Reload: `make reload APP=labmitm` (wipes captured
+# flows; generate-mode CA rotates).
+apiVersion: labmitm.dev/v1alpha1
+kind: LabMITM
+metadata:
+  name: lab-proxy
+spec:
+  listeners:
+    proxy:
+      address: ":8888"
+    management:
+      address: ":8088"
+      restPath: /v1
+      mcpPath: /mcp
+      tls:
+        enabled: false
+        certFile: ""
+        keyFile: ""
+
+  proxy:
+    hostname: labmitm.lab
+    admission:
+      maxSessions: 256
+      maxSessionsPerIP: 32
+      maxInFlight: 64
+      maxInFlightBytes: 64MiB
+      sessionTimeout: 10m
+      idleTimeout: 120s
+      headerTimeout: 10s
+      dialTimeout: 10s
+      upstreamTimeout: 60s
+    targets:
+      denyCloudMetadata: true
+      denyLinkLocal: true
+      allowLoopback: true
+      allowHosts:
+        - "*.lab"
+        - labdns
+        - labinfo
+        - maildev
+        - mcpjungle
+        - control
+        - taclab
+        # Optional CONNECT-tunnel names (not HTTP origins; do not uncomment
+        # without accepting unauthenticated TCP to these listeners).
+        # These lines must stay inside allowHosts so uncommenting is valid YAML.
+        # - nfs         # NFSv3 :20490 on default; HTTP_PROXY cannot mount it
+        # - directory   # LDAP :3389 / LDAPS :3636 on shared
+      denyHosts: []
+
+  tls:
+    intercept: true
+    hosts: []
+    ports: [443]
+    ca:
+      mode: generate
+      certFile: ""
+      keyFile: ""
+    upstream:
+      insecureSkipVerify: false
+      extraCAFiles: []
+
+  rules:
+    enabled: false
+    items: []
+
+  store:
+    maxFlows: 1000
+    maxBytes: 256MiB
+    maxBodyBytes: 1MiB
+    fullPolicy: reject
+    maxWait: 60s
+    spillDirectory: ""
+    spillThreshold: 256KiB
+
+  ui:
+    enabled: true
+
+  management:
+    auth:
+      mode: bearer
+      tokens:
+        - id: admin
+          secretFile: /run/secrets/labmitm-token
+          role: administrator
+          scopes: [mitm.read, mitm.write, mitm.admin, mitm.audit.read]
+    mcp:
+      allowLegacyClients: true
+    # Exact http(s)://host[:port] Origins. Loopback Origins are already
+    # allowed (any port). Missing Origin is allowed (MCPJungle, curl).
+    # There is no "*" / "private" sentinel — LabMail's hatch does not
+    # apply here. When LAB_PUBLIC_HOST is not localhost, add
+    # http://<LAB_PUBLIC_HOST>:18088 (or the profile's LABMITM_WEB_PORT)
+    # and reload. LabMITM YAML does not interpolate ${VAR}.
+    originAllowlist: []
+    bodyLimit: 1MiB
+    requestsPerSecond: 32
+    burst: 64
+    maxConcurrent: 256
+
+  observability:
+    logLevel: info
+    metrics:
+      listen: "127.0.0.1:9090"
+      publicPath: false
+    audit:
+      ring: 128

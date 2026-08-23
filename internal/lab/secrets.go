@@ -14,6 +14,7 @@ import (
 //
 //	secrets/labdns-token            bearer the gateway presents to LabDNS
 //	secrets/labmail-token           bearer the gateway presents to LabMail
+//	secrets/labmitm-token           bearer the gateway presents to LabMITM
 //	secrets/maildev-web-password    HTTP Basic password for the mail UI / /email
 //	secrets/mcp-client-token        client token for MCPJungle enterprise mode
 //	third_party/go-lab-ldap-mcp/secrets/...   minted by LabLDAP's own tools
@@ -47,6 +48,10 @@ func (r *Runner) Secrets() error {
 		return err
 	}
 	if err := writeTokenIfMissing(r.path("secrets/maildev-web-password"), 0o644); err != nil {
+		return err
+	}
+	// LabMITM bearer (MCP + native /v1). Bind-mounted into uid 65532.
+	if err := writeTokenIfMissing(r.path("secrets/labmitm-token"), 0o644); err != nil {
 		return err
 	}
 
@@ -133,6 +138,7 @@ func (r *Runner) stageLabinfoCreds() error {
 		"secrets/labdns-token":                                                "labdns-token",
 		"secrets/mcp-client-token":                                            "mcp-client-token",
 		"secrets/labmail-token":                                               "labmail-token",
+		"secrets/labmitm-token":                                               "labmitm-token",
 		"secrets/maildev-web-password":                                        "maildev-web-password",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "labldap-token-admin",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "labldap-user-alice",

@@ -131,6 +131,37 @@ services:
       retries: 12
       start_period: 3s
 
+  # LabMITM intercepting HTTP(S) forward proxy.
+  # Binary --management-listen defaults to off (unlike LabDNS, whose YAML
+  # bind is enough). Do not copy LabDNS command: ["serve", "--config=..."]
+  # or HEALTHCHECK fails closed.
+  # Reload: `make reload APP=labmitm` (wipes captured flows; generate-mode
+  # CA rotates).
+  labmitm:
+    build:
+      context: ./third_party/go-lab-mitmproxy
+    image: labmitm:local
+    command: ["serve", "--config=/etc/labmitm/config.yaml", "--management-listen=:8088"]
+    networks: [default, shared]
+    ports:
+      - "${LABMITM_PROXY_PORT:-18888}:8888/tcp"
+      - "${LABMITM_WEB_PORT:-18088}:8088/tcp"
+    volumes:
+      - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labmitm/bootstrap.yaml:/etc/labmitm/config.yaml:ro
+      - ./secrets/labmitm-token:/run/secrets/labmitm-token:ro
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    user: "65532:65532"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/labmitm", "healthcheck", "--url=http://127.0.0.1:8088/v1/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+
   # ------------------------------------------------- labinfo service directory
   # First-party MCP service: tells agents the user-facing web/REST URLs of
   # every lab service (endpoints_list) and the protocol-level connection

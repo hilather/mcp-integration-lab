@@ -26,6 +26,20 @@ func testProfileDir(root string) string {
 	return filepath.Join(root, "profiles", testProfileName)
 }
 
+func TestPreflightKeysIncludesLabMITM(t *testing.T) {
+	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false}
+	for _, k := range preflightKeys {
+		if _, ok := want[k]; ok {
+			want[k] = true
+		}
+	}
+	for k, seen := range want {
+		if !seen {
+			t.Fatalf("preflightKeys missing %s", k)
+		}
+	}
+}
+
 func TestPreflightOKWhenNoCriticalDrift(t *testing.T) {
 	root := t.TempDir()
 	writeProfileEnv(t, root, "LAB_PUBLIC_HOST=10.0.0.9\nLAB_DEV_MODE=true\n")
