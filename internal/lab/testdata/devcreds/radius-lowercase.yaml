@@ -1,0 +1,26 @@
+apiVersion: mcplab.dev/v1alpha1
+kind: DevCredentials
+metadata:
+  name: default
+spec:
+  tokens:
+    labdns:            "lab-dev-labdns-token"
+    labinfo:           "lab-dev-labinfo-token"
+    labmail:           "lab-dev-labmail-token"
+    labmitm:           "lab-dev-labmitm-token"
+    mcpClient:         "lab-dev-mcp-client-token"
+    labldapAdmin:      "lab-dev-labldap-token-admin"
+    labtacacsAdmin:    "lab-dev-labtacacs-token-admin"
+  passwords:
+    maildevWeb:        "lab-dev-mail-admin-1"
+    labldapAlice:      "lab-dev-alice-12"
+    labldapRuntime:    "lab-dev-runtime-12"
+    labldapDM:         "lab-dev-dm-password-12"
+    taclabAdmin:       "LabAdmin-Dev-Pass-01!"
+    taclabAdminEnable: "LabEnable-Dev-Pass-01!"
+    taclabReadonly:    "LabReadonly-Dev-Pass-01!"
+    taclabDisabled:    "LabDisabled-Dev-Pass-01!"
+    taclabChallenge:   "LabChallenge-Dev-Pass-01!"
+  sharedSecrets:
+    tacacsLabSwitches: "LabDev-Switches-Tacacs-01"
+    radiusLabSwitches: "alllowercasesecret"
