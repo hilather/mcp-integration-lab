@@ -73,8 +73,7 @@ func (c secretChanges) count() int {
 	return n
 }
 
-// enterDevReloadChanges reloads every catalog consumer Secrets() owns in
-// PR 2. Used when enter-dev did not finish reloads (marker missing or
+// Full consumer set for an unfinished enter-dev (marker missing or
 // reloads!=done), so leftover LabLDAP /data cannot keep a pre-catalog hash.
 func enterDevReloadChanges() secretChanges {
 	return secretChanges{
