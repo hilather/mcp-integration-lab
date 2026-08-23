@@ -4,7 +4,8 @@
 // mount options, and connection credentials), rendered for agents so they can
 // direct users to the right URL and help configure clients against the lab.
 // Credentials are included only when the profile enables dev mode
-// (LAB_DEV_MODE).
+// (LAB_DEV_MODE). In that mode values are profile-owned
+// (dev-credentials.yaml).
 package labinfo
 
 import (
@@ -125,13 +126,13 @@ type Endpoints struct {
 
 // EndpointInfo is one rendered service entry.
 type EndpointInfo struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Description string         `json:"description,omitempty"`
-	URLs        []URL          `json:"urls"`
-	Note        string         `json:"note,omitempty"`
-	Credential  *RevealedCred  `json:"credential,omitempty"`
-	Auth        string         `json:"auth,omitempty"`
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description,omitempty"`
+	URLs        []URL         `json:"urls"`
+	Note        string        `json:"note,omitempty"`
+	Credential  *RevealedCred `json:"credential,omitempty"`
+	Auth        string        `json:"auth,omitempty"`
 }
 
 // RevealedCred carries the secret; only present in dev mode.

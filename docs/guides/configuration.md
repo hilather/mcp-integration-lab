@@ -1,7 +1,9 @@
 # Configure the lab
 
 Everything a team varies lives in a profile. Compose files stay generic.
-Secrets are generated and gitignored. Runtime mutations are wipeable.
+Generated secrets (`secrets/`, `third_party/*/secrets/`) are gitignored.
+`dev-credentials.yaml` is a documented lab-only catalog, inert unless
+`LAB_DEV_MODE=true`. Runtime mutations are wipeable.
 
 The same reference is published as
 [configure.html](https://hilather.github.io/mcp-integration-lab/configure.html).
@@ -17,13 +19,16 @@ are gitignored so local profiles survive `git pull`; see
 - **Vendored repos** own the appliances. Do not edit `third_party/` in
   place — add a patch under `patches/` and send it upstream.
 - **Generated files** — `secrets/` and `third_party/*/secrets/` — are
-  produced by `mcplab secrets` and never committed.
+  produced by `mcplab secrets` and never committed. Documented lab-only
+  values in `dev-credentials.yaml` are allowed and inert unless
+  `LAB_DEV_MODE=true`.
 
 ## A profile directory
 
 ```
 profiles/<name>/
   profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  dev-credentials.yaml     lab-only catalog (used iff LAB_DEV_MODE=true)
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
   labinfo/services.yaml    endpoint + connection catalog
@@ -49,6 +54,14 @@ make up PROFILE=teamx
 
 Never hardcode a port in `docker-compose.yaml` — add a variable to
 `profile.env` with a compose default.
+
+`dev-credentials.yaml` is a `DevCredentials` document
+(`apiVersion: mcplab.dev/v1alpha1`). Every token, password, and shared-secret
+key is required. LabLDAP passwords must be at least 12 characters; TacLab
+shared secrets must pass the appliance policy (length ≥16, ≥3 character
+classes, exact-match known-weak list). The active profile's file is the only
+source — there is no merge with `profiles/default`. `mcplab secrets` consumes
+it only when `LAB_DEV_MODE=true`.
 
 ## Env precedence
 
@@ -103,22 +116,24 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `TACLAB_HTTP_PORT` | `18049` | TacLab UI + REST + MCP. |
 | `MAILDEV_SMTP_PORT` | `1025` | Receive-only SMTP ingest. |
 | `MAILDEV_WEB_PORT` | `1080` | LabMail UI + `/email` + `/v1` + MCP. |
-| `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Frozen at `admin` (YAML does not interpolate this). Password is minted. |
+| `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Frozen at `admin` (YAML does not interpolate this). Password is minted, or the catalog `maildevWeb` value in dev mode. |
 | `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL. Set this to the name remote testers use. |
-| `LAB_DEV_MODE` | `false` | Single security knob. See below. |
-| `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal. |
+| `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
+| `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
 | `NFS_ARCHIVE_DIR` | `.data/nfs` | Empty-root `fixtures.tar.zst` (writable; live commit replaces it). |
 | `NFS_DATA_DIR` | `.data/nfs-work` | Indexes plus the durable write overlay. Give it real disk. |
 | `NFS_COMMIT_OVERLAY_INTERVAL` | `15m` | How often overlay writes are spliced into the `.tar.zst`. |
 
 ## Reload vs full redeploy
 
-`make up` vendors, mints secrets, builds every image, starts three compose
+`make up` vendors, mints or reconciles secrets, builds every image, starts three compose
 projects, and registers the gateway. Use it for first bring-up, a vendor pin
-bump, or a profile switch.
+bump, or a profile switch. After a `dev-credentials.yaml` or `LAB_DEV_MODE`
+edit, `mcplab secrets` reloads running apps whose files changed; `make up`
+skips those names.
 
 After that, recreate **one** application:
 
@@ -473,9 +488,19 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
 
 - **false (default)** — enterprise gateway. Clients send
   `Authorization: Bearer $(cat secrets/mcp-client-token)`. labinfo
-  describes auth and never reveals secrets.
-- **true** — open gateway, and labinfo reveals web tokens and
-  connection secrets (LDAP bind password, RADIUS shared secret). Never
-  default a shared team profile to dev mode.
+  describes auth and never reveals secrets. Secret files are
+  random-if-missing. If `secrets/.lab-dev-mode` is present from a previous
+  dev bring-up, `mcplab secrets` remints orchestrator tokens, force-runs
+  LabLDAP `setupsecrets` and TacLab `labgen`, reloads running containers,
+  and removes the marker last. LabLDAP TLS is not rotated.
+- **true** — open gateway, labinfo reveals web tokens and connection
+  secrets (LDAP bind password, RADIUS shared secret), and `mcplab secrets`
+  writes this profile's `dev-credentials.yaml` (fail-closed if missing or
+  incomplete; no merge with `default`). The default profile ships
+  `lab-dev-*` values; they are inert unless this knob is on. Never
+  default a shared team profile to dev mode. Set the knob in **that
+  profile's** `profile.env` (process env on `default` fails preflight).
+
+Catalog reconcile follows `LAB_DEV_MODE` only — never `MCPJUNGLE_MODE`.
 
 Design and phase-1 OAuth plan: [architecture.md](../architecture.md).

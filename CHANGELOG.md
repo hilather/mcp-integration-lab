@@ -9,10 +9,19 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Added
 
-- Profile-owned `DevCredentials` catalog types (`mcplab.dev/v1alpha1`) with
-  fail-closed parse (unknown fields rejected) and policy checks (every key
-  required, LabLDAP minLength, TacLab v1.3.0 shared-secret rules).
-  `mcplab secrets` does not reconcile from the catalog yet.
+- When `LAB_DEV_MODE=true`, `mcplab secrets` reconciles LabDNS, LabMail,
+  labinfo, MCP client, and LabLDAP tokens/passwords from the profile's
+  `dev-credentials.yaml`. The default profile ships the `lab-dev-*`
+  catalog (inert unless that knob is on). Alice's bind password, mail
+  Basic, and the well-known tokens are then the same on every clone of
+  that profile. Leaving dev mode remints those files and reloads running
+  containers; `mcplab secrets` is enough after a catalog or mode change.
+
+### Changed
+
+- AGENTS.md rule 6: never commit generated/runtime secrets (`secrets/`,
+  `third_party/*/secrets/`); documented lab-only values in
+  `dev-credentials.yaml` are allowed and inert unless `LAB_DEV_MODE=true`.
 
 ## [0.5.0] - 2026-08-23
 

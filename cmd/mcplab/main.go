@@ -26,7 +26,7 @@ Usage: mcplab <command> [args]
                  labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
-  secrets        generate tokens, LabLDAP secrets, lab CA, TacLab lab dir
+  secrets        generate or reconcile tokens/passwords (mode-aware); reload running apps
   fixtures       build the NFS fixture archive + work dir
   labldap-up     bring up only the LabLDAP compose project (idempotent)
   labldap-down   stop only the LabLDAP compose project

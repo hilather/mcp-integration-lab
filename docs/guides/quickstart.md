@@ -72,6 +72,10 @@ make up PROFILE=teamx
 
 Set `LAB_PUBLIC_HOST` to the DNS name remote testers use. That hostname is what labinfo puts in every URL. Full reference: [configuration.md](configuration.md).
 
+## Easy connect (dev mode)
+
+For a throwaway local lab, set `LAB_DEV_MODE=true` in **that profile's** `profile.env` (not process env on `default` — preflight rejects the drift). Then `make up`. Tokens, Alice's bind password (`lab-dev-alice-12` on the default catalog), and the mail admin password come from `dev-credentials.yaml` and are the same on every clone using that catalog. labinfo reveals them. Never enable this on a shared internet-facing host. Flip the knob back to `false` and run `mcplab secrets` to remint.
+
 ## Reload one app (not a full redeploy)
 
 `make up` rebuilds everything. After you edit one service's YAML, or need to

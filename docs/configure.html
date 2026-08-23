@@ -46,18 +46,19 @@
       <article class="prose">
         <div class="eyebrow">Guide 02</div>
         <h1>Configure the lab</h1>
-        <p>Everything a team varies lives in a profile. Compose files stay generic. Secrets are generated and gitignored. Runtime mutations are wipeable. The snippets below are taken from <code>profiles/default</code>.</p>
+        <p>Everything a team varies lives in a profile. Compose files stay generic. Generated secrets (<code>secrets/</code>, <code>third_party/*/secrets/</code>) are gitignored. <code>dev-credentials.yaml</code> is a documented lab-only catalog, inert unless <code>LAB_DEV_MODE=true</code>. Runtime mutations are wipeable. The snippets below are taken from <code>profiles/default</code>.</p>
 
         <h2 id="ownership">Who owns what</h2>
         <ul>
           <li><strong>This repo</strong> owns profiles, secrets layout, compose overlays, the <code>mcplab</code> CLI, and gateway policy.</li>
           <li><strong>Vendored repos</strong> own the appliances. Do not edit <code>third_party/</code> in place — add a patch under <code>patches/</code> and send it upstream.</li>
-          <li><strong>Generated files</strong> — <code>secrets/</code> and <code>third_party/*/secrets/</code> — are produced by <code>mcplab secrets</code> and never committed.</li>
+          <li><strong>Generated files</strong> — <code>secrets/</code> and <code>third_party/*/secrets/</code> — are produced by <code>mcplab secrets</code> and never committed. Documented lab-only values in <code>dev-credentials.yaml</code> are allowed and inert unless <code>LAB_DEV_MODE=true</code>.</li>
         </ul>
 
         <h2 id="profile">A profile directory</h2>
         <pre><code>profiles/<name>/
   profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  dev-credentials.yaml     lab-only catalog (used iff LAB_DEV_MODE=true)
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
   labinfo/services.yaml    endpoint + connection catalog
@@ -114,7 +115,7 @@ PROFILE=default
             <tr><td><code>LABMITM_WEB_PORT</code></td><td>18088</td><td>LabMITM inspector UI + /v1 + MCP.</td></tr>
             <tr><td><code>LABINFO_PORT</code></td><td>18090</td><td>Service-directory MCP.</td></tr>
             <tr><td><code>LAB_PUBLIC_HOST</code></td><td>localhost</td><td>Hostname labinfo puts in every URL.</td></tr>
-            <tr><td><code>LAB_DEV_MODE</code></td><td>false</td><td>Single security knob.</td></tr>
+            <tr><td><code>LAB_DEV_MODE</code></td><td>false</td><td>Single security knob. Also consumes <code>dev-credentials.yaml</code>.</td></tr>
             <tr><td><code>NFS_ARCHIVE_DIR</code></td><td>.data/nfs</td><td>Empty-root fixtures.tar.zst (writable; live commit replaces it).</td></tr>
             <tr><td><code>NFS_DATA_DIR</code></td><td>.data/nfs-work</td><td>Indexes plus the durable write overlay. Give it real disk.</td></tr>
             <tr><td><code>NFS_COMMIT_OVERLAY_INTERVAL</code></td><td>15m</td><td>How often overlay writes are spliced into the .tar.zst.</td></tr>
@@ -316,8 +317,8 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
 
         <h2 id="security">One knob: LAB_DEV_MODE</h2>
         <ul>
-          <li><strong>false (default)</strong> — enterprise gateway. Clients send <code>Authorization: Bearer $(cat secrets/mcp-client-token)</code>. labinfo describes auth and never reveals secrets.</li>
-          <li><strong>true</strong> — open gateway, and labinfo reveals web tokens and connection secrets (LDAP bind password, RADIUS shared secret). Never default a shared team profile to dev mode.</li>
+          <li><strong>false (default)</strong> — enterprise gateway. Clients send <code>Authorization: Bearer $(cat secrets/mcp-client-token)</code>. labinfo describes auth and never reveals secrets. Secret files are random-if-missing; leaving dev mode remints them.</li>
+          <li><strong>true</strong> — open gateway, labinfo reveals web tokens and connection secrets, and <code>mcplab secrets</code> writes this profile's <code>dev-credentials.yaml</code>. The default profile ships <code>lab-dev-*</code> values; they are inert unless this knob is on. Never default a shared team profile to dev mode.</li>
         </ul>
         <p class="note">Markdown twin: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/guides/configuration.md">docs/guides/configuration.md</a>. Design and phase-1 OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>.</p>
       </article>

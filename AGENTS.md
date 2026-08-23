@@ -36,9 +36,10 @@ we work by.
    test against the lab; host ports are profile-defined, container-internal
    ports are irrelevant. Don't bind new services to loopback; do give them
    bearer/TLS auth like the existing ones.
-6. **Never commit secrets.** `secrets/` and `third_party/*/secrets/` are generated
-   by `mcplab secrets` and gitignored. Tokens are static bearer credentials
-   for the lab only.
+6. **Never commit generated/runtime secrets.** `secrets/` and
+   `third_party/*/secrets/` are produced by `mcplab secrets` and gitignored.
+   Documented lab-only values in `profiles/<name>/dev-credentials.yaml` are
+   allowed and are inert unless `LAB_DEV_MODE=true`.
 7. **Never edit `third_party/` in place as the fix.** Vendored repos are cloned by
    `mcplab vendor`. If an upstream change is needed: add a patch in
    `patches/` (applied idempotently by `mcplab vendor`), document it in
@@ -70,12 +71,17 @@ we work by.
  it; new ports go in the labinfo service's compose environment so `${VAR}`
  expansion sees them.
 10. **Dev mode is one knob: `LAB_DEV_MODE` in the profile.** `true` opens the
- gateway (MCPJungle development mode, no client auth) and makes labinfo
- reveal credentials (web-service tokens and connection secrets alike);
- `false` (default) hardens the gateway
-    (enterprise: client tokens + ACLs) and labinfo only describes how auth
-    works. `MCPJUNGLE_MODE` may still be pinned explicitly to decouple the
-    two. Never default a shared/team profile to dev mode.
+ gateway (MCPJungle development mode, no client auth), makes labinfo
+ reveal credentials (web-service tokens and connection secrets alike),
+ and reconciles secret files from that profile's `dev-credentials.yaml`
+ (no merge with `default`; fail-closed if the catalog is missing).
+ `false` (default) hardens the gateway (enterprise: client tokens + ACLs),
+ labinfo only describes how auth works, and minting stays random-if-missing.
+ Leaving dev mode remints orchestrator tokens, `setupsecrets --force`, and
+ `labgen -force`; `Secrets()` reloads running containers. `MCPJUNGLE_MODE`
+ may still be pinned explicitly to decouple gateway mode from catalog
+ reconcile and labinfo reveal. Never default a shared/team profile to
+ dev mode.
 11. **The mail sink never sends mail.** Compose service name and labinfo
     catalog id stay `maildev` for the swap release (rename later, not in
     the image-pin change). The image is LabMail (`go-lab-maildev`, pinned
@@ -225,4 +231,7 @@ we work by.
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,
-  profile switch, or first bring-up.
+  profile switch, or first bring-up. After a catalog or `LAB_DEV_MODE`
+  change, `mcplab secrets` is enough: it reloads running apps whose files
+  changed (and `Register()` if any registrarEnv token changed). `make up`
+  skips those names so they are not bounced twice.

@@ -58,7 +58,7 @@ make smoke</code></pre>
         <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM.</p>
 
         <h2 id="client">Attach an MCP client</h2>
-        <p>The default profile runs the gateway in enterprise mode. Clients send a bearer token. Drop the header only if you set <code>LAB_DEV_MODE=true</code>.</p>
+        <p>The default profile runs the gateway in enterprise mode. Clients send a bearer token. Drop the header only if you set <code>LAB_DEV_MODE=true</code> in that profile's <code>profile.env</code> — then tokens, Alice's bind password, and the mail admin password come from <code>dev-credentials.yaml</code>.</p>
         <pre><code>{
   "mcpServers": {
     "integration-lab": {

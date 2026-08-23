@@ -16,12 +16,20 @@ func (r *Runner) Up() error {
 		r.refreshDerivedEnv, // pick up secrets generated a moment ago
 		r.Fixtures,
 		r.EnsureNetwork,
-		r.LabLDAPUp,
-		r.LabTacacsUp,
 	} {
 		if err := step(); err != nil {
 			return err
 		}
+	}
+	if r.alreadyReloaded("labldap") {
+		fmt.Println("up: skip labldap (reloaded this process)")
+	} else if err := r.LabLDAPUp(); err != nil {
+		return err
+	}
+	if r.alreadyReloaded("labtacacs") {
+		fmt.Println("up: skip labtacacs (reloaded this process)")
+	} else if err := r.LabTacacsUp(); err != nil {
+		return err
 	}
 	if err := r.compose("up", "-d", "--build", "--wait"); err != nil {
 		return err

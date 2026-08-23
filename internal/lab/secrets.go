@@ -1,76 +1,185 @@
 package lab
 
 import (
+	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/hilather/mcp-integration-lab/internal/profile"
 	"github.com/hilather/mcp-integration-lab/internal/taclabcfg"
 )
 
-// Secrets generates all lab secrets. Idempotent: existing files are kept.
-//
-//	secrets/labdns-token            bearer the gateway presents to LabDNS
-//	secrets/labmail-token           bearer the gateway presents to LabMail
-//	secrets/labmitm-token           bearer the gateway presents to LabMITM
-//	secrets/maildev-web-password    HTTP Basic password for the mail UI / /email
-//	secrets/mcp-client-token        client token for MCPJungle enterprise mode
-//	third_party/go-lab-ldap-mcp/secrets/...   minted by LabLDAP's own tools
-//	third_party/go-lab-ldap-mcp/secrets/tls/  lab CA + directory & management certs
+const devModeMarkerRel = "secrets/.lab-dev-mode"
+
+// secretsDeps overrides subprocesses and docker for tests without a daemon.
+type secretsDeps struct {
+	setupsecrets    func(force bool) error
+	setuptls        func() error
+	ensureTaclab    func(force bool) error
+	containerExists func(name string) (bool, error)
+	reloadMain      func(service string) error
+	reloadGateway   func() error
+	reloadLabLDAP   func() error
+	reloadLabTacacs func() error
+	register        func() error
+}
+
+type secretChanges struct {
+	labdnsToken    bool
+	labinfoToken   bool
+	labmailToken   bool
+	maildevWeb     bool
+	mcpClientToken bool
+	labldapAlice   bool
+	labldapRuntime bool
+	labldapDM      bool
+	labldapAdmin   bool
+}
+
+func (c secretChanges) labldap() bool {
+	return c.labldapAlice || c.labldapRuntime || c.labldapDM || c.labldapAdmin
+}
+
+func (c secretChanges) registrarEnv() bool {
+	return c.labdnsToken || c.labinfoToken || c.labmailToken || c.mcpClientToken || c.labldapAdmin
+}
+
+func (c secretChanges) count() int {
+	n := 0
+	for _, v := range []bool{
+		c.labdnsToken, c.labinfoToken, c.labmailToken, c.maildevWeb, c.mcpClientToken,
+		c.labldapAlice, c.labldapRuntime, c.labldapDM, c.labldapAdmin,
+	} {
+		if v {
+			n++
+		}
+	}
+	return n
+}
+
+// Secrets generates or reconciles lab secrets. Non-dev mints random files
+// if missing. Dev mode (LAB_DEV_MODE only — never MCPJUNGLE_MODE) writes
+// the active profile's dev-credentials.yaml. Leaving dev mode remints.
+// When containers already exist, Secrets() reloads them; Up skips those
+// names via reloadedThisRun.
 func (r *Runner) Secrets() error {
+	r.reloadedThisRun = map[string]bool{}
 	if err := os.MkdirAll(r.path("secrets"), 0o755); err != nil {
 		return err
 	}
-	// Containers run as uid 65532; the LabDNS token file must be readable
-	// there. Lab-grade tradeoff, documented.
+	if err := os.MkdirAll(r.path("secrets/mcpjungle-home"), 0o755); err != nil {
+		return err
+	}
+
+	devMode := profile.IsTrue(r.Prof.Get("LAB_DEV_MODE", "false"))
+	marker := r.path(devModeMarkerRel)
+	_, markerErr := os.Stat(marker)
+	markerExists := markerErr == nil
+
+	if devMode {
+		return r.secretsEnterDev(marker)
+	}
+	if markerExists {
+		return r.secretsLeaveDev(marker)
+	}
+	return r.secretsRandomMint()
+}
+
+func (r *Runner) secretsEnterDev(marker string) error {
+	doc, raw, err := r.loadActiveDevCredentials()
+	if err != nil {
+		return err
+	}
+	prevHash := readMarkerCatalogSHA(marker)
+	ch, err := r.applyDevCatalog(doc)
+	if err != nil {
+		return err
+	}
+	if err := r.labldapSetupsecrets(false); err != nil {
+		return err
+	}
+	if err := r.generateTaclabLab(false); err != nil {
+		return err
+	}
+
+	newHash := sha256Hex(raw)
+	if prevHash != "" && prevHash != newHash {
+		fmt.Printf("dev-credentials.yaml changed; reconciled %d files\n", ch.count())
+	}
+	if err := writeDevModeMarker(marker, r.Prof.Name, newHash); err != nil {
+		return err
+	}
+
+	if err := r.labldapSetuptls(); err != nil {
+		return err
+	}
+	if err := writeTokenIfMissing(r.path("secrets/labmitm-token"), 0o644); err != nil {
+		return err
+	}
+	if err := r.stageLabinfoCreds(); err != nil {
+		return err
+	}
+	if err := r.applySecretReloads(ch, false); err != nil {
+		return err
+	}
+	fmt.Println("secrets ready")
+	return nil
+}
+
+func (r *Runner) secretsLeaveDev(marker string) error {
+	if err := r.leaveDevRemint(); err != nil {
+		return err
+	}
+	if err := r.labldapSetuptls(); err != nil {
+		return err
+	}
+	if err := r.stageLabinfoCreds(); err != nil {
+		return err
+	}
+	if err := r.applySecretReloads(secretChanges{}, true); err != nil {
+		return err
+	}
+	if err := os.Remove(marker); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	fmt.Println("secrets ready")
+	return nil
+}
+
+func (r *Runner) secretsRandomMint() error {
 	if err := writeTokenIfMissing(r.path("secrets/labdns-token"), 0o644); err != nil {
 		return err
 	}
 	if err := writeTokenIfMissing(r.path("secrets/mcp-client-token"), 0o600); err != nil {
 		return err
 	}
-	// Inbound bearer for the labinfo service (gateway -> labinfo).
 	if err := writeTokenIfMissing(r.path("secrets/labinfo-token"), 0o644); err != nil {
 		return err
 	}
-	// The mcpjungle CLI stores its (enterprise) admin config here.
-	if err := os.MkdirAll(r.path("secrets/mcpjungle-home"), 0o755); err != nil {
-		return err
-	}
-
-	// LabMail bearer (MCP + native /v1) and web Basic password. Both are
-	// bind-mounted into the unprivileged container (uid 65532), so they
-	// must be 0o644. 0o600 was only safe while MAILDEV_WEB_PASS was env-
-	// injected. Existing files are chmod'd on every run.
 	if err := writeTokenIfMissing(r.path("secrets/labmail-token"), 0o644); err != nil {
 		return err
 	}
 	if err := writeTokenIfMissing(r.path("secrets/maildev-web-password"), 0o644); err != nil {
 		return err
 	}
-	// LabMITM bearer (MCP + native /v1). Bind-mounted into uid 65532.
 	if err := writeTokenIfMissing(r.path("secrets/labmitm-token"), 0o644); err != nil {
 		return err
 	}
-
-	// LabLDAP secrets + lab CA. The --management cert is what lets the gateway
-	// verify the control plane's TLS. Native directory TLS is the same lab CA
-	// (`directory` cert); there is no 389 instance-CA publish step.
-	ll := "third_party/go-lab-ldap-mcp"
-	if err := r.run(ll, "go", "run", "./tools/setupsecrets", "--dir", "secrets"); err != nil {
+	if err := r.labldapSetupsecrets(false); err != nil {
 		return err
 	}
-	if err := r.run(ll, "go", "run", "./tools/setuptls", "generate",
-		"--dir", "secrets/tls", "--host", "directory", "--management"); err != nil {
+	if err := r.labldapSetuptls(); err != nil {
 		return err
 	}
-
-	if err := r.ensureTaclabLab(); err != nil {
+	if err := r.generateTaclabLab(false); err != nil {
 		return err
 	}
-
 	if err := r.stageLabinfoCreds(); err != nil {
 		return err
 	}
@@ -78,26 +187,146 @@ func (r *Runner) Secrets() error {
 	return nil
 }
 
-const taclabLabgenMarker = "deployments/compose/.mcplab-labgen-ref"
+func (r *Runner) loadActiveDevCredentials() (*DevCredentials, []byte, error) {
+	path := filepath.Join(r.Prof.Dir, "dev-credentials.yaml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("LAB_DEV_MODE=true requires %s: %w", path, err)
+	}
+	doc, err := LoadDevCredentials(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("LAB_DEV_MODE=true: %w", err)
+	}
+	return doc, b, nil
+}
+
+func (r *Runner) applyDevCatalog(doc *DevCredentials) (secretChanges, error) {
+	var ch secretChanges
+	type item struct {
+		rel  string
+		val  string
+		mode os.FileMode
+		flag *bool
+	}
+	ll := "third_party/go-lab-ldap-mcp/secrets/"
+	items := []item{
+		{"secrets/labdns-token", doc.Spec.Tokens.LabDNS, 0o644, &ch.labdnsToken},
+		{"secrets/labinfo-token", doc.Spec.Tokens.Labinfo, 0o644, &ch.labinfoToken},
+		{"secrets/labmail-token", doc.Spec.Tokens.Labmail, 0o644, &ch.labmailToken},
+		{"secrets/mcp-client-token", doc.Spec.Tokens.MCPClient, 0o600, &ch.mcpClientToken},
+		{"secrets/maildev-web-password", doc.Spec.Passwords.MaildevWeb, 0o644, &ch.maildevWeb},
+		{ll + "token-admin", doc.Spec.Tokens.LabLDAPAdmin, 0o600, &ch.labldapAdmin},
+		{ll + "user-alice", doc.Spec.Passwords.LabLDAPAlice, 0o600, &ch.labldapAlice},
+		{ll + "runtime-ldap", doc.Spec.Passwords.LabLDAPRuntime, 0o600, &ch.labldapRuntime},
+		{ll + "dm.pw", doc.Spec.Passwords.LabLDAPDM, 0o600, &ch.labldapDM},
+		{ll + "directory.env", "DS_DM_PASSWORD=" + doc.Spec.Passwords.LabLDAPDM, 0o600, &ch.labldapDM},
+	}
+	for _, it := range items {
+		changed, err := writeSecretBytes(r.path(it.rel), it.val, it.mode)
+		if err != nil {
+			return ch, err
+		}
+		if changed {
+			*it.flag = true
+		}
+	}
+	return ch, nil
+}
+
+func (r *Runner) leaveDevRemint() error {
+	for _, it := range []struct {
+		rel  string
+		mode os.FileMode
+	}{
+		{"secrets/labdns-token", 0o644},
+		{"secrets/labinfo-token", 0o644},
+		{"secrets/labmail-token", 0o644},
+		{"secrets/maildev-web-password", 0o644},
+		{"secrets/mcp-client-token", 0o600},
+		{"secrets/labmitm-token", 0o644},
+	} {
+		if err := writeTokenAlways(r.path(it.rel), it.mode); err != nil {
+			return err
+		}
+	}
+	if err := r.labldapSetupsecrets(true); err != nil {
+		return err
+	}
+	return r.generateTaclabLab(true)
+}
+
+func writeDevModeMarker(path, profileName, catalogSHA string) error {
+	body := fmt.Sprintf("profile=%s\ncatalog-sha256=%s\ntimestamp=%s\n",
+		profileName, catalogSHA, time.Now().UTC().Format(time.RFC3339))
+	return os.WriteFile(path, []byte(body), 0o644)
+}
+
+func readMarkerCatalogSHA(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		k, v, ok := strings.Cut(line, "=")
+		if ok && k == "catalog-sha256" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func sha256Hex(b []byte) string {
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
+}
+
+func (r *Runner) labldapSetupsecrets(force bool) error {
+	if r.deps != nil && r.deps.setupsecrets != nil {
+		return r.deps.setupsecrets(force)
+	}
+	args := []string{"run", "./tools/setupsecrets", "--dir", "secrets"}
+	if force {
+		args = append(args, "--force")
+	}
+	return r.run("third_party/go-lab-ldap-mcp", "go", args...)
+}
+
+func (r *Runner) labldapSetuptls() error {
+	if r.deps != nil && r.deps.setuptls != nil {
+		return r.deps.setuptls()
+	}
+	return r.run("third_party/go-lab-ldap-mcp", "go", "run", "./tools/setuptls", "generate",
+		"--dir", "secrets/tls", "--host", "directory", "--management")
+}
+
+func (r *Runner) generateTaclabLab(force bool) error {
+	if r.deps != nil && r.deps.ensureTaclab != nil {
+		return r.deps.ensureTaclab(force)
+	}
+	return r.ensureTaclabLab(force)
+}
 
 // ensureTaclabLab materializes TacLab's labgen bundle (configs, PKI, secrets)
 // and turns on api.mcp.allow_legacy_clients so MCPJungle can connect. labgen
 // is rerun with -force when the vendored checkout moves to a new tag, so a
-// pin bump cannot leave a stale baseline behind.
-func (r *Runner) ensureTaclabLab() error {
+// pin bump cannot leave a stale baseline behind. force also covers leave-dev.
+func (r *Runner) ensureTaclabLab(force bool) error {
 	ref, err := r.taclabVendorRef()
 	if err != nil {
 		return err
 	}
 	marker := r.path(taclabDir + "/" + taclabLabgenMarker)
 	prev, _ := os.ReadFile(marker)
-	need := strings.TrimSpace(string(prev)) != ref
+	need := force || strings.TrimSpace(string(prev)) != ref
 	if _, err := os.Stat(r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")); err != nil {
 		need = true
 	}
 	if need {
 		args := []string{"run", "./tools/labgen", "deployments/compose"}
-		if _, err := os.Stat(r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")); err == nil {
+		tokenPath := r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")
+		if force {
+			args = []string{"run", "./tools/labgen", "-force", "deployments/compose"}
+		} else if _, err := os.Stat(tokenPath); err == nil {
 			args = []string{"run", "./tools/labgen", "-force", "deployments/compose"}
 		}
 		if err := r.run(taclabDir, "go", args...); err != nil {
@@ -112,6 +341,8 @@ func (r *Runner) ensureTaclabLab() error {
 	}
 	return nil
 }
+
+const taclabLabgenMarker = "deployments/compose/.mcplab-labgen-ref"
 
 func (r *Runner) taclabVendorRef() (string, error) {
 	out, err := r.capture(".", "git", "-C", r.path(taclabDir), "describe", "--tags", "--always")
@@ -138,8 +369,8 @@ func (r *Runner) stageLabinfoCreds() error {
 		"secrets/labdns-token":                                                "labdns-token",
 		"secrets/mcp-client-token":                                            "mcp-client-token",
 		"secrets/labmail-token":                                               "labmail-token",
-		"secrets/labmitm-token":                                               "labmitm-token",
 		"secrets/maildev-web-password":                                        "maildev-web-password",
+		"secrets/labmitm-token":                                               "labmitm-token",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "labldap-token-admin",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "labldap-user-alice",
 		taclabDir + "/deployments/compose/secrets/api_admin_token":            "labtacacs-token-admin",
@@ -160,13 +391,222 @@ func writeTokenIfMissing(path string, mode os.FileMode) error {
 	if _, err := os.Stat(path); err == nil {
 		return os.Chmod(path, mode)
 	}
+	return mintTokenFile(path, mode, "wrote %s\n")
+}
+
+func writeTokenAlways(path string, mode os.FileMode) error {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return mintTokenFile(path, mode, "rotated %s (left dev mode)\n")
+}
+
+func mintTokenFile(path string, mode os.FileMode, msg string) error {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	if err := os.WriteFile(path, []byte(hex.EncodeToString(buf)+"\n"), mode); err != nil {
 		return err
 	}
-	fmt.Printf("wrote %s\n", path)
+	fmt.Printf(msg, path)
+	return nil
+}
+
+func writeSecretBytes(path, value string, mode os.FileMode) (bool, error) {
+	desired := []byte(value + "\n")
+	existing, err := os.ReadFile(path)
+	switch {
+	case err == nil && bytes.Equal(existing, desired):
+		if err := os.Chmod(path, mode); err != nil {
+			return false, err
+		}
+		fmt.Printf("skipped %s (exists)\n", path)
+		return false, nil
+	case err != nil && !os.IsNotExist(err):
+		return false, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, err
+	}
+	if err := os.WriteFile(path, desired, mode); err != nil {
+		return false, err
+	}
+	if err := os.Chmod(path, mode); err != nil {
+		return false, err
+	}
+	if os.IsNotExist(err) {
+		fmt.Printf("wrote %s\n", path)
+	} else {
+		fmt.Printf("reconciled %s (dev catalog)\n", path)
+	}
+	return true, nil
+}
+
+func (r *Runner) alreadyReloaded(name string) bool {
+	return r.reloadedThisRun[name]
+}
+
+func (r *Runner) markReloaded(name string) {
+	if r.reloadedThisRun == nil {
+		r.reloadedThisRun = map[string]bool{}
+	}
+	r.reloadedThisRun[name] = true
+}
+
+func (r *Runner) serviceExists(name string) (bool, error) {
+	if r.deps != nil && r.deps.containerExists != nil {
+		return r.deps.containerExists(name)
+	}
+	var (
+		out string
+		err error
+	)
+	switch name {
+	case "labdns", "maildev", "labinfo", "mcpjungle":
+		out, err = r.capture(".", "docker", "compose", "ps", "-aq", name)
+	case "labldap":
+		out, err = r.capture(".", "docker", r.labldapComposeArgs("ps", "-aq", "directory")...)
+	case "labtacacs":
+		out, err = r.capture(".", "docker", r.labtacacsComposeArgs("ps", "-aq")...)
+	default:
+		return false, fmt.Errorf("internal: unknown service %q", name)
+	}
+	if err != nil {
+		return false, nil
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
+	exists := func(name string) bool {
+		ok, err := r.serviceExists(name)
+		return err == nil && ok
+	}
+
+	if err := r.reloadMainIf(exists, "labdns", leaveDev || ch.labdnsToken); err != nil {
+		return err
+	}
+	if err := r.reloadMainIf(exists, "maildev", leaveDev || ch.labmailToken || ch.maildevWeb); err != nil {
+		return err
+	}
+	if err := r.reloadMainIf(exists, "labinfo", leaveDev || ch.labinfoToken); err != nil {
+		return err
+	}
+
+	registrar := leaveDev || ch.registrarEnv()
+	if registrar && exists("mcpjungle") {
+		if leaveDev || ch.mcpClientToken {
+			if err := r.doReloadGateway(); err != nil {
+				return err
+			}
+		} else if err := r.doRegister(); err != nil {
+			return err
+		}
+	}
+
+	if (leaveDev || ch.labldap()) && exists("labldap") {
+		if err := r.doReloadLabLDAP(); err != nil {
+			return err
+		}
+	}
+	if leaveDev && exists("labtacacs") {
+		if err := r.doReloadLabTacacs(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Runner) reloadMainIf(exists func(string) bool, service string, needed bool) error {
+	if !needed || !exists(service) {
+		return nil
+	}
+	return r.doReloadMain(service)
+}
+
+func (r *Runner) doReloadMain(service string) error {
+	fmt.Printf("secrets: reload %s\n", service)
+	var err error
+	if r.deps != nil && r.deps.reloadMain != nil {
+		err = r.deps.reloadMain(service)
+	} else {
+		err = r.reloadMain(service)
+	}
+	if err != nil {
+		return err
+	}
+	r.markReloaded(service)
+	return nil
+}
+
+func (r *Runner) doReloadGateway() error {
+	fmt.Println("secrets: reload mcpjungle")
+	var err error
+	if r.deps != nil && r.deps.reloadGateway != nil {
+		err = r.deps.reloadGateway()
+	} else {
+		if err = r.EnsureNetwork(); err == nil {
+			if err = r.reloadMain("mcpjungle"); err == nil {
+				err = r.Register()
+			}
+		}
+	}
+	if err != nil {
+		return err
+	}
+	r.markReloaded("mcpjungle")
+	r.markReloaded("register")
+	return nil
+}
+
+func (r *Runner) doRegister() error {
+	if r.alreadyReloaded("register") || r.alreadyReloaded("mcpjungle") {
+		return nil
+	}
+	fmt.Println("secrets: register (registrarEnv tokens changed)")
+	var err error
+	if r.deps != nil && r.deps.register != nil {
+		err = r.deps.register()
+	} else {
+		err = r.Register()
+	}
+	if err != nil {
+		return err
+	}
+	r.markReloaded("register")
+	return nil
+}
+
+func (r *Runner) doReloadLabLDAP() error {
+	fmt.Println("secrets: reload labldap")
+	var err error
+	if r.deps != nil && r.deps.reloadLabLDAP != nil {
+		err = r.deps.reloadLabLDAP()
+	} else {
+		err = r.reloadLabLDAP()
+	}
+	if err != nil {
+		return err
+	}
+	r.markReloaded("labldap")
+	return nil
+}
+
+func (r *Runner) doReloadLabTacacs() error {
+	fmt.Println("secrets: reload labtacacs")
+	var err error
+	if r.deps != nil && r.deps.reloadLabTacacs != nil {
+		err = r.deps.reloadLabTacacs()
+	} else {
+		err = r.reloadLabTacacs()
+	}
+	if err != nil {
+		return err
+	}
+	r.markReloaded("labtacacs")
 	return nil
 }
