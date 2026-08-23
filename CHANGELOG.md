@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-23
+
 ### Added
 
 - **LabMITM v1.1.0** compose-in: `labmitm:local` (`--management-listen=:8088`),
