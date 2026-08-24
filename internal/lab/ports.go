@@ -1,11 +1,13 @@
 package lab
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/hilather/mcp-integration-lab/internal/profile"
 )
@@ -85,18 +87,38 @@ func publishedPortBindings(p *profile.Profile) ([]portBinding, error) {
 	return out, nil
 }
 
+// isPermissionDenied reports bind/listen failures that mean "this process
+// cannot open the port", not "something else is already listening". Privileged
+// ports (TacLab 49/300) return EACCES to an unprivileged orchestrator; dockerd
+// can still publish them.
+func isPermissionDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) {
+		return true
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "permission denied")
+}
+
 func probePort(proto portProto, port int) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	switch proto {
 	case portTCP:
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
+			if isPermissionDenied(err) {
+				return nil
+			}
 			return err
 		}
 		return ln.Close()
 	case portUDP:
 		conn, err := net.ListenPacket("udp", addr)
 		if err != nil {
+			if isPermissionDenied(err) {
+				return nil
+			}
 			return err
 		}
 		return conn.Close()

@@ -94,6 +94,9 @@ in `.env` while the profile sets `53`).
    `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`).
 2. **Host ports** — every published port from the active profile must be free,
    or already held only by this lab's Docker containers (idempotent restarts).
+   `EACCES` / permission-denied on privileged ports (default TacLab `49` /
+   `300` when the orchestrator is not root) is not treated as occupied:
+   dockerd can still publish them.
 
 If a profile uses IANA port 53 for DNS and systemd-resolved already holds it,
 preflight fails before compose starts. Stop the conflicting service or pick a

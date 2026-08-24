@@ -7,6 +7,13 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Fixed
+
+- Host-port preflight no longer treats `EACCES` / permission-denied as
+  occupied. Privileged TacLab ports `49` and `300` cannot be bound by the
+  GitHub-hosted `runner` user; dockerd can still publish them, so
+  `smoke-dev` can `make up` on those runners.
+
 ## [0.7.0] - 2026-08-23
 
 ### Changed
