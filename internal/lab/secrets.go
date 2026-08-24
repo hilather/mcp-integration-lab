@@ -679,6 +679,23 @@ func (r *Runner) markReloaded(name string) {
 	r.reloadedThisRun[name] = true
 }
 
+// secretReloadInspectKind is the docker inspect strategy for every name
+// applySecretReloads passes to serviceExists. A missing case fail-closes
+// with "unknown service" and aborts mcplab secrets (enter-dev, leave-dev,
+// and catalog token changes).
+func secretReloadInspectKind(name string) string {
+	switch name {
+	case "labdns", "maildev", "labinfo", "mcpjungle", "labmitm":
+		return "main"
+	case "labldap":
+		return "labldap"
+	case "labtacacs":
+		return "labtacacs"
+	default:
+		return ""
+	}
+}
+
 func (r *Runner) serviceExists(name string) (bool, error) {
 	if r.deps != nil && r.deps.containerExists != nil {
 		return r.deps.containerExists(name)
@@ -687,8 +704,8 @@ func (r *Runner) serviceExists(name string) (bool, error) {
 		out string
 		err error
 	)
-	switch name {
-	case "labdns", "maildev", "labinfo", "mcpjungle":
+	switch secretReloadInspectKind(name) {
+	case "main":
 		out, err = r.capture(".", "docker", "compose", "ps", "-aq", name)
 	case "labldap":
 		out, err = r.capture(".", "docker", r.labldapComposeArgs("ps", "-aq", "directory")...)

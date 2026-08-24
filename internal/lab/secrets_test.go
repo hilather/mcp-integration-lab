@@ -383,7 +383,7 @@ func TestSecretsLeaveDevKeepsMarkerIfReloadFails(t *testing.T) {
 	}
 	r.Prof.Values["LAB_DEV_MODE"] = "false"
 	installTestSecretsDeps(r, map[string]bool{
-		"labdns": true, "maildev": true, "labinfo": true,
+		"labdns": true, "maildev": true, "labinfo": true, "labmitm": true,
 		"mcpjungle": true, "labldap": true, "labtacacs": true,
 	})
 	r.deps.reloadLabTacacs = func() error { return errors.New("reload failed") }
@@ -532,7 +532,7 @@ func TestSecretsMatchingCatalogDoesNotReload(t *testing.T) {
 		t.Fatal(err)
 	}
 	exists := map[string]bool{
-		"labdns": true, "maildev": true, "labinfo": true,
+		"labdns": true, "maildev": true, "labinfo": true, "labmitm": true,
 		"mcpjungle": true, "labldap": true, "labtacacs": true,
 	}
 	installTestSecretsDeps(r, exists)
@@ -550,6 +550,83 @@ func TestSecretsMatchingCatalogDoesNotReload(t *testing.T) {
 	}
 	if len(r.reloadedThisRun) != 0 {
 		t.Fatalf("reloadedThisRun=%v, want empty", r.reloadedThisRun)
+	}
+}
+
+func TestSecretReloadInspectKindCoversApplySecretReloadsTargets(t *testing.T) {
+	// applySecretReloads calls serviceExists for these names. Tests that
+	// mock containerExists cannot catch a missing production switch case;
+	// the first unmocked enter-dev then fail-closes mid-secrets.
+	for _, name := range []string{"labdns", "maildev", "labinfo", "labmitm", "mcpjungle", "labldap", "labtacacs"} {
+		if secretReloadInspectKind(name) == "" {
+			t.Errorf("applySecretReloads inspects %q but serviceExists does not know it", name)
+		}
+	}
+	if got := secretReloadInspectKind("labmitm"); got != "main" {
+		t.Fatalf("labmitm kind = %q, want main (compose ps)", got)
+	}
+	_, err := (&Runner{}).serviceExists("not-a-service")
+	if err == nil || !strings.Contains(err.Error(), `unknown service "not-a-service"`) {
+		t.Fatalf("unknown name must fail closed, got %v", err)
+	}
+}
+
+func TestSecretsEnterDevReloadsRunningLabMITM(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	installTestSecretsDeps(r, map[string]bool{"labmitm": true})
+	var mains []string
+	r.deps.reloadMain = func(s string) error {
+		mains = append(mains, s)
+		return nil
+	}
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, s := range mains {
+		if s == "labmitm" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("enter-dev must reload a running labmitm; mains=%v", mains)
+	}
+	if !r.alreadyReloaded("labmitm") {
+		t.Fatalf("reloadedThisRun=%v, want labmitm", r.reloadedThisRun)
+	}
+}
+
+func TestSecretsLabmitmTokenChangeReloadsLabMITM(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(r.path("secrets/labmitm-token"), []byte("stale-mitm-token\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	installTestSecretsDeps(r, map[string]bool{"labmitm": true, "mcpjungle": true})
+	var mains []string
+	var registered bool
+	r.deps.reloadMain = func(s string) error {
+		mains = append(mains, s)
+		return nil
+	}
+	r.deps.register = func() error { registered = true; return nil }
+	r.deps.reloadGateway = func() error { t.Fatal("labmitm token alone must Register, not reload gateway"); return nil }
+	r.deps.reloadLabLDAP = func() error { t.Fatal("unexpected labldap reload"); return nil }
+	r.deps.reloadLabTacacs = func() error { t.Fatal("unexpected labtacacs reload"); return nil }
+
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTrim(t, r, "secrets/labmitm-token"); got != "lab-dev-labmitm-token" {
+		t.Fatalf("labmitm-token = %q, want catalog", got)
+	}
+	if len(mains) != 1 || mains[0] != "labmitm" {
+		t.Fatalf("labmitm token change must reload labmitm only; mains=%v", mains)
+	}
+	if !registered || !r.alreadyReloaded("register") {
+		t.Fatal("labmitm is a registrarEnv token; must Register")
 	}
 }
 

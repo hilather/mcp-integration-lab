@@ -7,6 +7,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Fixed
+
+- `mcplab secrets` no longer fail-closes with `unknown service "labmitm"`
+  when entering or leaving `LAB_DEV_MODE`, or when the LabMITM token
+  changes. `serviceExists` now inspects the main compose `labmitm`
+  service the same way as labdns/maildev/labinfo, so a running LabMITM
+  is reloaded with the catalog (or reminted) token.
+
 ## [0.7.0] - 2026-08-23
 
 ### Changed
