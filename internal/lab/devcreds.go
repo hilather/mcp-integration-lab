@@ -19,6 +19,11 @@ const (
 	// LabLDAP scenario passwordPolicy.minLength (profiles/default).
 	labldapPasswordMinLength = 12
 
+	// LabMail v1.0.0-rc.3 and LabMITM v1.1.1 auth.MinTokenBytes. Serve
+	// fail-closes below this; a short catalog token makes maildev/labmitm
+	// crash-loop and compose --wait reports unhealthy.
+	applianceTokenMinBytes = 32
+
 	// TacLab v1.3.0 internal/config/secretpolicy.go (config.Validate does
 	// not read secret files).
 	taclabSharedSecretMinLen     = 16
@@ -45,7 +50,8 @@ type DevCredentialsSpec struct {
 }
 
 // DevTokens are opaque bearers. Charset is not constrained (hex vs
-// base64url vs lab-dev-…).
+// base64url vs lab-dev-…). labmail and labmitm must be at least
+// applianceTokenMinBytes (LabMail/LabMITM auth.MinTokenBytes).
 type DevTokens struct {
 	LabDNS         string `yaml:"labdns"`
 	Labinfo        string `yaml:"labinfo"`
@@ -102,8 +108,9 @@ func parseDevCredentials(r io.Reader) (*DevCredentials, error) {
 }
 
 // Validate fail-closes on wrong apiVersion/kind, missing/empty required
-// keys, LabLDAP passwords shorter than minLength, and TacLab shared secrets
-// that would crash the appliance at boot.
+// keys, LabMail/LabMITM tokens shorter than auth.MinTokenBytes, LabLDAP
+// passwords shorter than minLength, and TacLab shared secrets that would
+// crash the appliance at boot.
 func (d *DevCredentials) Validate() error {
 	if d == nil {
 		return fmt.Errorf("dev credentials document is nil")
@@ -141,6 +148,15 @@ func (d *DevCredentials) Validate() error {
 	for _, f := range required {
 		if strings.TrimSpace(f.value) == "" {
 			return fmt.Errorf("%s is required", f.path)
+		}
+	}
+
+	for _, f := range []struct{ path, value string }{
+		{"spec.tokens.labmail", d.Spec.Tokens.Labmail},
+		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
+	} {
+		if len(f.value) < applianceTokenMinBytes {
+			return fmt.Errorf("%s is shorter than LabMail/LabMITM auth.MinTokenBytes (%d)", f.path, applianceTokenMinBytes)
 		}
 	}
 

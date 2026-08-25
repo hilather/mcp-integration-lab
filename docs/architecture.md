@@ -104,6 +104,9 @@ stay generated).
 Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
 `profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
 default profile ships `lab-dev-*` values) and is inert unless `LAB_DEV_MODE=true`.
+LabMail and LabMITM tokens must be at least 32 bytes (`auth.MinTokenBytes`);
+catalog validate fail-closes so a short value cannot crash-loop those
+containers.
 Container storage is profile-definable (`NFS_ARCHIVE_DIR`, `NFS_DATA_DIR`);
 the NFS work dir is a host bind mount so it gets real disk for indexes and
 the durable write overlay. The archive dir is also writable: live overlay

@@ -18,8 +18,8 @@ func TestLoadDevCredentialsValid(t *testing.T) {
 	cases := []struct{ path, got, want string }{
 		{"spec.tokens.labdns", doc.Spec.Tokens.LabDNS, "lab-dev-labdns-token"},
 		{"spec.tokens.labinfo", doc.Spec.Tokens.Labinfo, "lab-dev-labinfo-token"},
-		{"spec.tokens.labmail", doc.Spec.Tokens.Labmail, "lab-dev-labmail-token"},
-		{"spec.tokens.labmitm", doc.Spec.Tokens.LabMITM, "lab-dev-labmitm-token"},
+		{"spec.tokens.labmail", doc.Spec.Tokens.Labmail, "lab-dev-labmail-token-32b-minimum"},
+		{"spec.tokens.labmitm", doc.Spec.Tokens.LabMITM, "lab-dev-labmitm-token-32b-minimum"},
 		{"spec.tokens.mcpClient", doc.Spec.Tokens.MCPClient, "lab-dev-mcp-client-token"},
 		{"spec.tokens.labldapAdmin", doc.Spec.Tokens.LabLDAPAdmin, "lab-dev-labldap-token-admin"},
 		{"spec.tokens.labtacacsAdmin", doc.Spec.Tokens.LabTacacsAdmin, "lab-dev-labtacacs-token-admin"},
@@ -80,6 +80,39 @@ func TestLoadDevCredentialsEmptyValue(t *testing.T) {
 	_, err := LoadDevCredentials(testdataDevcreds("empty-value.yaml"))
 	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labdns is required") {
 		t.Fatalf("expected empty labdns, got %v", err)
+	}
+}
+
+func TestLoadDevCredentialsLabmailCatalogTokenTooShort(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("labmail-short.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labmail") {
+		t.Fatalf("expected labmail MinTokenBytes failure, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "MinTokenBytes") {
+		t.Fatalf("expected MinTokenBytes in error, got %v", err)
+	}
+}
+
+func TestLoadDevCredentialsLabmitmCatalogTokenTooShort(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("labmitm-short.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labmitm") {
+		t.Fatalf("expected labmitm MinTokenBytes failure, got %v", err)
+	}
+}
+
+func TestValidateApplianceTokensExactMinBytes(t *testing.T) {
+	doc, err := LoadDevCredentials(testdataDevcreds("valid.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc.Spec.Tokens.Labmail = strings.Repeat("m", applianceTokenMinBytes)
+	doc.Spec.Tokens.LabMITM = strings.Repeat("t", applianceTokenMinBytes)
+	if err := doc.Validate(); err != nil {
+		t.Fatalf("exactly %d-byte tokens must pass: %v", applianceTokenMinBytes, err)
+	}
+	doc.Spec.Tokens.Labmail = strings.Repeat("m", applianceTokenMinBytes-1)
+	if err := doc.Validate(); err == nil || !strings.Contains(err.Error(), "spec.tokens.labmail") {
+		t.Fatalf("expected %d-byte labmail to fail, got %v", applianceTokenMinBytes-1, err)
 	}
 }
 

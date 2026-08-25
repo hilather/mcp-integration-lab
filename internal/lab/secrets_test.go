@@ -246,8 +246,8 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 	want := map[string]string{
 		"secrets/labdns-token":                              "lab-dev-labdns-token",
 		"secrets/labinfo-token":                             "lab-dev-labinfo-token",
-		"secrets/labmail-token":                             "lab-dev-labmail-token",
-		"secrets/labmitm-token":                             "lab-dev-labmitm-token",
+		"secrets/labmail-token":                             "lab-dev-labmail-token-32b-minimum",
+		"secrets/labmitm-token":                             "lab-dev-labmitm-token-32b-minimum",
 		"secrets/mcp-client-token":                          "lab-dev-mcp-client-token",
 		"secrets/maildev-web-password":                      "lab-dev-mail-admin-1",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":   "lab-dev-labldap-token-admin",

@@ -76,7 +76,9 @@ we work by.
  including the LabLDAP CA PEM, TacLab lab-user passwords, and the TACACS+
  shared secret), and reconciles secret files from that profile's
  `dev-credentials.yaml` (no merge with `default`; fail-closed if the
- catalog is missing). `mcplab creds` / `make creds` prints the same sheet
+ catalog is missing). LabMail and LabMITM tokens must be ≥32 bytes
+ (`auth.MinTokenBytes`); Validate fail-closes so a short catalog cannot
+ crash-loop `maildev`/`labmitm`. `mcplab creds` / `make creds` prints the same sheet
  from files on disk (fails closed outside dev; never prints TLS private
  keys). `false` (default) hardens the gateway (enterprise: client tokens +
  ACLs), labinfo only describes how auth works, and minting stays

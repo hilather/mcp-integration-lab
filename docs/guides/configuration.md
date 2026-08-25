@@ -60,7 +60,9 @@ Never hardcode a port in `docker-compose.yaml` — add a variable to
 
 `dev-credentials.yaml` is a `DevCredentials` document
 (`apiVersion: mcplab.dev/v1alpha1`). Every token, password, and shared-secret
-key is required. LabLDAP passwords must be at least 12 characters; TacLab
+key is required. LabMail and LabMITM tokens must be at least 32 bytes
+(appliance `auth.MinTokenBytes` — a shorter value crash-loops those
+containers). LabLDAP passwords must be at least 12 characters; TacLab
 shared secrets must pass the appliance policy (length ≥16, ≥3 character
 classes, exact-match known-weak list). The active profile's file is the only
 source — there is no merge with `profiles/default`. `mcplab secrets` consumes
