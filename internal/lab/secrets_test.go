@@ -238,6 +238,16 @@ func mustHexToken(t *testing.T, got, label string) {
 	}
 }
 
+func TestServiceExistsKnowsLabMITM(t *testing.T) {
+	// applySecretReloads calls reloadMainIf("labmitm") without a mock in
+	// production. The inspect switch must know that name; mocked
+	// containerExists tests cannot catch a missing case.
+	_, err := (&Runner{}).serviceExists("labmitm")
+	if err != nil && strings.Contains(err.Error(), `unknown service "labmitm"`) {
+		t.Fatal(`serviceExists must inspect main compose labmitm`)
+	}
+}
+
 func TestSecretsDevWritesCatalog(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
 	if err := r.Secrets(); err != nil {

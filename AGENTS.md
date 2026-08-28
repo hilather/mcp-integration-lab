@@ -152,6 +152,10 @@ we work by.
 
 - Host ports 53 and 5353 collide with systemd-resolved/avahi; that's why DNS
   defaults to 10053.
+- Host-port preflight (`probePort`) must not treat `EACCES` / permission-denied
+  as occupied. Default TacLab ports 49/300 are privileged; the GH-hosted
+  `runner` user cannot `net.Listen` them, but dockerd can still publish them.
+  `EADDRINUSE` still fails preflight.
 - LabDNS is pinned to **v1.1.1**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can

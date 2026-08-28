@@ -688,7 +688,7 @@ func (r *Runner) serviceExists(name string) (bool, error) {
 		err error
 	)
 	switch name {
-	case "labdns", "maildev", "labinfo", "mcpjungle":
+	case "labdns", "maildev", "labinfo", "mcpjungle", "labmitm":
 		out, err = r.capture(".", "docker", "compose", "ps", "-aq", name)
 	case "labldap":
 		out, err = r.capture(".", "docker", r.labldapComposeArgs("ps", "-aq", "directory")...)

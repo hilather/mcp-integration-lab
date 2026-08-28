@@ -1,9 +1,12 @@
 package lab
 
 import (
+	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/hilather/mcp-integration-lab/internal/profile"
@@ -78,6 +81,67 @@ func TestPreflightPortsAvailableOnFreePort(t *testing.T) {
 	}
 	if err := r.preflightPortsAvailable(); err != nil {
 		t.Fatalf("preflightPortsAvailable() unexpected error: %v", err)
+	}
+}
+
+func TestIsPermissionDenied(t *testing.T) {
+	denied := &net.OpError{
+		Op:  "listen",
+		Net: "tcp",
+		Err: os.NewSyscallError("bind", syscall.EACCES),
+	}
+	if !isPermissionDenied(denied) {
+		t.Fatal("EACCES must be permission denied")
+	}
+	perm := &net.OpError{
+		Op:  "listen",
+		Net: "tcp",
+		Err: os.NewSyscallError("bind", syscall.EPERM),
+	}
+	if !isPermissionDenied(perm) {
+		t.Fatal("EPERM must be permission denied")
+	}
+	inUse := &net.OpError{
+		Op:  "listen",
+		Net: "tcp",
+		Err: os.NewSyscallError("bind", syscall.EADDRINUSE),
+	}
+	if isPermissionDenied(inUse) {
+		t.Fatal("EADDRINUSE must not be treated as permission denied")
+	}
+	if isPermissionDenied(nil) {
+		t.Fatal("nil must not be permission denied")
+	}
+}
+
+func TestProbePortPermissionDeniedIsNotOccupied(t *testing.T) {
+	// Default-profile TacLab ports. A non-root user cannot bind them; that is
+	// not occupancy — dockerd can still publish them (CI smoke-dev).
+	for _, port := range []int{49, 300} {
+		addr := fmt.Sprintf("0.0.0.0:%d", port)
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			ln.Close()
+		} else if !isPermissionDenied(err) {
+			t.Fatalf("listen tcp %s = %v, want success or permission denied", addr, err)
+		}
+		if err := probePort(portTCP, port); err != nil {
+			t.Fatalf("probePort(tcp, %d) = %v, want nil (EACCES is not occupied)", port, err)
+		}
+	}
+}
+
+func TestPreflightPortsAvailablePrivilegedTacLabPorts(t *testing.T) {
+	r := &Runner{
+		Prof: &profile.Profile{
+			Values: map[string]string{
+				"TACLAB_LEGACY_PORT": "49",
+				"TACLAB_TLS_PORT":    "300",
+			},
+		},
+	}
+	if err := r.preflightPortsAvailable(); err != nil {
+		t.Fatalf("preflightPortsAvailable() on privileged TacLab ports: %v", err)
 	}
 }
 
