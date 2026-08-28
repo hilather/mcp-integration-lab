@@ -165,11 +165,13 @@ Internal hops always use static bearer tokens on an isolated docker network.
   `default`). The default profile ships `lab-dev-*` values; they are inert
   unless this knob is on. Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
-  from reveal. `Secrets()` reloads running containers whose files changed
+  from reveal.   `Secrets()` reloads running containers whose files changed
   (or when the marker is missing / `reloads` is not `done`, so a crash
   retries against leftover LabLDAP `/data`, or when LabLDAP leaves were
   re-signed for `LAB_PUBLIC_HOST`) and re-registers the gateway
-  when registrar tokens change; `make up` skips those apps.
+  when registrar tokens change; `make up` skips those apps. The
+  `reloads=pending` marker is written before catalog apply and
+  setupsecrets/labgen, so a crash after those files land still retries.
   `mcplab creds` / `make creds` prints the same sheet from files on disk
   (fails closed outside dev; never prints TLS private keys).
   Dev-mode `make smoke` asserts those catalog values on the wire (Alice

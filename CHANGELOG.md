@@ -7,6 +7,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Fixed
+
+- Dev-mode `mcplab secrets` now marks enter-dev reloads pending before
+  writing the catalog or running setupsecrets/labgen. A crash after
+  files land no longer leaves `reloads=done`; retry still reloads
+  running consumers so LDAP `/data` and gateway tokens cannot stay on
+  the previous catalog.
+
 ## [0.7.0] - 2026-08-23
 
 ### Changed
