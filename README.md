@@ -40,6 +40,8 @@ git clone https://github.com/hilather/mcp-integration-lab.git
 cd mcp-integration-lab
 make up      # vendor, secrets, images, start, register
 make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail / LabMITM through the gateway
+             # Jenkins jwt-rs is the same lab: copy the profile, LABJENKINS_ENABLED=true,
+             # make up PROFILE=<team> (Entra GUIDs optional; default smoke does not start Jenkins)
 ```
 
 Needs Docker Engine 24+ with Compose v2.24.4+, GNU make, and Go 1.26+. First run vendors the service repos and builds images; later runs reuse them.

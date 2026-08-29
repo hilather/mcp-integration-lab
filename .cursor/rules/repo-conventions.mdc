@@ -5,7 +5,10 @@ alwaysApply: true
 
 # MCP Integration Lab conventions
 
-Read `AGENTS.md` for the full rules. Non-negotiables:
+Read `AGENTS.md` for the full rules (start with **Easy Docker testing**:
+default `make up && make smoke` covers the always-on stack; Jenkins jwt-rs
+/ Entra is the same lab via a gitignored profile + `LABJENKINS_ENABLED`).
+Non-negotiables:
 
 - Team-variable config (ports, mode, storage, service YAML/JSON) lives in
   `profiles/<name>/`, never hardcoded in compose files. `.env` selects the

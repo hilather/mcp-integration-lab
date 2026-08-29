@@ -133,6 +133,46 @@ func TestDocsMentionCanonicalReloadApps(t *testing.T) {
 	}
 }
 
+func TestEasyDockerTestingHints(t *testing.T) {
+	root := filepath.Join("..", "..")
+	b, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(b)
+	const heading = "## Easy Docker testing"
+	start := strings.Index(body, heading)
+	if start < 0 {
+		t.Fatal("AGENTS.md missing Easy Docker testing section")
+	}
+	rest := body[start+len(heading):]
+	if next := strings.Index(rest, "\n## "); next >= 0 {
+		rest = rest[:next]
+	}
+	for _, tok := range []string{"LABJENKINS_ENABLED", "ENTRA_", "PROFILE=", "Keycloak", "not start Jenkins"} {
+		if !strings.Contains(rest, tok) {
+			t.Errorf("Easy Docker testing section missing %q", tok)
+		}
+	}
+	firstSmoke := strings.Index(rest, "make smoke")
+	if firstSmoke < 0 {
+		t.Fatal("section missing make smoke")
+	}
+	if i := strings.Index(rest[firstSmoke:], "\n"); i > 0 {
+		line := rest[firstSmoke : firstSmoke+i]
+		if strings.Contains(strings.ToLower(line), "jenkins") {
+			t.Fatalf("first make smoke sentence must not list Jenkins: %q", line)
+		}
+	}
+	conv, err := os.ReadFile(filepath.Join(root, ".cursor", "rules", "repo-conventions.mdc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(conv), "Easy Docker testing") {
+		t.Fatal("repo-conventions.mdc must point at Easy Docker testing")
+	}
+}
+
 func TestReloadLabldapForceRecreatesAndBootstraps(t *testing.T) {
 	dir := strings.Join(reloadLabldapDirectoryArgs(), " ")
 	ctrl := strings.Join(reloadLabldapControlArgs(), " ")

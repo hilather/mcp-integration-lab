@@ -14,10 +14,20 @@ changes since the previous one (AGENTS.md rule 13).
   `a225ef47013f034432e45403499e7b016fe647a7`). Default profile keeps
   `LABJENKINS_ENABLED=false` so `make up` / `make smoke` / CI do not
   start Jenkins or Keycloak and do not call Entra. Copy the profile,
-  set the flag, and optionally fill `ENTRA_TENANT_ID` /
-  `ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID` (GUIDs) to point
-  jwt-auth-filter at Entra JWKS. Audience is the API app GUID. No
-  MCPJungle registration — jenkins-mcp stays CLI `login --oidc`.
+  set the flag, and `make up PROFILE=<team>` (optionally fill
+  `ENTRA_TENANT_ID` / `ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID`
+  GUIDs) to point jwt-auth-filter at Entra JWKS. Audience is the API
+  app GUID. No MCPJungle registration — jenkins-mcp stays CLI
+  `login --oidc`. `AGENTS.md` **Easy Docker testing** is the agent
+  entry point for this lab (always-on stack + Jenkins fill-in).
+
+### Fixed
+
+- `compose up --wait` / main-project reload `--wait` failures dump
+  `compose ps -a` plus engine `.State` and `.Config.Healthcheck` for
+  labdns, maildev, labmitm, and labinfo so a ~6s Unhealthy is
+  diagnosable. Do not stretch `start_period` until that dump shows
+  FailingStreak and configured Retries.
 
 ## [0.9.0] - 2026-08-29
 

@@ -5,6 +5,26 @@ mail, NFS, HTTP intercept, optional Jenkins jwt-rs) behind one MCP gateway for i
 and gateway policy; the services themselves are vendored. These are the rules
 we work by.
 
+## Easy Docker testing
+
+Default `make up && make smoke` is the easy Docker path for LabDNS, LabLDAP,
+TacLab (TACACS+/RADIUS), LabMail (compose service `maildev`), NFS, LabMITM,
+labinfo, and MCPJungle. No Azure account. That default path does
+**not start Jenkins** and does not call Entra or `live-jwt-rs-smoke`.
+
+Jenkins jwt-rs (jwt-auth-filter) is the **same** Docker lab — not a one-off
+in go-jenkins-mcp. Copy `profiles/default` to a gitignored `profiles/<team>`,
+set `LABJENKINS_ENABLED=true`, then `make up PROFILE=<team>` (or set
+`PROFILE=` in `.env`). Empty `ENTRA_*` → Keycloak JWKS (lab audience
+`jenkins-api`). Fill all three GUIDs (`ENTRA_TENANT_ID` /
+`ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID`) → Entra JWKS; audience is the
+API app GUID, not `api://`. Placeholders `{tenant-id}` / `{api-app-id}` /
+`{gateway-app-id}` are docs only — never profile values. This is not a
+production Entra pin. No MCPJungle registration; `serve --gateway` is
+residual. Prove with `jenkins-mcp login --oidc` (see
+`docs/guides/configuration.md` LabJenkins). After `ENTRA_*` edits:
+`make reload APP=labjenkins` and `APP=labinfo`.
+
 ## Ground rules
 
 1. **Configuration lives in profiles.** Everything a team varies — host ports,
@@ -298,6 +318,11 @@ we work by.
   `LAB_DEV_MODE=true` as process env on `default` (preflight). CI copies
   `profiles/default` to gitignored `profiles/ci-dev/` and flips the knob
   there.
+- GH `smoke-dev` can die at ~6s with maildev or labmitm `Unhealthy` on the
+  first ready probe (labdns/labinfo often Healthy in the same tick).
+  `compose up --wait` / main reload `--wait` now dump `compose ps -a` and
+  engine `.State` + `.Config.Healthcheck` for those four. Do not stretch
+  `start_period` until a dump shows FailingStreak and configured Retries.
 - LabJenkins is **opt-in** (`LABJENKINS_ENABLED=false` on default). Vendored
   pin is go-jenkins-mcp commit `a225ef47013f034432e45403499e7b016fe647a7`
   (SHA checkout in `vendorCheckout`; no release tag includes the Entra

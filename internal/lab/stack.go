@@ -41,7 +41,8 @@ func (r *Runner) Up() error {
 			return err
 		}
 	}
-	if err := r.compose("up", "-d", "--build", "--wait"); err != nil {
+	upArgs := []string{"up", "-d", "--build", "--wait"}
+	if err := r.composeMaybeDumpWait(upArgs, r.compose(upArgs...)); err != nil {
 		return err
 	}
 	return r.Register()

@@ -8,7 +8,7 @@ and runtime state ephemeral are welcome.
 ```bash
 make test          # go vet + unit/regression tests
 # if you touched compose, profiles, or the CLI lifecycle:
-make up && make smoke
+make up && make smoke   # always-on stack; Jenkins is opt-in (AGENTS.md Easy Docker testing)
 # iterating on one service's YAML after the stack is up:
 make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labjenkins
 ```

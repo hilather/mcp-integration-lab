@@ -22,7 +22,7 @@ make smoke
 
 `make up` is idempotent. It clones pinned vendors into `third_party/`, applies patches, mints gitignored secrets, builds local images, starts the always-on compose projects on `mcplab-shared` (LabJenkins only when `LABJENKINS_ENABLED=true`), and registers every MCP server with the gateway. First run is image-build heavy.
 
-`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with `LAB_DEV_MODE=true` it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog `taclabAdmin`, `connections_list` secrets equal the files on disk, `devMode=true`).
+`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with `LAB_DEV_MODE=true` it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog `taclabAdmin`, `connections_list` secrets equal the files on disk, `devMode=true`). Agents: see `AGENTS.md` **Easy Docker testing** — Jenkins jwt-rs / Entra is the same lab (`make up PROFILE=<team>`), not default smoke.
 
 ## Attach an MCP client
 

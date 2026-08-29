@@ -26,6 +26,9 @@ type Runner struct {
 
 	// deps overrides subprocesses and docker. Production leaves it nil.
 	deps *secretsDeps
+
+	// waitDump, when set, replaces dumpMainWaitHealth (unit tests).
+	waitDump func(err error)
 }
 
 // New resolves the active profile and prepares the process environment used

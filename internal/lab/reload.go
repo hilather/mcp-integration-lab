@@ -98,7 +98,8 @@ func (r *Runner) reloadMain(service string) error {
 			return err
 		}
 	}
-	return r.compose(reloadMainArgs(service)...)
+	args := reloadMainArgs(service)
+	return r.composeMaybeDumpWait(args, r.compose(args...))
 }
 
 func (r *Runner) reloadLabLDAP() error {
