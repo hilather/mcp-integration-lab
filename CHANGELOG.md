@@ -20,10 +20,10 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Fixed
 
-- GitHub Pages source is `main` / `/docs` so
-  `https://hilather.github.io/mcp-integration-lab/` stops 404ing
-  (enable via API when the token can write Pages; otherwise
-  **Settings → Pages → Deploy from a branch → `main` / `docs`**).
+- GitHub Pages is still off (`has_pages: false`). The cloud token cannot
+  write Pages (`gh api` POST/PUT returned 403). Enable once with
+  **Settings → Pages → Deploy from a branch → `main` / `docs`** so
+  `https://hilather.github.io/mcp-integration-lab/` stops 404ing.
 
 ## [0.9.0] - 2026-08-29
 

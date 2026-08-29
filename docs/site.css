@@ -319,6 +319,7 @@ footer {
 
 @media (max-width: 1100px) {
   .cards { grid-template-columns: repeat(2, 1fr); }
+  .hero-grid { grid-template-columns: 1fr; }
   .nav-links { display: none; }
   .nav-links.open {
     display: flex; flex-direction: column; position: absolute; left: 0; right: 0; top: 64px;
