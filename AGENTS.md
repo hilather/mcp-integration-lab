@@ -171,7 +171,8 @@ we work by.
   `LAB_DEV_MODE=true`, `applyDevTaclabSecrets` then pins token, shared
   secrets, challenge, `PASSWORDS.txt`, and Argon2id verifiers from the
   catalog (PHC rewrite only when `VerifyArgon2id` fails). PKI and YAML
-  stay labgen's.
+  stay labgen's. v1.4.0 `labgen -secrets-from` is unwired (would mint
+  Argon2id from catalog passwords; does not replace EnableLegacyClientsDir).
 - LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and
@@ -208,8 +209,15 @@ we work by.
   `compose.native.yaml` alias. The overlay uses compose `!override` for
   ports (Compose v2.24.4+). Plain merging would append to upstream's
   loopback publishes. TacLab's vendored `compose.combined.yaml` uses
-  `!override` too. `make labldap-up` is idempotent; `make reload
-  APP=labldap` force-recreates directory + control and re-runs bootstrap
+  `!override` too. The overlay maps `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`
+  from `LAB_PUBLIC_HOST` as a mapping merge (do not `!override`
+  environment — that would wipe upstream `LABLDAP_LDAP_URL` /
+  `LABLDAP_DIRECTORY_HOST` / `LABLDAP_DIRECTORY_CA_FILE`). Host extras
+  union LoopbackHosts; `"*"` is rejected. Changing `LAB_PUBLIC_HOST`
+  needs `mcplab secrets` (SAN) and `make reload APP=labldap` (env).
+  `setuptls --dns/--ip` stays unused; labtlsEnsure mints the SANs.
+  `make labldap-up` is idempotent; `make reload APP=labldap`
+  force-recreates directory + control and re-runs bootstrap
   (ephemeral `/data` is re-seeded).
 - Switching LabLDAP from 389 DS to native is a re-bootstrap: leftover
   389 `/data` (uid 389 tmpfs) fail-closes `labldapd`. `LabLDAPUp` wipes

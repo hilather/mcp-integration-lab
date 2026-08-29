@@ -36,6 +36,7 @@ func (r *Runner) Smoke() error {
 
 	s.dnsScenario()
 	s.ldapScenario()
+	s.labldapHostAllowListMerge()
 	s.nfsScenario()
 	s.tacacsScenario()
 	s.maildevScenario()
@@ -190,6 +191,24 @@ func (s *smokeState) ldapScenario() {
 	} else {
 		fmt.Printf("   note: no revision in create response; leaving %s (ephemeral store)\n", user)
 	}
+}
+
+func (s *smokeState) labldapHostAllowListMerge() {
+	s.step("LabLDAP overlay Host allow-list merge")
+
+	env, err := s.r.labldapMergedControlEnv()
+	if !s.check(err == nil, "labldap compose config (stacked files)") {
+		if err != nil {
+			fmt.Printf("   %v\n", err)
+		}
+		return
+	}
+	for _, k := range []string{"LABLDAP_LDAP_URL", "LABLDAP_DIRECTORY_HOST", "LABLDAP_DIRECTORY_CA_FILE"} {
+		s.check(env[k] != "", "merged control.environment keeps "+k)
+	}
+	want := s.r.Prof.Get("LAB_PUBLIC_HOST", "localhost")
+	s.check(env[labldapAllowedHostsEnv] == want,
+		fmt.Sprintf("merged %s=%s (localhost is already a LoopbackHost; not extra-hostname proof)", labldapAllowedHostsEnv, env[labldapAllowedHostsEnv]))
 }
 
 func (s *smokeState) nfsScenario() {

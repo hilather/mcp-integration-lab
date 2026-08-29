@@ -11,6 +11,10 @@
 # 3. Re-publishes the data plane (LDAP/LDAPS) and control plane (HTTPS) on all
 #    interfaces with profile-defined host ports — upstream publishes loopback
 #    only, but this lab exists for remote systems to test against.
+# 4. Maps LABLDAP_MANAGEMENT_ALLOWED_HOSTS from LAB_PUBLIC_HOST (management
+#    Host extras). Mapping merge only — do not tag environment with !override
+#    or upstream LABLDAP_LDAP_URL / LABLDAP_DIRECTORY_HOST /
+#    LABLDAP_DIRECTORY_CA_FILE disappear.
 #
 # Native directory TLS is the lab CA `directory` cert (no 389 instance-CA
 # publish step). `native-secret-prep` in upstream compose.yaml stages
@@ -50,3 +54,5 @@ services:
   control:
     ports: !override
       - "${LABLDAP_HTTPS_PORT:-8443}:8443"
+    environment:
+      LABLDAP_MANAGEMENT_ALLOWED_HOSTS: ${LAB_PUBLIC_HOST:-localhost}

@@ -76,7 +76,7 @@ services:
         url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/
       - name: REST API
         url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/api/v1
-    note: "LDAP data plane: ldap://${LAB_PUBLIC_HOST}:${LABLDAP_LDAP_PORT} / ldaps://${LAB_PUBLIC_HOST}:${LABLDAP_LDAPS_PORT} (cert SAN is 'directory' plus LAB_PUBLIC_HOST as DNS or IP; trust the lab CA)"
+    note: "LDAP data plane: ldap://${LAB_PUBLIC_HOST}:${LABLDAP_LDAP_PORT} / ldaps://${LAB_PUBLIC_HOST}:${LABLDAP_LDAPS_PORT} (cert SAN is 'directory' plus LAB_PUBLIC_HOST as DNS or IP; trust the lab CA). Control UI Host must be loopback, a literal IP, control, or LAB_PUBLIC_HOST."
     credential:
       file: /run/lab-secrets/labldap-token-admin
       usage: "Web UI login token / HTTP header 'Authorization: Bearer <token>'"

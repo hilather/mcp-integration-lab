@@ -221,13 +221,18 @@ per-persona tool groups and OTel metrics scraping.
   turns it on after `labgen`). There is no TacLab patch in `patches/`.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
   RADIUS Challenge/EAP/MS-CHAP/PEAP, named Cisco-AVPair, optional RadSec
-  (TCP 2083, default off) and inbound DAS (UDP 3799, default off). Dev mode
-  post-processes secret files after labgen; it does not patch the vendor.
+  (TCP 2083, default off) and inbound DAS (UDP 3799, default off). v1.4.0
+  added `labgen -secrets-from`; this lab does not pass it (dev mode still
+  post-processes after labgen). The flag would not replace
+  `EnableLegacyClientsDir`. Dev mode does not patch the vendor.
 - LabLDAP is pinned to release **v0.4.1**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
-  + `compose.ephemeral.yaml` plus `compose/labldap.overlay.yaml`. MCP
-  account-workflow tools (`ldap_get_account_state`, expire/lock/enable)
+  + `compose.ephemeral.yaml` plus `compose/labldap.overlay.yaml`. The
+  overlay maps `LABLDAP_MANAGEMENT_ALLOWED_HOSTS` from `LAB_PUBLIC_HOST`
+  as a mapping merge (not `environment: !override`). Changing
+  `LAB_PUBLIC_HOST` needs `mcplab secrets` plus `make reload APP=labldap`.
+  MCP account-workflow tools (`ldap_get_account_state`, expire/lock/enable)
   register because the profile sets `registerMutations` and
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
   (`ca.crt`) minted by `labtlsEnsure` (replaces skip-if-exists

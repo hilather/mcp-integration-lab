@@ -38,6 +38,9 @@ spec:
     allowAnonymousBind: false
   management:
     listen: "0.0.0.0:8443"
+    # allowedHosts extras union LoopbackHosts; no "*". YAML cannot interpolate,
+    # so the overlay maps LABLDAP_MANAGEMENT_ALLOWED_HOSTS from LAB_PUBLIC_HOST.
+    # setuptls --dns/--ip is unused; labtlsEnsure stays.
     tls:
       mode: files
       certFile: /run/secrets/management.crt

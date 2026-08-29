@@ -1,9 +1,14 @@
 package lab
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
+
+// labldapAllowedHostsEnv is LabLDAP config.AllowedHostsEnv. Overlay maps it
+// from LAB_PUBLIC_HOST; extras union LoopbackHosts and "*" is rejected.
+const labldapAllowedHostsEnv = "LABLDAP_MANAGEMENT_ALLOWED_HOSTS"
 
 // LabLDAPUp brings up the LabLDAP stack (separate compose project `labldap`)
 // on the native Go engine (`labldapd`), mirroring upstream
@@ -104,4 +109,60 @@ func (r *Runner) labldapDirectoryIs389() bool {
 	}
 	img = strings.ToLower(img)
 	return strings.Contains(img, "dirsrv") || strings.Contains(img, "389")
+}
+
+// labldapMergedControlEnv interpolates the stacked LabLDAP compose files
+// (compose.yaml + compose.ephemeral.yaml + overlay) and returns control's
+// environment. Combined docker output may prefix warnings; JSON is sliced
+// from the first '{'.
+func (r *Runner) labldapMergedControlEnv() (map[string]string, error) {
+	out, err := r.capture(".", "docker", r.labldapComposeArgs("config", "--format", "json")...)
+	if err != nil {
+		return nil, err
+	}
+	return parseComposeServiceEnvironment(out, "control")
+}
+
+func parseComposeServiceEnvironment(configOut, service string) (map[string]string, error) {
+	jsonStart := strings.Index(configOut, "{")
+	if jsonStart < 0 {
+		return nil, fmt.Errorf("compose config: no JSON object")
+	}
+	var cfg struct {
+		Services map[string]struct {
+			Environment json.RawMessage `json:"environment"`
+		} `json:"services"`
+	}
+	if err := json.Unmarshal([]byte(configOut[jsonStart:]), &cfg); err != nil {
+		return nil, fmt.Errorf("compose config json: %w", err)
+	}
+	svc, ok := cfg.Services[service]
+	if !ok {
+		return nil, fmt.Errorf("compose config: no service %q", service)
+	}
+	return decodeComposeEnvironment(svc.Environment)
+}
+
+func decodeComposeEnvironment(raw json.RawMessage) (map[string]string, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, fmt.Errorf("compose config: missing environment")
+	}
+	var m map[string]string
+	if err := json.Unmarshal(raw, &m); err == nil {
+		return m, nil
+	}
+	var list []string
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return nil, fmt.Errorf("compose environment: %w", err)
+	}
+	out := make(map[string]string, len(list))
+	for _, kv := range list {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok {
+			out[kv] = ""
+			continue
+		}
+		out[k] = v
+	}
+	return out, nil
 }

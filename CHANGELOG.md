@@ -7,6 +7,16 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Added
+
+- LabLDAP management Host allow-list now includes `LAB_PUBLIC_HOST` via
+  the compose overlay (`LABLDAP_MANAGEMENT_ALLOWED_HOSTS`, mapping merge
+  — not `environment: !override`). A DNS `LAB_PUBLIC_HOST` can load the
+  control UI without `400 host is not allowed`. Changing `LAB_PUBLIC_HOST`
+  needs `mcplab secrets` (leaf SAN) and `make reload APP=labldap`
+  (container env). Default `localhost` smoke does not prove that
+  extra-hostname path.
+
 ### Fixed
 
 - Host-port preflight no longer treats `EACCES` / permission-denied as

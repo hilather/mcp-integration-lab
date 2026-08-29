@@ -138,6 +138,50 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 	}
 }
 
+func TestDefaultLabLDAPScenarioInsecureLabMode(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join(defaultProfileDir(t), "labldap", "scenario.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Spec struct {
+			Transport struct {
+				InsecureLabMode bool `yaml:"insecureLabMode"`
+			} `yaml:"transport"`
+			Management map[string]any `yaml:"management"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if !doc.Spec.Transport.InsecureLabMode {
+		t.Fatal("profiles/default/labldap/scenario.yaml: transport.insecureLabMode must stay true (lab-grade)")
+	}
+	if _, ok := doc.Spec.Management["allowedHosts"]; ok {
+		t.Fatal("spec.management.allowedHosts must stay omitted; Host extras come from overlay LABLDAP_MANAGEMENT_ALLOWED_HOSTS")
+	}
+}
+
+func TestDefaultLabMailOmitsSMTPBehavior(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join(defaultProfileDir(t), "labmail", "bootstrap.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Spec map[string]any `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	smtp, _ := doc.Spec["smtp"].(map[string]any)
+	if smtp == nil {
+		t.Fatal("spec.smtp missing")
+	}
+	if _, ok := smtp["behavior"]; ok {
+		t.Fatal("spec.smtp.behavior must stay omitted")
+	}
+}
+
 func TestDefaultProfileDevCredentials(t *testing.T) {
 	dir := defaultProfileDir(t)
 	env, err := os.ReadFile(filepath.Join(dir, "profile.env"))

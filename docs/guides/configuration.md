@@ -126,7 +126,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
-| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs (both modes). Set this to the name or address remote testers use. |
+| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
 | `NFS_ARCHIVE_DIR` | `.data/nfs` | Empty-root `fixtures.tar.zst` (writable; live commit replaces it). |
@@ -139,7 +139,10 @@ different `LABDNS_DNS_PORT` in your team profile.
 projects, and registers the gateway. Use it for first bring-up, a vendor pin
 bump, or a profile switch. After a `dev-credentials.yaml` or `LAB_DEV_MODE` edit, or a
 `LAB_PUBLIC_HOST` SAN change, `mcplab secrets` reloads running apps
-whose files changed; `make up` skips those names.
+whose files changed; `make up` skips those names. Changing `LAB_PUBLIC_HOST`
+also needs `make reload APP=labldap` so the control container picks up
+`LABLDAP_MANAGEMENT_ALLOWED_HOSTS` (`mcplab secrets` re-signs the leaf SAN;
+reload recreates directory + control).
 
 After that, recreate **one** application:
 
@@ -157,6 +160,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 | `mcpjungle/servers/*.json` | `make register` | no container restart (JSON is re-applied) |
 | gateway container itself | `make reload APP=mcpjungle` | tmpfs SQLite wiped, then `register` |
 | `labldap/scenario.yaml` | `make reload APP=labldap` | ephemeral `/data` re-seeded from the scenario |
+| `LAB_PUBLIC_HOST` | `mcplab secrets` then `make reload APP=labldap` | leaf SAN rewrite; control Host allow-list env |
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
 | `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates |
 
@@ -246,7 +250,7 @@ spec:
     startupMode: merge
     softReset: true
   transport:
-    insecureLabMode: false
+    insecureLabMode: true
     ldap:  { enabled: true, port: 3389 }
     ldaps: { enabled: true, port: 3636 }
     startTLS: true
@@ -282,7 +286,16 @@ spec:
   IP SAN when that value is an IPv4/IPv6 literal). Extra SANs are
   mode-independent. Trust
   `third_party/go-lab-ldap-mcp/secrets/tls/ca.crt`. The CA private key
-  is not committed.
+  is not committed. `setuptls --dns/--ip` is unused; `labtlsEnsure`
+  still mints the SANs.
+- `insecureLabMode: true` in the live scenario is intentional (lab-grade).
+- Management HTTP Host extras come from overlay
+  `LABLDAP_MANAGEMENT_ALLOWED_HOSTS` (`LAB_PUBLIC_HOST`) union
+  LoopbackHosts (`localhost`, `127.0.0.1`, `control`, …). Literal IP
+  Hosts are accepted. `"*"` is rejected. Extra names can go in
+  `spec.management.allowedHosts` (YAML cannot interpolate `${VAR}`).
+  Default `localhost` is already a LoopbackHost; an unlisted Host 400
+  does not prove this wiring.
 - Add users, groups, and ACLs in this file. MCP mutations are ephemeral.
 
 ## TacLab
@@ -308,7 +321,10 @@ Lab-user passwords land in
 `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt`.
 In `LAB_DEV_MODE=true` those values (and the TACACS+/RADIUS shared secrets)
 come from `dev-credentials.yaml`. RADIUS Access-Requests must carry
-Message-Authenticator (RFC 3579).
+Message-Authenticator (RFC 3579). TacLab v1.4.0 `labgen -secrets-from`
+would mint Argon2id from catalog passwords; this lab does not pass it
+(dev mode still post-processes after labgen). The flag would not replace
+`EnableLegacyClientsDir`.
 
 ## LabMail
 
