@@ -17,6 +17,10 @@ changes since the previous one (AGENTS.md rule 13).
   Accessibility: skip link, menu `aria-expanded` / `aria-controls`,
   `:focus-visible`, escaped `<lab-host>` placeholders, `--fg-subtle`
   meets WCAG AA. Code blocks copy to the clipboard.
+- Remaining docs pages (quick start, configure, services,
+  architecture) share that chrome: landing footer line, current-page
+  underline, catalog cards use the same name/version/meta row, no
+  leftover inline type.
 
 ### Fixed
 

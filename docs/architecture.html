@@ -33,18 +33,18 @@
     </div>
   </header>
   <main id="main" class="doc" tabindex="-1">
-    <div class="wrap" style="max-width:46rem">
+    <div class="wrap narrow">
       <article class="prose">
         <div class="eyebrow">Design</div>
         <h1>Three compose projects. One shared network.</h1>
         <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, NFS, and the HTTP intercept proxy at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
-        <div class="topo" style="margin: 24px 0 32px">
+        <div class="topo inset">
           <div class="topo-flow">
             <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
             <div class="topo-edge">streamable HTTP</div>
             <div class="topo-node hub"><span>Gateway</span><strong>MCPJungle :8080</strong></div>
-            <div class="topo-edge">real protocols</div>
-            <div class="topo-node"><span>Data plane</span><strong>Testers</strong></div>
+            <div class="topo-edge">data plane</div>
+            <div class="topo-node"><span>Testers</span><strong>Real protocols</strong></div>
           </div>
           <div class="topo-projects">
             <div class="topo-project">
@@ -113,7 +113,7 @@
   </main>
   <footer>
     <div class="wrap foot">
-      <div>MCP Integration Lab</div>
+      <div>MCP Integration Lab · laboratory software, not a production identity system</div>
       <div><a href="configure.html">Configure</a> · <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">Markdown</a></div>
     </div>
   </footer>

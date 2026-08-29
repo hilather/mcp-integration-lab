@@ -57,6 +57,7 @@ button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
 .skip:focus-visible { transform: none; }
 
 .wrap { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+.wrap.narrow { max-width: 46rem; }
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -107,6 +108,10 @@ header.nav {
 .nav-links { display: flex; align-items: center; gap: 22px; font-size: 14px; color: var(--fg-muted); }
 .nav-links a { text-decoration: none; }
 .nav-links a:hover, .nav-links a[aria-current="page"] { color: var(--fg); }
+.nav-links a[aria-current="page"] {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
 .nav-cta {
   display: inline-flex; align-items: center; height: 36px; padding: 0 14px;
   border-radius: 999px; background: var(--fg); color: var(--bg); text-decoration: none;
@@ -163,9 +168,14 @@ header.nav {
 section { padding: 72px 0; }
 section.alt { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--bg-elevated); }
 .sec-head { max-width: 40rem; margin-bottom: 36px; }
+.sec-head h1 {
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  margin: 10px 0 12px;
+}
 .sec-head h2 { margin: 10px 0 12px; }
 
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.cards.stack { grid-template-columns: 1fr; }
 .card {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 22px;
@@ -260,6 +270,7 @@ pre {
 .topo {
   display: grid; gap: 14px;
 }
+.topo.inset { margin: 24px 0 32px; }
 .topo-flow {
   display: grid; grid-template-columns: 1fr auto 1.2fr auto 1fr;
   gap: 10px; align-items: center;
@@ -319,6 +330,7 @@ footer {
 
 @media (max-width: 1100px) {
   .cards { grid-template-columns: repeat(2, 1fr); }
+  .cards.stack { grid-template-columns: 1fr; }
   .hero-grid { grid-template-columns: 1fr; }
   .nav-links { display: none; }
   .nav-links.open {
@@ -329,7 +341,7 @@ footer {
 }
 
 @media (max-width: 860px) {
-  .hero-grid, .cards, .split, .doc-grid, .meta-row, .topo-flow, .topo-projects { grid-template-columns: 1fr; }
+  .hero-grid, .cards, .cards.stack, .split, .doc-grid, .meta-row, .topo-flow, .topo-projects { grid-template-columns: 1fr; }
   .role { grid-template-columns: 1fr; }
   .toc { position: static; }
   section, .hero { padding: 48px 0; }
