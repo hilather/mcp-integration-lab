@@ -132,9 +132,10 @@ we work by.
 - `cmd/labinfo`, `internal/labinfo` — first-party service-directory MCP
   service (rule 9); built by `docker/labinfo/`
 - `docker-compose.yaml` — main project (gateway, LabDNS, LabMail as compose
-  service `maildev`, LabMITM, NFS, labinfo); `compose/*.overlay.yaml` — overlays
-  merging the vendored LabLDAP and TacLab compose projects onto the shared
-  network
+  service `maildev`, LabMITM, NFS, labinfo); MCPJungle image is
+  `ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}` (gateway +
+  registrar). `compose/*.overlay.yaml` — overlays merging the vendored
+  LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.2.0`,
   LabLDAP `v0.4.1`, TacLab `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.4.0`).
@@ -152,6 +153,12 @@ we work by.
 
 - Host ports 53 and 5353 collide with systemd-resolved/avahi; that's why DNS
   defaults to 10053.
+- MCPJungle is pinned to **0.4.6** (`MCPJUNGLE_IMAGE_TAG`; compose default
+  `:-0.4.6` if omitted). This lab’s default is 0.4.6, not upstream Compose
+  `latest` / `latest-stdio`. Do not set `MCPJUNGLE_BIND_HOST` (unset = all
+  interfaces). Operator dashboard is `GET /` in development mode only
+  (enterprise 404s). Observed GHCR digest is in `docs/architecture.md`
+  (informational; the tag is the lock).
 - Host-port preflight (`probePort`) must not treat `EACCES` / permission-denied
   as occupied. Default TacLab ports 49/300 are privileged; the GH-hosted
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.

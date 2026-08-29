@@ -78,7 +78,7 @@
           </article>
           <article class="card">
             <h3>labinfo + MCPJungle — <a href="https://github.com/mcpjungle/MCPJungle">mcpjungle/MCPJungle</a></h3>
-            <p>Service directory MCP plus the single client gateway.</p>
+            <p>Service directory MCP plus the single client gateway. MCPJungle pinned 0.4.6. Operator dashboard is <code>GET /</code> in development mode only (enterprise 404s).</p>
             <p><strong>Connect.</strong> Gateway <code>http://<host>:8080/mcp</code> or <code>/v0/groups/integration/mcp</code>. labinfo at :18090.</p>
             <p><strong>Configure.</strong> <code>labinfo/services.yaml</code> and <code>mcpjungle/servers/*.json</code>. Catalog reload: <code>make reload APP=labinfo</code>. Gateway JSON: <code>make register</code>. Gateway container: <code>make reload APP=mcpjungle</code> (re-registers).</p>
             <p><strong>Auth.</strong> Enterprise (default): <code>secrets/mcp-client-token</code>. Development: open. labinfo secrets only in dev mode.</p>

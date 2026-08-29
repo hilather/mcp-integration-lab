@@ -7,7 +7,7 @@ import (
 )
 
 // Regression fixture: verbatim shape of `mcpjungle invoke` output as of
-// mcpjungle:latest (2026-08). If upstream changes its CLI framing, this test
+// mcpjungle:0.4.6 (2026-08). If upstream changes its CLI framing, this test
 // pins what our parser must keep handling (or be consciously updated).
 const invokeFixture = `TIP: You can set ` + "`registry_url: http://mcpjungle:8080`" + ` in /cli-home/.mcpjungle.conf to avoid setting the --registry flag every time.
 

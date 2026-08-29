@@ -20,7 +20,7 @@ secrets layout, and gateway policy.
 | LabMITM (`go-lab-mitmproxy` **v1.4.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
-| MCPJungle | MCP gateway: aggregation, tool groups, ACLs | `http://<host>:8080/mcp` | gateway 8080 |
+| MCPJungle (**0.4.6**) | MCP gateway: aggregation, tool groups, ACLs; operator dashboard `GET /` in development mode only | `http://<host>:8080/mcp` | gateway 8080 |
 
 All host ports are profile-defined (`profiles/<name>/profile.env`) and bind on
 all interfaces: the lab exists for remote systems to test against. Container-
@@ -208,6 +208,19 @@ per-persona tool groups and OTel metrics scraping.
 
 ## Design notes / limitations
 
+- MCPJungle is pinned to **0.4.6**
+  (`ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}` for both
+  `mcpjungle` and `registrar`). This lab’s default is 0.4.6, not upstream
+  Compose `latest` / `latest-stdio` (same env name, different default).
+  Copied profiles that omit the key still interpolate compose `:-0.4.6`;
+  set the key only to override. Do not set `MCPJUNGLE_BIND_HOST` (unset =
+  all interfaces; loopback would break remote clients and the registrar).
+  Operator dashboard is `GET /` in development mode only (enterprise
+  404s). Observed GHCR digest 2026-08-29:
+  `sha256:59940d2e3a586ab9a063cf24fa37460bc993686fa056729fd1ada25436123dd9`
+  (informational; the tag is the lock). `SERVER_MODE` still follows
+  `MCPJUNGLE_MODE` / `LAB_DEV_MODE`; SQLite stays tmpfs; `OTEL_ENABLED`
+  stays `"false"`. Appliances still use `allowLegacyClients`.
 - LabDNS is pinned to **v1.2.0**. MCP Streamable HTTP is wired into `serve`
   upstream. MCPJungle compatibility uses
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap

@@ -7,6 +7,19 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Pin MCPJungle gateway + registrar to **0.4.6** (`MCPJUNGLE_IMAGE_TAG`;
+  compose default `:-0.4.6`). Copied profiles that omit the key still
+  get that compose default. Set the key only to override. This lab’s
+  default is 0.4.6, not upstream Compose `latest` / `latest-stdio`. Do
+  not set `MCPJUNGLE_BIND_HOST` (unset = all interfaces).
+
+### Added
+
+- labinfo gateway catalog lists the development-mode operator dashboard
+  (`GET /`) with a service `note:` that enterprise returns 404.
+
 ## [0.8.0] - 2026-08-29
 
 ### Changed

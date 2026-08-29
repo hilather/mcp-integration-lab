@@ -53,7 +53,7 @@
       <div class="wrap">
         <div class="meta-row">
           <div><span>Orchestrator</span><strong>Go 1.26</strong></div>
-          <div><span>Gateway</span><strong>MCPJungle</strong></div>
+          <div><span>Gateway</span><strong>MCPJungle 0.4.6</strong></div>
           <div><span>Compose</span><strong>v2.24.4+</strong></div>
           <div><span>Runtime</span><strong>Ephemeral</strong></div>
         </div>
@@ -84,7 +84,7 @@
                 <li><strong>LabMail</strong> — 1025 / 1080</li>
                 <li><strong>LabMITM</strong> — 18888 / 18088</li>
                 <li><strong>ratarmount-rs</strong> — 20490</li>
-                <li><strong>MCPJungle</strong> — 8080</li>
+                <li><strong>MCPJungle</strong> — 8080 (0.4.6)</li>
               </ul>
             </div>
             <div class="topo-project">
@@ -149,8 +149,8 @@
             <div class="meta"><span>20490</span><a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></div>
           </article>
           <article class="card">
-            <h3>labinfo + MCPJungle</h3>
-            <p>First-party service directory plus a single streamable-HTTP MCP gateway with tool groups and optional enterprise ACLs.</p>
+            <h3>labinfo + MCPJungle · 0.4.6</h3>
+            <p>First-party service directory plus a single streamable-HTTP MCP gateway with tool groups and optional enterprise ACLs. MCPJungle pinned 0.4.6.</p>
             <div class="meta"><span>18090 · 8080</span><a href="https://github.com/mcpjungle/MCPJungle">mcpjungle/MCPJungle</a></div>
           </article>
         </div>
@@ -229,7 +229,7 @@ make smoke
           <div class="role"><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a><p>Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. Pinned v0.1.28.</p></div>
           <div class="role"><a href="https://github.com/hilather/go-lab-maildev">LabMail</a><p>Receive-only SMTP lab appliance. Inbox UI, /email compat, /v1, MCP. Pinned v1.0.0-rc.3. Compose service name stays maildev.</p></div>
           <div class="role"><a href="https://github.com/hilather/go-lab-mitmproxy">LabMITM</a><p>Laboratory HTTP(S) intercepting forward proxy. Flow-inspector UI, /v1, MCP. Pinned v1.4.0. Data plane is unauthenticated; intercept is :443 only.</p></div>
-          <div class="role"><a href="https://github.com/mcpjungle/MCPJungle">MCPJungle</a><p>Self-hosted MCP gateway — the single client endpoint. <a href="https://docs.mcpjungle.com">Docs</a>.</p></div>
+          <div class="role"><a href="https://github.com/mcpjungle/MCPJungle">MCPJungle</a><p>Self-hosted MCP gateway — the single client endpoint. Pinned 0.4.6. <a href="https://docs.mcpjungle.com">Docs</a>.</p></div>
           <div class="role"><a href="https://github.com/mark3labs/mcp-go">mcp-go</a><p>Go SDK for the Model Context Protocol. Powers labinfo and is the client generation spoken by the gateway.</p></div>
         </div>
       </div>

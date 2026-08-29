@@ -18,11 +18,14 @@ services:
   - id: gateway
     name: MCP gateway (MCPJungle)
     description: Single MCP endpoint aggregating every lab tool; use the integration group for the curated subset.
+    note: "Operator dashboard is GET / (MCPJungle 0.4.4+), development mode only; enterprise returns 404. MCP clients use /mcp or /v0/groups/integration/mcp."
     urls:
       - name: MCP endpoint (streamable HTTP)
         url: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/mcp
       - name: Integration tool group
         url: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/v0/groups/integration/mcp
+      - name: Operator dashboard (development mode only)
+        url: http://${LAB_PUBLIC_HOST}:${MCP_GATEWAY_PORT}/
     credential:
       file: /run/lab-secrets/mcp-client-token
       usage: "HTTP header 'Authorization: Bearer <token>' (only needed when the gateway runs in enterprise mode)"

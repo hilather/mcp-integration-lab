@@ -77,7 +77,7 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 | **LabMITM** | HTTP(S) intercepting forward proxy + inspector / REST / MCP | 18888 · 18088 |
 | **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 |
 | **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
-| **MCPJungle** | Single MCP gateway, tool groups, optional ACLs | 8080 |
+| **MCPJungle** | Single MCP gateway, tool groups, optional ACLs. Pinned **0.4.6**. | 8080 |
 
 Every port is published on all interfaces so remote systems can test against the lab. Values live in the active profile, not in compose files.
 
@@ -202,7 +202,7 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.3**. Compose service name stays `maildev`. |
 | [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.4.0**. Data plane is unauthenticated; intercept is :443 only. |
 | [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.28**. |
-| [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. |
+| [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. Pinned **0.4.6**. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
 
 Vendored checkouts live in `third_party/` (cloned by `mcplab vendor`). Do not edit them in place — add a patch under `patches/` and send it upstream.

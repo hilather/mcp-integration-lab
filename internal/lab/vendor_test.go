@@ -39,6 +39,45 @@ func TestRatarmountDebPin(t *testing.T) {
 	}
 }
 
+func TestMCPJungleImagePin(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "docker-compose.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}"
+	images := map[string]string{}
+	var current string
+	for _, line := range strings.Split(string(b), "\n") {
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && strings.HasSuffix(trim, ":") && !strings.HasPrefix(trim, "#") {
+			current = strings.TrimSuffix(trim, ":")
+			continue
+		}
+		if !strings.HasPrefix(trim, "image:") {
+			continue
+		}
+		if current == "mcpjungle" || current == "registrar" {
+			images[current] = strings.TrimSpace(strings.TrimPrefix(trim, "image:"))
+		}
+	}
+	for _, name := range []string{"mcpjungle", "registrar"} {
+		got := images[name]
+		if got != want {
+			t.Errorf("%s image = %q, want %q", name, got, want)
+		}
+		if strings.Contains(got, ":latest") {
+			t.Errorf("%s image uses :latest: %s", name, got)
+		}
+	}
+	env, err := os.ReadFile(filepath.Join("..", "..", "profiles", "default", "profile.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(env), "MCPJUNGLE_IMAGE_TAG=0.4.6") {
+		t.Fatal("profiles/default/profile.env must set MCPJUNGLE_IMAGE_TAG=0.4.6")
+	}
+}
+
 func TestVendorPatchesEmpty(t *testing.T) {
 	matches, err := filepath.Glob(filepath.Join("..", "..", "patches", "go-lab-*-*.patch"))
 	if err != nil {

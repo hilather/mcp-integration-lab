@@ -112,6 +112,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS or IP). |
 | `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
 | `MCP_GATEWAY_PORT` | `8080` | MCPJungle streamable HTTP. |
+| `MCPJUNGLE_IMAGE_TAG` | `0.4.6` | MCPJungle GHCR tag for gateway + registrar. Omit to keep compose `:-0.4.6`. Do not copy upstream `latest` / `latest-stdio`. |
 | `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3 (writable overlay). |
 | `TACLAB_LEGACY_PORT` | `49` | TACACS+ (RFC 8907). |
 | `TACLAB_TLS_PORT` | `300` | TACACS+ TLS 1.3 (RFC 9887). |
@@ -500,6 +501,12 @@ add the catalog entry. New ports must be exported into the labinfo
 container environment so expansion sees them.
 
 ## MCPJungle
+
+Pinned **0.4.6**. `MCPJUNGLE_IMAGE_TAG` is profile-owned; copied profiles
+that omit the key still get compose `:-0.4.6`. This lab’s default is
+0.4.6, not upstream Compose `latest` / `latest-stdio`. Do not set
+`MCPJUNGLE_BIND_HOST` (unset = all interfaces). Operator dashboard is
+`GET /` in development mode only (enterprise 404s).
 
 `mcpjungle/servers/*.json` register upstreams with `${ENV}` token
 injection. Filename must match the JSON `name`.

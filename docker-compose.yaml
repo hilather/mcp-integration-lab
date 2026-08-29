@@ -226,8 +226,10 @@ services:
       start_period: 2s
 
   # --------------------------------------------------------- MCPJungle gateway
+  # Pinned 0.4.6 (MCPJUNGLE_IMAGE_TAG). Leave MCPJUNGLE_BIND_HOST unset
+  # (all interfaces). Never latest-stdio.
   mcpjungle:
-    image: ghcr.io/mcpjungle/mcpjungle:latest
+    image: ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}
     networks: [default, shared]
     ports:
       - "${MCP_GATEWAY_PORT:-8080}:8080"
@@ -248,7 +250,7 @@ services:
   # -------------------------------------------------- one-shot registrar (CLI)
   # Not started by `up`; the mcplab CLI drives `docker compose run registrar`.
   registrar:
-    image: ghcr.io/mcpjungle/mcpjungle:latest
+    image: ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}
     profiles: [tools]
     entrypoint: ["/mcpjungle"]
     networks: [default]
