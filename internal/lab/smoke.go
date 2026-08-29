@@ -405,6 +405,13 @@ func (s *smokeState) labmitmScenario() {
 	waitOut, err := s.invoke("labmitm__mitm_flows_wait", `{"filter":{"host":"labdns"},"timeout":"10s"}`)
 	s.check(err == nil && strings.Contains(waitOut, "labdns"),
 		fmt.Sprintf("mitm_flows_wait sees labdns flow (err=%v)", err))
+
+	// 1.3 hop/accept catalog is discovered at Register() during make up.
+	// make reload APP=labmitm does not re-register (gateway SQLite is tmpfs
+	// only on mcpjungle reload / make register).
+	featOut, err := s.invoke("labmitm__mitm_features_list", `{}`)
+	s.check(err == nil,
+		fmt.Sprintf("mitm_features_list is registered (err=%v out=%q)", err, featOut))
 }
 
 // radiusAuth sends one PAP Access-Request and returns the verified reply code.

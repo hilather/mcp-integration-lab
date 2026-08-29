@@ -101,7 +101,7 @@ make reload APP=labinfo     # labinfo/services.yaml
 make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
 make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
 make reload APP=labtacacs   # TacLab compose project
-make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows
+make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register
 ```
 
 Same commands as `mcplab reload <app>`. Aliases: `dns`, `labmail`/`mail`,

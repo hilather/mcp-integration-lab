@@ -64,10 +64,10 @@
           </article>
           <article class="card">
             <h3>LabMITM — <a href="https://github.com/hilather/go-lab-mitmproxy">hilather/go-lab-mitmproxy</a></h3>
-            <p>Laboratory HTTP(S) intercepting forward proxy. Pinned v1.1.1. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt).</p>
+            <p>Laboratory HTTP(S) intercepting forward proxy. Pinned v1.4.0. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Native <code>/v1</code> catalog 31 (includes <code>features.get</code>); <code>GET /v1/features</code> is the 11-row hop/accept catalog. SOCKS / inspectFrames / httpAuth stay off.</p>
             <p><strong>Connect.</strong> HTTP proxy <code><host>:18888</code>. Inspector / <code>/v1</code> / MCP at <code><host>:18088</code>.</p>
-            <p><strong>Configure.</strong> <code>profiles/<name>/labmitm/bootstrap.yaml</code>. Exact Origins (no <code>"*"</code>). Reload: <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates).</p>
-            <p><strong>Auth.</strong> Management bearer in <code>secrets/labmitm-token</code> (0o644). Proxy data plane has no Proxy-Authorization.</p>
+            <p><strong>Configure.</strong> <code>profiles/<name>/labmitm/bootstrap.yaml</code>. Exact Origins (no <code>"*"</code>). Reload: <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates; does not re-register).</p>
+            <p><strong>Auth.</strong> Management bearer in <code>secrets/labmitm-token</code> (0o644). Proxy data plane has no Proxy-Authorization (HTTP 407 is opt-in YAML, off here).</p>
           </article>
           <article class="card">
             <h3>ratarmount-rs — <a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></h3>

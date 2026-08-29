@@ -162,7 +162,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 | `labldap/scenario.yaml` | `make reload APP=labldap` | ephemeral `/data` re-seeded from the scenario |
 | `LAB_PUBLIC_HOST` | `mcplab secrets` then `make reload APP=labldap` | leaf SAN rewrite; control Host allow-list env |
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
-| `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates |
+| `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates; does not re-register |
 
 `make labldap-up` / `make labtacacs-up` are idempotent project bring-up
 (the path `make up` uses). They do not force-recreate a running directory.
@@ -381,15 +381,21 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-`allowLegacyClients: true` is required for MCPJungle. Compose must pass
-`--management-listen=:8088`. After editing, `make reload APP=labmitm`
-(wipes captured flows; generate-mode CA rotates).
+Pinned **v1.4.0**. `allowLegacyClients: true` is required for MCPJungle.
+Compose must pass `--management-listen=:8088`. After editing,
+`make reload APP=labmitm` (wipes captured flows; generate-mode CA
+rotates). Reload does **not** re-register the gateway tool list
+(`make up` / `make register` / mcpjungle reload).
 
 The HTTP/1.1 data plane is **unauthenticated**. Do not publish without a
-network boundary. HTTPS intercept is **:443 only**; CONNECT to LabLDAP
-LDAPS or TacLab TLS is tunnel-not-decrypt. `allowHosts` is HTTP-useful
-compose DNS (`*.lab`, labdns, labinfo, maildev, mcpjungle, control,
-taclab).
+network boundary. Omit `spec.proxy.httpAuth` (do not write `enabled:
+false`). 1.2 nested flags (SOCKS BIND/UDP/user-pass, inspectFrames,
+orig-dest) stay off. Native `/v1` catalog is 31 (includes
+`features.get`); `GET /v1/features` / MCP `mitm_features_list` is the
+frozen 11-row hop/accept catalog. HTTPS intercept is **:443 only**;
+CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt.
+`allowHosts` is HTTP-useful compose DNS (`*.lab`, labdns, labinfo,
+maildev, mcpjungle, control, taclab).
 
 Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
 `"private"`). When `LAB_PUBLIC_HOST` is not loopback, add

@@ -17,7 +17,7 @@ secrets layout, and gateway policy.
 | LabLDAP (`go-lab-ldap-mcp` **v0.4.1**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.4.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.3**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
-| LabMITM (`go-lab-mitmproxy` **v1.1.1**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
+| LabMITM (`go-lab-mitmproxy` **v1.4.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle | MCP gateway: aggregation, tool groups, ACLs | `http://<host>:8080/mcp` | gateway 8080 |
@@ -134,7 +134,7 @@ tweak does not bounce the rest of the lab:
 | `mcpjungle` | recreate gateway, then `register` | tmpfs SQLite (re-applied from profile JSON) |
 | `labldap` | rebuild images, force-recreate directory + control, re-run bootstrap | ephemeral `/data` (re-seeded from scenario.yaml) |
 | `labtacacs` | `compose up --force-recreate` on the TacLab project | in-process AAA state (labgen files on disk survive) |
-| `labmitm` | same for compose service `labmitm` | captured flows; generate-mode CA rotates |
+| `labmitm` | same for compose service `labmitm` | captured flows; generate-mode CA rotates (does not re-register) |
 
 `make labldap-up` / `make labtacacs-up` stay idempotent project bring-up
 (used by `make up`). Use full `make up` after a vendor pin bump, a profile
@@ -251,17 +251,22 @@ per-persona tool groups and OTel metrics scraping.
   `POST /email/:id/relay` is 403. rc.3 adds `originAllowlist` sentinels
   `"*"` and `"private"`; the default profile uses `"*"` so remote inbox JS
   loads (bearer + Basic still required; CORS stays off).
-- LabMITM is pinned to **v1.1.1**. MCP pin is relaxed with
+- LabMITM is pinned to **v1.4.0**. MCP pin is relaxed with
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (no LabMITM patch). Compose must pass `--management-listen=:8088`
   (binary default is off). The HTTP/1.1 data plane is unauthenticated;
-  do not publish without a network boundary. HTTPS intercept is `:443`
-  only — CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt.
+  do not publish without a network boundary. Omit `spec.proxy.httpAuth`
+  (do not write `enabled: false`). 1.2 nested flags (SOCKS BIND/UDP/user-pass,
+  inspectFrames, orig-dest) stay off. Native `/v1` catalog is 31 (includes
+  `features.get`); `GET /v1/features` / MCP `mitm_features_list` is the
+  frozen 11-row hop/accept catalog. HTTPS intercept is `:443` only —
+  CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt.
   Origin allowlist is exact Origins (loopback already allowed; no `"*"`).
   When `LAB_PUBLIC_HOST` is not loopback, add
   `http://<LAB_PUBLIC_HOST>:18088` (or the profile's `LABMITM_WEB_PORT`)
   or the inspector SPA 403s `/v1`. Bind-mounted `secrets/labmitm-token`
-  is 0o644. Captured flows and a generate-mode CA are wiped on reload.
+  is 0o644. Captured flows and a generate-mode CA are wiped on reload;
+  `make reload APP=labmitm` does not re-register.
 - ratarmount-rs is pinned to **v0.1.28** (`.deb` in
   `docker/ratarmount/Dockerfile`). NFSv3 has no locking (`nolock` required)
   and AUTH_SYS only; the lab boundary is the docker network / host. The

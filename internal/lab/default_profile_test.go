@@ -136,6 +136,66 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 	if len(doc.Spec.Management.OriginAllowlist) != 0 {
 		t.Fatalf("originAllowlist = %v, want empty", doc.Spec.Management.OriginAllowlist)
 	}
+
+	// KnownFields on a v1.1.1 image reject 1.2/1.4 keys — even enabled:false.
+	// Decode the mapping so omit is distinguishable from a zero-value bool.
+	var root map[string]any
+	if err := yaml.Unmarshal(b, &root); err != nil {
+		t.Fatal(err)
+	}
+	spec, _ := root["spec"].(map[string]any)
+	if spec == nil {
+		t.Fatal("spec missing")
+	}
+	proxy, _ := spec["proxy"].(map[string]any)
+	if proxy == nil {
+		t.Fatal("spec.proxy missing")
+	}
+	if _, ok := proxy["httpAuth"]; ok {
+		t.Fatal("spec.proxy.httpAuth must stay omitted (not enabled: false)")
+	}
+	unknownKeys := []string{
+		"httpAuth", "inspectFrames", "acceptBind", "acceptUDPAssociate",
+		"acceptUserPass", "userPass", "clientCleartext",
+	}
+	visitYAMLMapping(spec, func(key string, val any) {
+		for _, k := range unknownKeys {
+			if key == k {
+				t.Errorf("1.2/1.4 key %q must stay omitted, got %#v", key, val)
+			}
+		}
+	})
+	rules, _ := spec["rules"].(map[string]any)
+	if rules == nil {
+		t.Fatal("spec.rules missing")
+	}
+	enabled, ok := rules["enabled"].(bool)
+	if !ok || enabled {
+		t.Fatalf("spec.rules.enabled = %#v, want false", rules["enabled"])
+	}
+	items, _ := rules["items"].([]any)
+	for i, item := range items {
+		m, _ := item.(map[string]any)
+		action, _ := m["action"].(string)
+		switch action {
+		case "silent", "hang", "redirect", "throttle":
+			t.Errorf("rules.items[%d] action %q is a 1.4 type; keep items empty", i, action)
+		}
+	}
+}
+
+func visitYAMLMapping(v any, visit func(key string, val any)) {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, child := range t {
+			visit(k, child)
+			visitYAMLMapping(child, visit)
+		}
+	case []any:
+		for _, child := range t {
+			visitYAMLMapping(child, visit)
+		}
+	}
 }
 
 func TestDefaultLabLDAPScenarioInsecureLabMode(t *testing.T) {

@@ -248,15 +248,17 @@ services:
         - name: HTTP proxy
           protocol: http-proxy
           address: ${LAB_PUBLIC_HOST}:${LABMITM_PROXY_PORT}
-          note: unauthenticated HTTP/1.1 absolute-form + CONNECT; do not publish without a network boundary
+          note: unauthenticated HTTP/1.1 absolute-form + CONNECT; HTTP 407 (spec.proxy.httpAuth) is opt-in YAML, off here; do not publish without a network boundary
         - name: MCP (streamable HTTP)
           protocol: mcp-streamable-http
           address: http://${LAB_PUBLIC_HOST}:${LABMITM_WEB_PORT}/mcp
           note: bearer only; gateway interpolates LABMITM_TOKEN
       parameters:
-        auth: "proxy data plane is unauthenticated; management is bearer-only (no HTTP Basic)"
+        auth: "proxy data plane is unauthenticated; HTTP 407 (spec.proxy.httpAuth) is opt-in YAML, off here; management is bearer-only (no HTTP Basic)"
         tls: "HTTPS intercept uses an in-process lab CA on :443 only; clients must trust GET /v1/ca. CONNECT to non-443 TLS (LabLDAP LDAPS, TacLab TLS) is tunnel-not-decrypt"
         hosts: "allowHosts includes *.lab and compose DNS names (labdns, labinfo, maildev, mcpjungle, control, taclab)"
+        flags: "SOCKS BIND/UDP/user-pass, h2c, inspectFrames, orig-dest stay off (Reset-only). Hop/accept (http2, SOCKS CONNECT, websocket/connect/absoluteForm) are live setFeature via MCP mitm_change_apply. Intercept stays :443 only."
+        features: "GET /v1/features and MCP mitm_features_list return the frozen 11-row hop/accept catalog. Native /v1 catalog is 31 rows (includes features.get)."
       credentials:
         - name: labmitm-token
           file: /run/lab-secrets/labmitm-token

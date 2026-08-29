@@ -17,6 +17,12 @@ changes since the previous one (AGENTS.md rule 13).
   NFSv3 (`nolock`); NFSv4.1 stays off. Overlay commit still last-frame
   splices `.tar.zst`. Remount patches the SQLite sidecar instead of
   reindexing the whole TAR (F-2, v0.1.27).
+- Vendor pin: LabMITM **v1.4.0** (was v1.1.1). Flags-off overlay: SOCKS,
+  inspectFrames, orig-dest, `httpAuth`, and 1.4 rule items stay omitted
+  (`httpAuth` is absent, not `enabled: false`). Native `/v1` catalog is
+  31 (includes `features.get`); `GET /v1/features` and MCP
+  `mitm_features_list` are the frozen 11-row hop/accept catalog.
+  `make reload APP=labmitm` does not re-register.
 
 ### Added
 

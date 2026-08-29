@@ -111,7 +111,7 @@ make reload APP=labinfo     # labinfo/services.yaml
 make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
 make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
 make reload APP=labtacacs   # TacLab compose project
-make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows</code></pre>
+make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register</code></pre>
         <p>Same as <code>mcplab reload &lt;app&gt;</code>. Sibling services stay up. Use full <code>make up</code> after a vendor pin bump, a profile switch, or first bring-up.</p>
 
         <h2 id="stop">Stop and reset</h2>

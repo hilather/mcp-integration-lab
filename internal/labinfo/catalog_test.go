@@ -250,6 +250,18 @@ func TestDefaultCatalogLabmitm(t *testing.T) {
 			t.Fatalf("hosts = %q, missing %q", hosts, name)
 		}
 	}
+	auth := svc.Connection.Parameters["auth"]
+	if !strings.Contains(auth, "407") || !strings.Contains(auth, "off here") {
+		t.Fatalf("auth parameter missing HTTP 407 opt-in/off sentence: %q", auth)
+	}
+	features := svc.Connection.Parameters["features"]
+	if !strings.Contains(features, "11-row hop/accept") || !strings.Contains(features, "31") || !strings.Contains(features, "features.get") {
+		t.Fatalf("features parameter missing native /v1 catalog 31 vs 11-row hop/accept: %q", features)
+	}
+	flags := svc.Connection.Parameters["flags"]
+	if !strings.Contains(flags, "inspectFrames") || !strings.Contains(flags, "off") {
+		t.Fatalf("flags parameter missing SOCKS/h2/inspectFrames off: %q", flags)
+	}
 }
 
 func TestDefaultCatalogOperatorConsole(t *testing.T) {
