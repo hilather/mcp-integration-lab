@@ -321,9 +321,10 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   there.
 - GH `smoke-dev` can die at ~6s with maildev or labmitm `Unhealthy` on the
   first ready probe (labdns/labinfo often Healthy in the same tick).
-  `compose up --wait` / main reload `--wait` now dump `compose ps -a` and
-  engine `.State` + `.Config.Healthcheck` for those four. Do not stretch
-  `start_period` until a dump shows FailingStreak and configured Retries.
+  `compose up --wait` / main reload `--wait` now dump `compose ps -a`,
+  engine `.State` + `.Config.Healthcheck`, and `compose logs --tail=80`
+  for those four. Do not stretch `start_period` until a dump shows
+  FailingStreak and configured Retries.
 - LabJenkins is **opt-in** (`LABJENKINS_ENABLED=false` on default). Vendored
   pin is go-jenkins-mcp commit `a225ef47013f034432e45403499e7b016fe647a7`
   (SHA checkout in `vendorCheckout`; no release tag includes the Entra

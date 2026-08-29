@@ -149,7 +149,7 @@ func TestEasyDockerTestingHints(t *testing.T) {
 	if next := strings.Index(rest, "\n## "); next >= 0 {
 		rest = rest[:next]
 	}
-	for _, tok := range []string{"LABJENKINS_ENABLED", "ENTRA_", "PROFILE=", "Keycloak", "not start Jenkins"} {
+	for _, tok := range []string{"LABJENKINS_ENABLED", "ENTRA_", "PROFILE=", "profile.env", "Keycloak", "not start Jenkins"} {
 		if !strings.Contains(rest, tok) {
 			t.Errorf("Easy Docker testing section missing %q", tok)
 		}
