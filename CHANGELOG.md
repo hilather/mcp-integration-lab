@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-29
+
 ### Changed
 
 - Vendor pins: LabDNS **v1.3.0**, LabLDAP **v0.5.0**, TacLab **v1.5.0**,
@@ -27,13 +29,6 @@ changes since the previous one (AGENTS.md rule 13).
   architecture) share that chrome: landing footer line, current-page
   underline, catalog cards use the landing name/meta row (versions
   where a pin exists), no leftover inline type.
-
-### Fixed
-
-- GitHub Pages is still off (`has_pages: false`). The cloud token cannot
-  write Pages (`gh api` POST/PUT returned 403). Enable once with
-  **Settings → Pages → Deploy from a branch → `main` / `docs`** so
-  `https://hilather.github.io/mcp-integration-lab/` stops 404ing.
 
 ## [0.9.0] - 2026-08-29
 
