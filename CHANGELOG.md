@@ -7,6 +7,24 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Docs landing matches the approved mock: one topology, eight service
+  cards in a four-column grid, client JSON in the hero
+  (`http://<lab-host>:8080/mcp`) instead of the logo, primary CTA
+  **Get a lab running**. Dropped the Ecosystem repeat and the ports
+  table duplicate. Shared chrome names the product MCP Integration Lab.
+  Accessibility: skip link, menu `aria-expanded` / `aria-controls`,
+  `:focus-visible`, escaped `<lab-host>` placeholders, `--fg-subtle`
+  meets WCAG AA. Code blocks copy to the clipboard.
+
+### Fixed
+
+- GitHub Pages source is `main` / `/docs` so
+  `https://hilather.github.io/mcp-integration-lab/` stops 404ing
+  (enable via API when the token can write Pages; otherwise
+  **Settings → Pages → Deploy from a branch → `main` / `docs`**).
+
 ## [0.9.0] - 2026-08-29
 
 ### Changed

@@ -10,11 +10,18 @@
   <link rel="stylesheet" href="site.css" />
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="./"><img src="assets/mark.svg" alt="" />MCP Lab</a>
-      <button class="menu-btn" type="button" data-menu>Menu</button>
-      <nav class="nav-links" data-links>
+      <a class="brand" href="./">
+        <img src="assets/mark.svg" alt="" />
+        <span class="brand-text">
+          <span class="brand-name">MCP Integration Lab</span>
+          <span class="brand-meta">v0.4.0 — laboratory</span>
+        </span>
+      </a>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" data-menu>Menu</button>
+      <nav id="site-nav" class="nav-links" data-links>
         <a href="./">Overview</a>
         <a href="start.html">Quick start</a>
         <a href="configure.html" aria-current="page">Configure</a>
@@ -25,7 +32,7 @@
       </nav>
     </div>
   </header>
-  <main class="doc">
+  <main id="main" class="doc">
     <div class="wrap doc-grid">
       <aside class="toc">
         <a href="#ownership">Who owns what</a>
@@ -56,7 +63,7 @@
         </ul>
 
         <h2 id="profile">A profile directory</h2>
-        <pre><code>profiles/<name>/
+        <pre><code>profiles/&lt;name&gt;/
   profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
   dev-credentials.yaml     lab-only catalog (used iff LAB_DEV_MODE=true)
   labdns/bootstrap.yaml    permanent DNS zones and records
@@ -80,7 +87,7 @@ make up PROFILE=teamx</code></pre>
         <ol>
           <li>Process environment</li>
           <li><code>.env</code> at the repo root (selects <code>PROFILE=</code> and may override any value)</li>
-          <li><code>profiles/<name>/profile.env</code></li>
+          <li><code>profiles/&lt;name&gt;/profile.env</code></li>
           <li>Compose-file defaults (match the default profile)</li>
         </ol>
         <pre><code># .env
@@ -239,7 +246,7 @@ spec:
     mcp:
       allowLegacyClients: true
     originAllowlist: ["*"]</code></pre>
-        <p>Point the system under test at <code><lab-host>:1025</code>. Read captured mail at <code>:1080</code>. Native REST is <code>/v1</code>; MCP is <code>/mcp</code>. Nothing is relayed.</p>
+        <p>Point the system under test at <code>&lt;lab-host&gt;:1025</code>. Read captured mail at <code>:1080</code>. Native REST is <code>/v1</code>; MCP is <code>/mcp</code>. Nothing is relayed.</p>
 
         <h2 id="labmitm">LabMITM</h2>
         <p>Desired state is <code>labmitm/bootstrap.yaml</code> (LabMITM <strong>v1.4.0</strong>), a lab-owned overlay copy. <code>allowLegacyClients: true</code> is required for MCPJungle. Compose must pass <code>--management-listen=:8088</code>. After editing, <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates; does not re-register). The HTTP/1.1 data plane is unauthenticated; omit <code>spec.proxy.httpAuth</code>. Native <code>/v1</code> catalog is 31 (includes <code>features.get</code>); <code>GET /v1/features</code> / MCP <code>mitm_features_list</code> is the frozen 11-row hop/accept catalog. HTTPS intercept is <code>:443</code> only; CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt. Origin allowlist is exact Origins (loopback already allowed; no <code>"*"</code>). When <code>LAB_PUBLIC_HOST</code> is not loopback, add <code>http://&lt;LAB_PUBLIC_HOST&gt;:18088</code> or the inspector SPA 403s <code>/v1</code>.</p>
@@ -266,7 +273,7 @@ spec:
     mcp:
       allowLegacyClients: true
     originAllowlist: []</code></pre>
-        <p>Point systems under test at <code><lab-host>:18888</code> as <code>HTTP_PROXY</code>. Inspector / REST / MCP is <code>:18088</code> (bearer in <code>secrets/labmitm-token</code>).</p>
+        <p>Point systems under test at <code>&lt;lab-host&gt;:18888</code> as <code>HTTP_PROXY</code>. Inspector / REST / MCP is <code>:18088</code> (bearer in <code>secrets/labmitm-token</code>).</p>
 
         <h2 id="nfs">NFS</h2>
         <p><code>NFS_ARCHIVE_DIR</code> holds the empty-root fixture <code>.tar.zst</code> (<code>fixtures.tar.zst</code> contains only <code>./</code>) after <code>make fixtures</code>. The export is writable: <code>-w</code> overlay plus live commit (<code>NFS_COMMIT_OVERLAY_INTERVAL</code>, default 15m, and on process exit). <code>NFS_DATA_DIR</code> is indexes plus the durable overlay. Plan ~2× compressed size on the archive dir during a commit.</p>
@@ -276,7 +283,7 @@ NFS_ARCHIVE_DIR=.data/nfs
 NFS_DATA_DIR=.data/nfs-work
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
-  <lab-host>:/ /mnt</code></pre>
+  &lt;lab-host&gt;:/ /mnt</code></pre>
         <p>AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs <strong>v0.1.28</strong> also ships NFSv4.1 (<code>--nfs-vers 4</code>); this lab stays on v3. After a zstd overlay commit, remount patches the SQLite sidecar instead of reindexing the whole TAR. After changing the interval or the image pin, <code>make reload APP=nfs</code>.</p>
 
         <h2 id="labinfo">labinfo catalog</h2>
@@ -289,7 +296,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
       - { name: REST API, url: https://${LAB_PUBLIC_HOST}:${LABLDAP_HTTPS_PORT}/api/v1 }
     credential:
       file: /run/lab-secrets/labldap-token-admin
-      usage: "HTTP header 'Authorization: Bearer <token>'"
+      usage: "HTTP header 'Authorization: Bearer &lt;token&gt;'"
     connection:
       endpoints:
         - { name: LDAPS, protocol: ldaps, address: ldaps://${LAB_PUBLIC_HOST}:${LABLDAP_LDAPS_PORT} }
@@ -300,7 +307,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         - name: bind-password-alice
           file: /run/lab-secrets/labldap-user-alice
           usage: "simple-bind password for alice"</code></pre>
-        <p>Adding a service: write the compose service, add a <code>mcpjungle/servers/<name>.json</code> (filename must match JSON <code>name</code>), and add the catalog entry. New ports must be exported into the labinfo container environment so expansion sees them.</p>
+        <p>Adding a service: write the compose service, add a <code>mcpjungle/servers/&lt;name&gt;.json</code> (filename must match JSON <code>name</code>), and add the catalog entry. New ports must be exported into the labinfo container environment so expansion sees them.</p>
 
         <h2 id="gateway">MCPJungle</h2>
         <p>Pinned <strong>0.4.6</strong>. <code>MCPJUNGLE_IMAGE_TAG</code> is profile-owned; copied profiles that omit the key still get compose <code>:-0.4.6</code>. This lab’s default is 0.4.6, not upstream Compose <code>latest</code> / <code>latest-stdio</code>. Do not set <code>MCPJUNGLE_BIND_HOST</code> (unset = all interfaces). Operator dashboard is <code>GET /</code> in development mode only (enterprise 404s).</p>
@@ -336,10 +343,6 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
       <div><a href="start.html">Quick start</a> · <a href="architecture.html">Architecture</a></div>
     </div>
   </footer>
-  <script>
-    const btn = document.querySelector("[data-menu]");
-    const links = document.querySelector("[data-links]");
-    btn?.addEventListener("click", () => links.classList.toggle("open"));
-  </script>
+  <script src="site.js" defer></script>
 </body>
 </html>
