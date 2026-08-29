@@ -130,18 +130,47 @@ func TestLabJenkinsOverlayContract(t *testing.T) {
 
 func TestLabJenkinsUpRequiresEnabled(t *testing.T) {
 	r := &Runner{Prof: &profile.Profile{Values: map[string]string{"LABJENKINS_ENABLED": "false"}}}
-	if err := r.LabJenkinsUp(); err == nil {
-		t.Fatal("expected error when disabled")
+	err := r.LabJenkinsUp()
+	if err == nil || !strings.Contains(err.Error(), "LABJENKINS_ENABLED") {
+		t.Fatalf("got %v", err)
 	}
 }
 
 func TestReloadLabJenkinsRequiresEnabled(t *testing.T) {
 	r := &Runner{Prof: &profile.Profile{Values: map[string]string{"LABJENKINS_ENABLED": "false"}}}
-	if err := r.reloadLabJenkins(); err == nil {
-		t.Fatal("expected error when disabled")
+	err := r.reloadLabJenkins()
+	if err == nil || !strings.Contains(err.Error(), "LABJENKINS_ENABLED") {
+		t.Fatalf("reloadLabJenkins: %v", err)
 	}
-	if err := r.Reload("labjenkins"); err == nil {
-		t.Fatal("Reload(labjenkins) must fail when disabled")
+	err = r.Reload("labjenkins")
+	if err == nil || !strings.Contains(err.Error(), "LABJENKINS_ENABLED") {
+		t.Fatalf("Reload(labjenkins): %v", err)
+	}
+}
+
+func TestYAMLSubtreeContainsLoopback(t *testing.T) {
+	short := &yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{
+		{Kind: yaml.ScalarNode, Value: "127.0.0.1:18091:8080"},
+	}}
+	if !yamlSubtreeContains(short, "127.0.0.1") {
+		t.Fatal("short-form loopback bind must be detected")
+	}
+	long := &yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{
+		{Kind: yaml.MappingNode, Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Value: "host_ip"},
+			{Kind: yaml.ScalarNode, Value: "127.0.0.1"},
+			{Kind: yaml.ScalarNode, Value: "target"},
+			{Kind: yaml.ScalarNode, Value: "8080"},
+		}},
+	}}
+	if !yamlSubtreeContains(long, "127.0.0.1") {
+		t.Fatal("long-form host_ip loopback must be detected")
+	}
+	clean := &yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{
+		{Kind: yaml.ScalarNode, Value: "${JWT_RS_KC_PORT:-18091}:8080"},
+	}}
+	if yamlSubtreeContains(clean, "127.0.0.1") {
+		t.Fatal("all-interfaces publish must not match loopback")
 	}
 }
 
