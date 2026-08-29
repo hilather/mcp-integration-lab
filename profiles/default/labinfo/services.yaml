@@ -225,7 +225,7 @@ services:
         mount_options: "vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT}"
         mount_example: "mount -t nfs -o vers=3,tcp,nolock,port=${NFS_PORT},mountport=${NFS_PORT} ${LAB_PUBLIC_HOST}:/ /mnt"
         auth: AUTH_SYS (no credential)
-        writable: "true — writes go to a durable overlay and are committed into the .tar.zst every ${NFS_COMMIT_OVERLAY_INTERVAL} and on process exit (gzip is not supported)"
+        writable: "true — writes go to a durable overlay and are committed into the .tar.zst every ${NFS_COMMIT_OVERLAY_INTERVAL} and on process exit (gzip is not supported); remount after commit uses the patched sidecar (no full TAR reindex)"
 
   - id: labmitm
     name: HTTP intercept (LabMITM)

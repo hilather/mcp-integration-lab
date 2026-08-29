@@ -71,7 +71,7 @@
           </article>
           <article class="card">
             <h3>ratarmount-rs — <a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></h3>
-            <p>Writable archive-backed userspace NFSv3 export (empty-root <code>.tar.zst</code>, 15m overlay commit). Pinned v0.1.24; NFSv4.1 is in the package, this lab stays on v3.</p>
+            <p>Writable archive-backed userspace NFSv3 export (empty-root <code>.tar.zst</code>, 15m overlay commit). Pinned v0.1.28; remount after commit does not reindex the whole TAR. NFSv4.1 is in the package, this lab stays on v3.</p>
             <p><strong>Connect.</strong> <code>mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 <host>:/ /mnt</code></p>
             <p><strong>Configure.</strong> <code>NFS_ARCHIVE_DIR</code> and <code>NFS_DATA_DIR</code> in <code>profile.env</code>. Reload: <code>make reload APP=nfs</code>.</p>
             <p><strong>Auth.</strong> AUTH_SYS. No credential.</p>

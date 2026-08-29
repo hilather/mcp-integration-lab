@@ -276,7 +276,7 @@ NFS_DATA_DIR=.data/nfs-work
 
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt</code></pre>
-        <p>AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs <strong>v0.1.24</strong> also ships NFSv4.1 (<code>--nfs-vers 4</code>); this lab stays on v3. After changing the interval or the image pin, <code>make reload APP=nfs</code>.</p>
+        <p>AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs <strong>v0.1.28</strong> also ships NFSv4.1 (<code>--nfs-vers 4</code>); this lab stays on v3. After a zstd overlay commit, remount patches the SQLite sidecar instead of reindexing the whole TAR. After changing the interval or the image pin, <code>make reload APP=nfs</code>.</p>
 
         <h2 id="labinfo">labinfo catalog</h2>
         <p>Every service in <code>labinfo/services.yaml</code> must carry a <code>connection</code> block — labinfo refuses to start without one. URLs are <code>${VAR}</code> templates over the profile env. Host comes from <code>LAB_PUBLIC_HOST</code>. Credentials point at staged copies under <code>secrets/labinfo-creds/</code> and are revealed only when <code>LAB_DEV_MODE=true</code>. The default catalog includes the LabLDAP CA PEM, TacLab lab-user passwords, the TACACS+ shared secret, and optional TacLab client certs. There is no labinfo catalog service for the inbound <code>labinfo-token</code>. <code>mcplab creds</code> / <code>make creds</code> prints the same sheet from those staged files (dev mode only).</p>

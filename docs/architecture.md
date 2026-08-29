@@ -18,7 +18,7 @@ secrets layout, and gateway policy.
 | TacLab (`go-lab-tacacs-mcp` **v1.4.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.3**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
 | LabMITM (`go-lab-mitmproxy` **v1.1.1**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
-| ratarmount-rs **v0.1.24** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
+| ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle | MCP gateway: aggregation, tool groups, ACLs | `http://<host>:8080/mcp` | gateway 8080 |
 
@@ -262,16 +262,17 @@ per-persona tool groups and OTel metrics scraping.
   `http://<LAB_PUBLIC_HOST>:18088` (or the profile's `LABMITM_WEB_PORT`)
   or the inspector SPA 403s `/v1`. Bind-mounted `secrets/labmitm-token`
   is 0o644. Captured flows and a generate-mode CA are wiped on reload.
-- ratarmount-rs is pinned to **v0.1.24** (`.deb` in
+- ratarmount-rs is pinned to **v0.1.28** (`.deb` in
   `docker/ratarmount/Dockerfile`). NFSv3 has no locking (`nolock` required)
   and AUTH_SYS only; the lab boundary is the docker network / host. The
   export is writable via `-w` (durable overlay under `NFS_DATA_DIR`); live
   commit into the empty-root `.tar.zst` is `--commit-overlay-interval`
   (profile `NFS_COMMIT_OVERLAY_INTERVAL`, default 15m) plus
   `--commit-overlay-on-exit`. Gzip is rejected; `:temp:` overlays are
-  rejected. Persist copies the compressed file and remount reindexes the
-  whole TAR. NFSv4.1 (`--nfs-vers 4`) is compiled into the package; this
-  lab stays on v3.
+  rejected. Persist still copies the compressed prefix; remount uses the
+  patched SQLite sidecar and does not rescan prefix frames (`:memory:` /
+  a discarded sidecar still full-rebuilds). NFSv4.1 (`--nfs-vers 4`) is
+  compiled into the package; this lab stays on v3.
 - ratarmount image is Ubuntu-based (release .deb). Alpine/musl source build is
   a size optimization for later.
 - LabLDAP and TacLab images build locally from the vendored repos (TacLab's

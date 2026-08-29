@@ -34,8 +34,8 @@ func TestRatarmountDebPin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), "ARG RATARMOUNT_VERSION=0.1.24") {
-		t.Fatalf("ratarmount Dockerfile pin is not 0.1.24:\n%s", b)
+	if !strings.Contains(string(b), "ARG RATARMOUNT_VERSION=0.1.28") {
+		t.Fatalf("ratarmount Dockerfile pin is not 0.1.28:\n%s", b)
 	}
 }
 

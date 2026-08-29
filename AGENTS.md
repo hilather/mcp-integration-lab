@@ -139,7 +139,7 @@ we work by.
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.2.0`,
   LabLDAP `v0.4.1`, TacLab `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.1.1`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
-  (`0.1.24`). TacLab's generated lab baseline also lives under its checkout
+  (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
 - `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
@@ -235,6 +235,9 @@ we work by.
   `-w` dir (not `:temp:`). The fixture is an empty-root `.tar.zst` (`./`
   only). Zstd commit rewrites the last frame and still copies the compressed
   file; the archive bind mount must be writable (plan 2× compressed headroom).
+  Pinned **0.1.28**: remount patches the SQLite sidecar after that splice
+  (F-2) and does not rescan prefix frames. `:memory:` / a discarded sidecar
+  still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
 - LabMITM is pinned to **v1.1.1**. Desired state is

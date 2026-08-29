@@ -12,7 +12,11 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: LabDNS **v1.2.0** (over-length desired-state names).
   Management `resolve` / `explain` can answer those owners; the DNS
   wire is still RFC 1035. The demo zone does not add over-length
-  records. `allowLegacyClients` stays true. Other pins unchanged.
+  records. `allowLegacyClients` stays true.
+- NFS pin: ratarmount-rs **v0.1.28** (was 0.1.24). The lab export stays
+  NFSv3 (`nolock`); NFSv4.1 stays off. Overlay commit still last-frame
+  splices `.tar.zst`. Remount patches the SQLite sidecar instead of
+  reindexing the whole TAR (F-2, v0.1.27).
 
 ### Added
 

@@ -201,7 +201,7 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.4.0**. |
 | [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.3**. Compose service name stays `maildev`. |
 | [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.1.1**. Data plane is unauthenticated; intercept is :443 only. |
-| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.24**. |
+| [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.28**. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
 

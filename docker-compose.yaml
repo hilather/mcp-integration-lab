@@ -52,12 +52,14 @@ services:
       start_period: 3s
 
   # ------------------------------------------- ratarmount-rs NFS export (POC)
-  # Userspace NFSv3 server (ratarmount-rs v0.1.24): no FUSE device, no
+  # Userspace NFSv3 server (ratarmount-rs v0.1.28): no FUSE device, no
   # privileges. Data plane only for now; an MCP wrapper around its control
   # socket is a phase-1 item. NFSv4.1 (`--nfs-vers 4`) is in the .deb but
   # this lab stays on v3 (`nolock`). Reload: `make reload APP=nfs`.
   # Writable overlay (-w) plus live commit into the empty-root .tar.zst
   # (gzip is rejected; :temp: is rejected). Interval is profile-defined.
+  # After last-frame splice, remount patches the SQLite sidecar (F-2) and
+  # does not reindex the whole TAR.
   nfs:
     build:
       context: ./docker/ratarmount

@@ -2,11 +2,12 @@
 #
 # Uses the signed release .deb so apt resolves runtime deps (libarchive, fuse3
 # libs). Live overlay commit into .tar.zst rewrites the last zstd frame
-# in-process. A musl/Alpine source build is a future size optimization; this
-# stays a lab-grade single-purpose image.
+# in-process; remount then patches the SQLite sidecar instead of rescanning
+# prefix frames. A musl/Alpine source build is a future size optimization;
+# this stays a lab-grade single-purpose image.
 FROM ubuntu:24.04
 
-ARG RATARMOUNT_VERSION=0.1.24
+ARG RATARMOUNT_VERSION=0.1.28
 
 ADD https://github.com/hilather/ratarmount-rs/releases/download/v${RATARMOUNT_VERSION}/ratarmount_${RATARMOUNT_VERSION}_amd64.deb /tmp/ratarmount.deb
 

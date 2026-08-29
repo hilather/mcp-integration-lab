@@ -446,9 +446,11 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
 ```
 
-AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.24**
-also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After changing
-the interval or the image pin, `make reload APP=nfs`.
+AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.28**
+also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After a zstd
+overlay commit, remount patches the SQLite sidecar instead of reindexing
+the whole TAR. After changing the interval or the image pin,
+`make reload APP=nfs`.
 
 ## labinfo catalog
 
