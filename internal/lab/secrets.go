@@ -464,7 +464,6 @@ func labgenArgs(force bool, secretsFromAbs string) []string {
 // is rerun with -force when the vendored checkout moves to a new tag, so a
 // pin bump cannot leave a stale baseline behind. force also covers leave-dev.
 // secretsFromAbs is -secrets-from when labgen actually runs in dev mode.
-// Dev-mode catalog pinning still runs after this from secretsEnterDev.
 func (r *Runner) ensureTaclabLab(force bool, secretsFromAbs string) error {
 	ref, err := r.taclabVendorRef()
 	if err != nil {

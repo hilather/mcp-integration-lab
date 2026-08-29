@@ -187,6 +187,7 @@ func TestDevCredentialsRejectsWhitespaceSecretsFromFields(t *testing.T) {
 		{"leading-space", func(v string) string { return " " + v }, "whitespace"},
 		{"trailing-space", func(v string) string { return v + " " }, "whitespace"},
 		{"newline", func(v string) string { return v[:1] + "\n" + v[1:] }, "newline"},
+		{"cr", func(v string) string { return v[:1] + "\r" + v[1:] }, "newline"},
 		{"nul", func(v string) string { return v[:1] + "\x00" + v[1:] }, "NUL"},
 	}
 	for _, f := range fields {

@@ -269,7 +269,7 @@ const (
 	tokenEncodingCaller   = "caller-supplied"
 )
 
-// expectTokenEncoding is the split labgen -secrets-from flag proof.
+// expectTokenEncoding checks labgen's manifest token_encoding.
 // Non-dev requires unpadded-base64url. CI first-mint-in-dev (GITHUB_ACTIONS
 // + PROFILE=ci-dev) requires caller-supplied. Other dev smokes accept either
 // known encoding (enter-dev on an existing random baseline skips labgen).

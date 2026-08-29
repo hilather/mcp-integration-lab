@@ -283,6 +283,11 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 
 func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nMCPJUNGLE_MODE=development\n", validCatalogBytes(t))
+	var gotAbs string
+	r.deps.ensureTaclab = func(force bool, secretsFromAbs string) error {
+		gotAbs = secretsFromAbs
+		return fakeLabgen(r.Root, force)
+	}
 	if err := r.Secrets(); err != nil {
 		t.Fatal(err)
 	}
@@ -305,6 +310,12 @@ func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 	}
 	if _, err := os.Stat(r.path(devModeMarkerRel)); err == nil {
 		t.Fatal("non-dev must not write the dev-mode marker")
+	}
+	if _, err := os.Stat(r.path(taclabSecretsFromRel)); !os.IsNotExist(err) {
+		t.Fatalf("non-dev must not write secrets-from YAML: %v", err)
+	}
+	if gotAbs != "" {
+		t.Fatalf("secretsFromAbs=%q, want empty", gotAbs)
 	}
 }
 
