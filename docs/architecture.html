@@ -10,11 +10,18 @@
   <link rel="stylesheet" href="site.css" />
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="./"><img src="assets/mark.svg" alt="" />MCP Lab</a>
-      <button class="menu-btn" type="button" data-menu>Menu</button>
-      <nav class="nav-links" data-links>
+      <a class="brand" href="./">
+        <img src="assets/mark.svg" alt="" />
+        <span class="brand-text">
+          <span class="brand-name">MCP Integration Lab</span>
+          <span class="brand-meta">v0.4.0 — laboratory</span>
+        </span>
+      </a>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" data-menu>Menu</button>
+      <nav id="site-nav" class="nav-links" data-links>
         <a href="./">Overview</a>
         <a href="start.html">Quick start</a>
         <a href="configure.html">Configure</a>
@@ -25,19 +32,19 @@
       </nav>
     </div>
   </header>
-  <main class="doc">
-    <div class="wrap" style="max-width:46rem">
+  <main id="main" class="doc" tabindex="-1">
+    <div class="wrap narrow">
       <article class="prose">
         <div class="eyebrow">Design</div>
         <h1>Three compose projects. One shared network.</h1>
         <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, NFS, and the HTTP intercept proxy at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
-        <div class="topo" style="margin: 24px 0 32px">
+        <div class="topo inset">
           <div class="topo-flow">
             <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
             <div class="topo-edge">streamable HTTP</div>
             <div class="topo-node hub"><span>Gateway</span><strong>MCPJungle :8080</strong></div>
-            <div class="topo-edge">real protocols</div>
-            <div class="topo-node"><span>Data plane</span><strong>Testers</strong></div>
+            <div class="topo-edge">data plane</div>
+            <div class="topo-node"><span>Testers</span><strong>Real protocols</strong></div>
           </div>
           <div class="topo-projects">
             <div class="topo-project">
@@ -106,14 +113,10 @@
   </main>
   <footer>
     <div class="wrap foot">
-      <div>MCP Integration Lab</div>
+      <div>MCP Integration Lab · laboratory software, not a production identity system</div>
       <div><a href="configure.html">Configure</a> · <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">Markdown</a></div>
     </div>
   </footer>
-  <script>
-    const btn = document.querySelector("[data-menu]");
-    const links = document.querySelector("[data-links]");
-    btn?.addEventListener("click", () => links.classList.toggle("open"));
-  </script>
+  <script src="site.js" defer></script>
 </body>
 </html>

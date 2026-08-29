@@ -14,11 +14,18 @@
   <link rel="stylesheet" href="site.css" />
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="nav">
     <div class="wrap nav-inner">
-      <a class="brand" href="./"><img src="assets/mark.svg" alt="" />MCP Lab</a>
-      <button class="menu-btn" type="button" aria-expanded="false" data-menu>Menu</button>
-      <nav class="nav-links" data-links>
+      <a class="brand" href="./">
+        <img src="assets/mark.svg" alt="" />
+        <span class="brand-text">
+          <span class="brand-name">MCP Integration Lab</span>
+          <span class="brand-meta">v0.4.0 — laboratory</span>
+        </span>
+      </a>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" data-menu>Menu</button>
+      <nav id="site-nav" class="nav-links" data-links>
         <a href="./" aria-current="page">Overview</a>
         <a href="start.html">Quick start</a>
         <a href="configure.html">Configure</a>
@@ -30,11 +37,11 @@
     </div>
   </header>
 
-  <main>
+  <main id="main" tabindex="-1">
     <section class="hero">
       <div class="wrap hero-grid">
         <div>
-          <div class="eyebrow">v0.4.0 · integration laboratory</div>
+          <div class="eyebrow">Integration laboratory · not a production identity system</div>
           <h1>One gateway.<br />Every lab protocol.</h1>
           <p class="lead">
             MCP Integration Lab stands up DNS, LDAP, TACACS+, RADIUS, mail, NFS,
@@ -42,12 +49,26 @@
             in a profile. Runtime state is ephemeral and a restart wipes it.
           </p>
           <div class="hero-actions">
-            <a class="btn btn-primary" href="start.html">Quick start</a>
+            <a class="btn btn-primary" href="start.html">Get a lab running</a>
             <a class="btn btn-ghost" href="https://github.com/hilather/mcp-integration-lab">View the source</a>
           </div>
         </div>
-        <div class="hero-frame">
-          <img src="assets/logo.jpg" alt="Brushed-steel hexagonal lab mark" />
+        <div class="hero-code">
+          <div class="hero-code-bar">
+            <span>MCP client · enterprise default</span>
+            <span>:8080/mcp</span>
+            <button type="button" class="copy-btn" data-copy>Copy</button>
+          </div>
+          <pre><code>{
+  "mcpServers": {
+    "integration-lab": {
+      "url": "http://&lt;lab-host&gt;:8080/mcp",
+      "headers": {
+        "Authorization": "Bearer &lt;secrets/mcp-client-token&gt;"
+      }
+    }
+  }
+}</code></pre>
         </div>
       </div>
       <div class="wrap">
@@ -72,8 +93,17 @@
             <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>
             <div class="topo-edge">streamable HTTP</div>
             <div class="topo-node hub"><span>Gateway</span><strong>MCPJungle :8080</strong></div>
-            <div class="topo-edge">DNS · LDAP · TACACS+ · RADIUS · SMTP · NFS · HTTP proxy</div>
-            <div class="topo-node"><span>Data plane</span><strong>Integration testers</strong></div>
+            <div class="topo-edge">data plane</div>
+            <div class="topo-node"><span>Testers</span><strong>Real protocols</strong></div>
+          </div>
+          <div class="proto-badges" aria-label="Published data-plane ports">
+            <span>DNS 10053</span>
+            <span>LDAP 3389 / 3636</span>
+            <span>TACACS+ 49 / 300</span>
+            <span>RADIUS 1812 / 1813</span>
+            <span>SMTP 1025</span>
+            <span>NFS 20490</span>
+            <span>HTTP proxy 18888</span>
           </div>
           <div class="topo-projects">
             <div class="topo-project">
@@ -119,39 +149,67 @@
         </div>
         <div class="cards">
           <article class="card">
-            <h3>LabDNS · v1.2.0</h3>
+            <header>
+              <h3>LabDNS</h3>
+              <span class="ver">v1.2.0</span>
+            </header>
             <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state; REST, MCP, and UI on the management plane.</p>
-            <div class="meta"><span>10053 · 18080</span><a href="https://github.com/hilather/go-lab-dns">hilather/go-lab-dns</a></div>
+            <div class="meta"><span>10053 · 18080</span><a href="https://github.com/hilather/go-lab-dns">go-lab-dns</a></div>
           </article>
           <article class="card">
-            <h3>LabLDAP · v0.4.1</h3>
+            <header>
+              <h3>LabLDAP</h3>
+              <span class="ver">v0.4.1</span>
+            </header>
             <p>Native Go directory (labldapd) plus a control plane. Real LDAP/LDAPS on the wire, REST, MCP, and a browser UI.</p>
-            <div class="meta"><span>3389 / 3636 · 8443</span><a href="https://github.com/hilather/go-lab-ldap-mcp">hilather/go-lab-ldap-mcp</a></div>
+            <div class="meta"><span>3389 / 3636 · 8443</span><a href="https://github.com/hilather/go-lab-ldap-mcp">go-lab-ldap-mcp</a></div>
           </article>
           <article class="card">
-            <h3>TacLab · v1.4.0</h3>
+            <header>
+              <h3>TacLab</h3>
+              <span class="ver">v1.4.0</span>
+            </header>
             <p>TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance. REST, MCP, and an embedded operator UI.</p>
-            <div class="meta"><span>49 / 300 · 1812 / 1813</span><a href="https://github.com/hilather/go-lab-tacacs-mcp">hilather/go-lab-tacacs-mcp</a></div>
+            <div class="meta"><span>49 / 300 · 1812 / 1813</span><a href="https://github.com/hilather/go-lab-tacacs-mcp">go-lab-tacacs-mcp</a></div>
           </article>
           <article class="card">
-            <h3>LabMail · v1.0.0-rc.3</h3>
+            <header>
+              <h3>LabMail</h3>
+              <span class="ver">v1.0.0-rc.3</span>
+            </header>
             <p>Receive-only SMTP sink with an inbox UI, maildev <code>/email</code> compat, native <code>/v1</code>, and MCP. Compose service name stays <code>maildev</code>.</p>
-            <div class="meta"><span>1025 · 1080</span><a href="https://github.com/hilather/go-lab-maildev">hilather/go-lab-maildev</a></div>
+            <div class="meta"><span>1025 · 1080</span><a href="https://github.com/hilather/go-lab-maildev">go-lab-maildev</a></div>
           </article>
           <article class="card">
-            <h3>LabMITM · v1.4.0</h3>
+            <header>
+              <h3>LabMITM</h3>
+              <span class="ver">v1.4.0</span>
+            </header>
             <p>Laboratory HTTP(S) intercepting forward proxy with a flow-inspector UI, native <code>/v1</code>, and MCP. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only.</p>
-            <div class="meta"><span>18888 · 18088</span><a href="https://github.com/hilather/go-lab-mitmproxy">hilather/go-lab-mitmproxy</a></div>
+            <div class="meta"><span>18888 · 18088</span><a href="https://github.com/hilather/go-lab-mitmproxy">go-lab-mitmproxy</a></div>
           </article>
           <article class="card">
-            <h3>ratarmount-rs · v0.1.28</h3>
+            <header>
+              <h3>ratarmount-rs</h3>
+              <span class="ver">v0.1.28</span>
+            </header>
             <p>Archive-backed userspace NFSv3 export with a write overlay. Empty-root <code>.tar.zst</code>; commits every 15m. NFSv4.1 is in the package; this lab stays on v3.</p>
-            <div class="meta"><span>20490</span><a href="https://github.com/hilather/ratarmount-rs">hilather/ratarmount-rs</a></div>
+            <div class="meta"><span>20490</span><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a></div>
           </article>
           <article class="card">
-            <h3>labinfo + MCPJungle · 0.4.6</h3>
-            <p>First-party service directory plus a single streamable-HTTP MCP gateway with tool groups and optional enterprise ACLs. MCPJungle pinned 0.4.6.</p>
-            <div class="meta"><span>18090 · 8080</span><a href="https://github.com/mcpjungle/MCPJungle">mcpjungle/MCPJungle</a></div>
+            <header>
+              <h3>labinfo</h3>
+            </header>
+            <p>First-party service directory. Agents ask <code>endpoints_list</code> for web/REST URLs and <code>connections_list</code> for protocol client config before they spelunk.</p>
+            <div class="meta"><span>18090</span><a href="https://github.com/hilather/mcp-integration-lab">mcp-integration-lab</a></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>MCPJungle</h3>
+              <span class="ver">0.4.6</span>
+            </header>
+            <p>Single streamable-HTTP MCP gateway with tool groups and optional enterprise ACLs. Operator dashboard is <code>GET /</code> in development mode only.</p>
+            <div class="meta"><span>8080</span><a href="https://github.com/mcpjungle/MCPJungle">mcpjungle/MCPJungle</a></div>
           </article>
         </div>
       </div>
@@ -167,7 +225,7 @@
             <li><strong>make up</strong> — clone vendors, mint secrets, build images, start, register.</li>
             <li><strong>make reload APP=&lt;app&gt;</strong> — recreate one service after a YAML tweak; not a full redeploy.</li>
             <li><strong>make smoke</strong> — agent-style end-to-end scenario through the gateway.</li>
-            <li><strong>http://<host>:8080/mcp</strong> — attach an MCP client. Enterprise mode needs the minted bearer.</li>
+            <li><strong>http://&lt;lab-host&gt;:8080/mcp</strong> — attach an MCP client. Enterprise mode needs the minted bearer.</li>
           </ol>
           <div class="hero-actions">
             <a class="btn btn-primary" href="start.html">Full quick start</a>
@@ -180,57 +238,8 @@ cd mcp-integration-lab
 make up
 make smoke
 
-# url:  http://<lab-host>:8080/mcp
+# url:  http://&lt;lab-host&gt;:8080/mcp
 # Authorization: Bearer $(cat secrets/mcp-client-token)</code></pre>
-        </div>
-      </div>
-    </section>
-
-    <section class="alt">
-      <div class="wrap">
-        <div class="sec-head">
-          <div class="eyebrow">On the host</div>
-          <h2>Published on every interface, on purpose.</h2>
-          <p>Remote systems test against this host. Ports live in <code>profiles/<name>/profile.env</code>.</p>
-        </div>
-        <table class="ports">
-          <thead>
-            <tr><th>Surface</th><th>Default</th><th>Notes</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>DNS data plane</td><td>10053 udp/tcp</td><td>53 collides with systemd-resolved</td></tr>
-            <tr><td>LabDNS REST / MCP / UI</td><td>18080</td><td>/v1 + /mcp + operator console, bearer</td></tr>
-            <tr><td>LDAP / LDAPS</td><td>3389 / 3636</td><td>cleartext binds disabled</td></tr>
-            <tr><td>LabLDAP control</td><td>8443</td><td>REST + MCP + UI, lab TLS</td></tr>
-            <tr><td>MCP gateway</td><td>8080</td><td>streamable HTTP + tool groups</td></tr>
-            <tr><td>TACACS+ legacy / TLS</td><td>49 / 300</td><td>RFC 8907 / RFC 9887</td></tr>
-            <tr><td>RADIUS access / acct</td><td>1812 / 1813</td><td>udp; Message-Authenticator required</td></tr>
-            <tr><td>TacLab control</td><td>18049</td><td>UI + REST + MCP</td></tr>
-            <tr><td>SMTP / LabMail web</td><td>1025 / 1080</td><td>receive-only sink, MCP on /mcp</td></tr>
-            <tr><td>LabMITM proxy / inspector</td><td>18888 / 18088</td><td>unauthenticated HTTP/1.1 proxy; intercept :443 only</td></tr>
-            <tr><td>NFS export</td><td>20490</td><td>userspace NFSv3, writable overlay, nolock</td></tr>
-            <tr><td>labinfo</td><td>18090</td><td>service-directory MCP</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section>
-      <div class="wrap">
-        <div class="sec-head">
-          <div class="eyebrow">Ecosystem</div>
-          <h2>Built on projects that already have names.</h2>
-          <p>This repo owns configuration, secrets layout, and gateway policy. The services themselves are vendored or pulled as images.</p>
-        </div>
-        <div class="roles">
-          <div class="role"><a href="https://github.com/hilather/go-lab-dns">LabDNS</a><p>Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. YAML desired state, REST + MCP. Pinned v1.2.0.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-ldap-mcp">LabLDAP</a><p>Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned v0.4.1. <a href="https://hilather.github.io/go-lab-ldap-mcp/">Site</a>.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-tacacs-mcp">TacLab</a><p>TACACS+ lab appliance: RFC 8907 + RFC 9887 TLS 1.3, RADIUS, REST/MCP, embedded operator UI. <a href="https://hilather.github.io/go-lab-tacacs-mcp/">Site</a>.</p></div>
-          <div class="role"><a href="https://github.com/hilather/ratarmount-rs">ratarmount-rs</a><p>Native Rust rewrite of ratarmount. Here, an archive-backed userspace NFSv3 export. Pinned v0.1.28.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-maildev">LabMail</a><p>Receive-only SMTP lab appliance. Inbox UI, /email compat, /v1, MCP. Pinned v1.0.0-rc.3. Compose service name stays maildev.</p></div>
-          <div class="role"><a href="https://github.com/hilather/go-lab-mitmproxy">LabMITM</a><p>Laboratory HTTP(S) intercepting forward proxy. Flow-inspector UI, /v1, MCP. Pinned v1.4.0. Data plane is unauthenticated; intercept is :443 only.</p></div>
-          <div class="role"><a href="https://github.com/mcpjungle/MCPJungle">MCPJungle</a><p>Self-hosted MCP gateway — the single client endpoint. Pinned 0.4.6. <a href="https://docs.mcpjungle.com">Docs</a>.</p></div>
-          <div class="role"><a href="https://github.com/mark3labs/mcp-go">mcp-go</a><p>Go SDK for the Model Context Protocol. Powers labinfo and is the client generation spoken by the gateway.</p></div>
         </div>
       </div>
     </section>
@@ -246,13 +255,6 @@ make smoke
       </div>
     </div>
   </footer>
-  <script>
-    const btn = document.querySelector("[data-menu]");
-    const links = document.querySelector("[data-links]");
-    btn?.addEventListener("click", () => {
-      const open = links.classList.toggle("open");
-      btn.setAttribute("aria-expanded", String(open));
-    });
-  </script>
+  <script src="site.js" defer></script>
 </body>
 </html>
