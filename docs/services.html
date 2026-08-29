@@ -44,7 +44,7 @@
           <article class="card">
             <header>
               <h3>LabDNS</h3>
-              <span class="ver">v1.2.0</span>
+              <span class="ver">v1.3.0</span>
             </header>
             <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. Over-length names answer on management resolve/explain only; do not add them to <code>lab.test.</code>.</p>
             <p><strong>Connect.</strong> <code>dig @&lt;lab-host&gt; -p 10053 ns1.lab.test</code> — console at :18080/, REST at :18080/v1, MCP at :18080/mcp.</p>
@@ -55,7 +55,7 @@
           <article class="card">
             <header>
               <h3>LabLDAP</h3>
-              <span class="ver">v0.4.1</span>
+              <span class="ver">v0.5.0</span>
             </header>
             <p>Native Go directory (labldapd) plus a control plane. Native is the default engine.</p>
             <p><strong>Connect.</strong> <code>ldaps://&lt;lab-host&gt;:3636</code> (SAN <code>directory</code> plus <code>LAB_PUBLIC_HOST</code> as DNS or IP) or LDAP + StartTLS. UI at <code>https://&lt;lab-host&gt;:8443/</code>.</p>
@@ -66,7 +66,7 @@
           <article class="card">
             <header>
               <h3>TacLab</h3>
-              <span class="ver">v1.4.0</span>
+              <span class="ver">v1.5.0</span>
             </header>
             <p>TACACS+ (legacy + TLS 1.3) and RADIUS.</p>
             <p><strong>Connect.</strong> TACACS+ :49 / TLS :300. RADIUS udp :1812/:1813. Control <code>http://&lt;lab-host&gt;:18049/</code>.</p>
@@ -77,7 +77,7 @@
           <article class="card">
             <header>
               <h3>LabMail</h3>
-              <span class="ver">v1.0.0-rc.3</span>
+              <span class="ver">v1.0.0-rc.4</span>
             </header>
             <p>Receive-only SMTP sink. Compose service name stays <code>maildev</code>. Relay keys are rejected fail-closed.</p>
             <p><strong>Connect.</strong> SMTP <code>&lt;lab-host&gt;:1025</code>. UI / <code>/email</code> / <code>/v1</code> / MCP at <code>&lt;lab-host&gt;:1080</code>.</p>
@@ -88,7 +88,7 @@
           <article class="card">
             <header>
               <h3>LabMITM</h3>
-              <span class="ver">v1.4.0</span>
+              <span class="ver">v1.5.0</span>
             </header>
             <p>Laboratory HTTP(S) intercepting forward proxy. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Native <code>/v1</code> catalog 31 (includes <code>features.get</code>); <code>GET /v1/features</code> is the 11-row hop/accept catalog. SOCKS / inspectFrames / httpAuth stay off.</p>
             <p><strong>Connect.</strong> HTTP proxy <code>&lt;lab-host&gt;:18888</code>. Inspector / <code>/v1</code> / MCP at <code>&lt;lab-host&gt;:18088</code>.</p>

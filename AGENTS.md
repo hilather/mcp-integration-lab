@@ -88,7 +88,7 @@ we work by.
 11. **The mail sink never sends mail.** Compose service name and labinfo
     catalog id stay `maildev` for the swap release (rename later, not in
     the image-pin change). The image is LabMail (`go-lab-maildev`, pinned
-    `v1.0.0-rc.3`). Desired state is
+    `v1.0.0-rc.4`). Desired state is
     `profiles/<name>/labmail/bootstrap.yaml` (`labmail.dev/v1alpha1`).
     Receive-only is structural in LabMail: no outbound SMTP, reserved-key
     reject, `POST /email/:id/relay` is 403. `internal/maildev` fail-closes
@@ -137,8 +137,8 @@ we work by.
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.2.0`,
-  LabLDAP `v0.4.1`, TacLab `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.4.0`).
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.0`,
+  LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.5.0`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -163,7 +163,7 @@ we work by.
   as occupied. Default TacLab ports 49/300 are privileged; the GH-hosted
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.
   `EADDRINUSE` still fails preflight.
-- LabDNS is pinned to **v1.2.0**. MCP is wired into `serve` upstream. Do
+- LabDNS is pinned to **v1.3.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
   register (default pin is still `2026-07-28`). Operator console is
@@ -173,7 +173,7 @@ we work by.
   names answer on management `resolve` / `explain` only — do not add them
   to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.
-- TacLab (pinned `v1.4.0`) still pins `2026-07-28` by default. Do **not**
+- TacLab (pinned `v1.5.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
@@ -185,7 +185,7 @@ we work by.
   when `VerifyArgon2id` fails). PKI and YAML stay labgen's. Leave-dev is
   `labgen -force` without the flag (unlinks leftover YAML). Always
   EnableLegacyClientsDir.
-- LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
+- LabMail (pinned `v1.0.0-rc.4`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and
   labinfo catalog id stay `maildev`. Bind-mounted secrets
@@ -215,7 +215,7 @@ we work by.
   committed. A failed directory recreate after a leaf rewrite leaves
   `.reload-pending` in that tls dir so the next `mcplab secrets` still
   reloads LabLDAP (SANs already matching is not enough).
-- LabLDAP is pinned to **v0.4.1**. Upstream `compose.yaml` is already
+- LabLDAP is pinned to **v0.5.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2
   `compose.native.yaml` alias. The overlay uses compose `!override` for
@@ -250,7 +250,7 @@ we work by.
   still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.4.0**. Desired state is
+- LabMITM is pinned to **v1.5.0**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
   **lab-owned overlay copy** — do not recopy from the upstream examples
   tree without reviewing `allowHosts`/Origins. Do **not** patch it:

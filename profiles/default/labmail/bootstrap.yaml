@@ -61,7 +61,7 @@ spec:
     enabled: true
 
   management:
-    # LabMail 1.0.0-rc.3: hashed inbox JS sends Origin. Empty list 403s
+    # LabMail 1.0.0-rc.4: hashed inbox JS sends Origin. Empty list 403s
     # non-loopback browsers (HTML GET / is often 200). "*" is the lab
     # hatch because management is published on all interfaces; bearer +
     # Basic still required. CORS/OPTIONS stay disabled. Use "private"

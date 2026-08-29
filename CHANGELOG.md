@@ -7,8 +7,16 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-29
+
 ### Changed
 
+- Vendor pins: LabDNS **v1.3.0**, LabLDAP **v0.5.0**, TacLab **v1.5.0**,
+  LabMail **v1.0.0-rc.4**, LabMITM **v1.5.0**. Operator-console chrome;
+  TacLab also rehydrates cookie sessions via `GET /api/v1/session`;
+  LabMail adds `mail_message_read`. Stay on LabMail rc (not 1.0.0 GA).
+  MCPJungle **0.4.6** and ratarmount-rs **0.1.28** are unchanged. A pin
+  bump re-gens the TacLab labgen bundle; overlay ports stay the same.
 - Docs landing matches the approved mock: one topology, eight service
   cards in a four-column grid, client JSON in the hero
   (`http://<lab-host>:8080/mcp`) instead of the logo, primary CTA
@@ -21,13 +29,6 @@ changes since the previous one (AGENTS.md rule 13).
   architecture) share that chrome: landing footer line, current-page
   underline, catalog cards use the landing name/meta row (versions
   where a pin exists), no leftover inline type.
-
-### Fixed
-
-- GitHub Pages is still off (`has_pages: false`). The cloud token cannot
-  write Pages (`gh api` POST/PUT returned 403). Enable once with
-  **Settings → Pages → Deploy from a branch → `main` / `docs`** so
-  `https://hilather.github.io/mcp-integration-lab/` stops 404ing.
 
 ## [0.9.0] - 2026-08-29
 
