@@ -19,8 +19,8 @@ changes since the previous one (AGENTS.md rule 13).
   meets WCAG AA. Code blocks copy to the clipboard.
 - Remaining docs pages (quick start, configure, services,
   architecture) share that chrome: landing footer line, current-page
-  underline, catalog cards use the same name/version/meta row, no
-  leftover inline type.
+  underline, catalog cards use the landing name/meta row (versions
+  where a pin exists), no leftover inline type.
 
 ### Fixed
 
