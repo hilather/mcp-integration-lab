@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-29
+
 ### Changed
 
 - Vendor pin: LabDNS **v1.2.0** (over-length desired-state names).
