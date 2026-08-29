@@ -84,7 +84,7 @@ func TestDefaultProfileOriginAllowlist(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("profiles/default/labmail/bootstrap.yaml originAllowlist = %v, want \"*\" (LabMail rc.3 remote SPA hatch)", doc.Spec.Management.OriginAllowlist)
+		t.Fatalf("profiles/default/labmail/bootstrap.yaml originAllowlist = %v, want \"*\" (LabMail rc.4 remote SPA hatch)", doc.Spec.Management.OriginAllowlist)
 	}
 }
 

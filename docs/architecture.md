@@ -13,11 +13,11 @@ secrets layout, and gateway policy.
 
 | Service | Role | MCP | External host ports (default profile) |
 | --- | --- | --- | --- |
-| LabDNS (`go-lab-dns` **v1.2.0**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053 (UDP/TCP), REST/MCP/UI 18080 |
-| LabLDAP (`go-lab-ldap-mcp` **v0.4.1**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
-| TacLab (`go-lab-tacacs-mcp` **v1.4.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
-| LabMail (`go-lab-maildev` **v1.0.0-rc.3**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
-| LabMITM (`go-lab-mitmproxy` **v1.4.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
+| LabDNS (`go-lab-dns` **v1.3.0**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053 (UDP/TCP), REST/MCP/UI 18080 |
+| LabLDAP (`go-lab-ldap-mcp` **v0.5.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
+| TacLab (`go-lab-tacacs-mcp` **v1.5.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
+| LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
+| LabMITM (`go-lab-mitmproxy` **v1.5.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle (**0.4.6**) | MCP gateway: aggregation, tool groups, ACLs; operator dashboard `GET /` in development mode only | `http://<host>:8080/mcp` | gateway 8080 |
@@ -223,7 +223,7 @@ per-persona tool groups and OTel metrics scraping.
   (informational; the tag is the lock). `SERVER_MODE` still follows
   `MCPJUNGLE_MODE` / `LAB_DEV_MODE`; SQLite stays tmpfs; `OTEL_ENABLED`
   stays `"false"`. Appliances still use `allowLegacyClients`.
-- LabDNS is pinned to **v1.2.0**. MCP Streamable HTTP is wired into `serve`
+- LabDNS is pinned to **v1.3.0**. MCP Streamable HTTP is wired into `serve`
   upstream. MCPJungle compatibility uses
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (no LabDNS patch). 1.1.0 added the embedded operator console (`GET /` on
@@ -234,8 +234,9 @@ per-persona tool groups and OTel metrics scraping.
   RFC 1035). Do not add those records to `lab.test.`. Canonical
   `sha256:` revisions of previously valid documents are unchanged vs
   1.1.1; they still differ vs 1.0.0-rc.* because omitted `spec.ui` is
-  materialized.
-- TacLab is pinned to release **v1.4.0**. Its MCP pin is relaxed with the
+  materialized. 1.3.0 is operator-console chrome only (DNS/MCP/schema
+  unchanged).
+- TacLab is pinned to release **v1.5.0**. Its MCP pin is relaxed with the
   upstream `api.mcp.allow_legacy_clients` knob (default `false`; this lab
   turns it on after `labgen`). There is no TacLab patch in `patches/`.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
@@ -246,8 +247,9 @@ per-persona tool groups and OTel metrics scraping.
   `labgen -force` without the flag. Catalog-only enter-dev still
   post-processes after labgen (`ApplyDevSecrets`; no PKI wipe). The flag
   does not replace `EnableLegacyClientsDir`. Dev mode does not patch the
-  vendor.
-- LabLDAP is pinned to release **v0.4.1**. Native is now the default
+  vendor. v1.5.0 is operator SPA chrome plus cookie restore via
+  `GET /api/v1/session` (labgen and the AAA data plane are unchanged).
+- LabLDAP is pinned to release **v0.5.0**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
   + `compose.ephemeral.yaml` plus `compose/labldap.overlay.yaml`. The
@@ -259,8 +261,9 @@ per-persona tool groups and OTel metrics scraping.
   `registerPassword`. No LabLDAP patch. Directory TLS is the lab CA
   (`ca.crt`) minted by `labtlsEnsure` (replaces skip-if-exists
   `setuptls generate`); switching from a leftover 389 volume is a
-  re-bootstrap (`LabLDAPUp` wipes uid-389 `/data`).
-- LabMail is pinned to **v1.0.0-rc.3**. MCP pin is relaxed with upstream
+  re-bootstrap (`LabLDAPUp` wipes uid-389 `/data`). v0.5.0 is operator
+  SPA chrome (Dark Directory); compose and `labtlsEnsure` are unchanged.
+- LabMail is pinned to **v1.0.0-rc.4**. MCP pin is relaxed with upstream
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (same idea as TacLab; no LabMail patch). Compose service name and labinfo
   catalog id stay `maildev`. Healthcheck is HTTP `/v1/health/ready` (the
@@ -268,8 +271,10 @@ per-persona tool groups and OTel metrics scraping.
   are 0o644. Captured mail is process memory and wiped by restart/reset.
   `POST /email/:id/relay` is 403. rc.3 adds `originAllowlist` sentinels
   `"*"` and `"private"`; the default profile uses `"*"` so remote inbox JS
-  loads (bearer + Basic still required; CORS stays off).
-- LabMITM is pinned to **v1.4.0**. MCP pin is relaxed with
+  loads (bearer + Basic still required; CORS stays off). rc.4 adds dark
+  inbox chrome and additive `POST /v1/messages/{id}:read` /
+  MCP `mail_message_read`.
+- LabMITM is pinned to **v1.5.0**. MCP pin is relaxed with
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (no LabMITM patch). Compose must pass `--management-listen=:8088`
   (binary default is off). The HTTP/1.1 data plane is unauthenticated;
@@ -284,7 +289,8 @@ per-persona tool groups and OTel metrics scraping.
   `http://<LAB_PUBLIC_HOST>:18088` (or the profile's `LABMITM_WEB_PORT`)
   or the inspector SPA 403s `/v1`. Bind-mounted `secrets/labmitm-token`
   is 0o644. Captured flows and a generate-mode CA are wiped on reload;
-  `make reload APP=labmitm` does not re-register.
+  `make reload APP=labmitm` does not re-register. v1.5.0 is operator SPA
+  chrome; native `/v1` catalog stays 31.
 - ratarmount-rs is pinned to **v0.1.28** (`.deb` in
   `docker/ratarmount/Dockerfile`). NFSv3 has no locking (`nolock` required)
   and AUTH_SYS only; the lab boundary is the docker network / host. The

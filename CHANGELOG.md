@@ -9,6 +9,12 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- Vendor pins: LabDNS **v1.3.0**, LabLDAP **v0.5.0**, TacLab **v1.5.0**,
+  LabMail **v1.0.0-rc.4**, LabMITM **v1.5.0**. Operator-console chrome;
+  TacLab also rehydrates cookie sessions via `GET /api/v1/session`;
+  LabMail adds `mail_message_read`. Stay on LabMail rc (not 1.0.0 GA).
+  MCPJungle **0.4.6** and ratarmount-rs **0.1.28** are unchanged. A pin
+  bump re-gens the TacLab labgen bundle; overlay ports stay the same.
 - Docs landing matches the approved mock: one topology, eight service
   cards in a four-column grid, client JSON in the hero
   (`http://<lab-host>:8080/mcp`) instead of the logo, primary CTA

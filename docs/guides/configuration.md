@@ -175,7 +175,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 `make reload APP=labdns` recreates only LabDNS. Non-loopback peers
 present the bearer in `secrets/labdns-token`.
 
-LabDNS **v1.2.0** serves an operator console at `GET /` on
+LabDNS **v1.3.0** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
 the login screen. Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
@@ -230,7 +230,7 @@ records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.4.1** defaults to
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.5.0** defaults to
 the native engine (omitted `engine` compiles as `native`); this lab still
 sets `directory.engine: native` explicitly. Management TLS comes from
 lab-CA files, and `registerMutations` / `registerPassword` keep
@@ -340,7 +340,7 @@ Host ports and web Basic/bearer files are lab-managed. `allowLegacyClients:
 true` is required for MCPJungle. After editing, `make reload APP=maildev`
 (wipes the inbox).
 
-LabMail **v1.0.0-rc.3** hashed inbox JS sends `Origin`. An empty
+LabMail **v1.0.0-rc.4** hashed inbox JS sends `Origin`. An empty
 `originAllowlist` 403s those GETs from a non-loopback browser (HTML `GET /`
 is often 200). This profile sets `"*"` because the UI is published on all
 interfaces; bearer + Basic still required; CORS/`OPTIONS` stay disabled.
@@ -384,7 +384,7 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.4.0**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.5.0**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
