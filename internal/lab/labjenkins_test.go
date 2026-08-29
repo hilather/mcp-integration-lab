@@ -110,7 +110,7 @@ func TestLabJenkinsOverlayContract(t *testing.T) {
 		if ports == nil || ports.Tag != "!override" {
 			t.Fatalf("services.%s.ports tag = %v, want !override", name, ports)
 		}
-		if strings.Contains(ports.Value, "127.0.0.1") {
+		if yamlSubtreeContains(ports, "127.0.0.1") {
 			t.Fatalf("services.%s.ports bind loopback", name)
 		}
 	}
@@ -133,6 +133,31 @@ func TestLabJenkinsUpRequiresEnabled(t *testing.T) {
 	if err := r.LabJenkinsUp(); err == nil {
 		t.Fatal("expected error when disabled")
 	}
+}
+
+func TestReloadLabJenkinsRequiresEnabled(t *testing.T) {
+	r := &Runner{Prof: &profile.Profile{Values: map[string]string{"LABJENKINS_ENABLED": "false"}}}
+	if err := r.reloadLabJenkins(); err == nil {
+		t.Fatal("expected error when disabled")
+	}
+	if err := r.Reload("labjenkins"); err == nil {
+		t.Fatal("Reload(labjenkins) must fail when disabled")
+	}
+}
+
+func yamlSubtreeContains(n *yaml.Node, needle string) bool {
+	if n == nil {
+		return false
+	}
+	if strings.Contains(n.Value, needle) {
+		return true
+	}
+	for _, c := range n.Content {
+		if yamlSubtreeContains(c, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestSyncLabJenkinsDisabledDoesNotRequireVendor(t *testing.T) {

@@ -4,8 +4,9 @@
 # 2. Re-publishes Jenkins and Keycloak on all interfaces with profile ports.
 #    Upstream binds 127.0.0.1 via JWT_RS_HOST_BIND; this lab publishes for
 #    remote systems (AGENTS.md rule 5). Do not use host networking.
-# 3. Mapping-form environment only — do not !override environment or
-#    upstream JWT_RS_* / JENKINS_* disappear.
+# 3. Do not re-declare environment or bind-mount paths. JWT_RS_* come
+#    from process env into the vendored compose. Volume paths must stay
+#    relative to testdata/jwt-rs-lab (first -f).
 #
 # Requires Docker Compose v2.24.4+ (!override). First -f must stay the
 # vendored compose file so ./jenkins and ./keycloak/realm resolve.
