@@ -21,13 +21,12 @@ changes since the previous one (AGENTS.md rule 13).
   `login --oidc`. `AGENTS.md` **Easy Docker testing** is the agent
   entry point for this lab (always-on stack + Jenkins fill-in).
 
-### Fixed
-
 - `compose up --wait` / main-project reload `--wait` failures dump
   `compose ps -a` plus engine `.State` and `.Config.Healthcheck` for
-  labdns, maildev, labmitm, and labinfo so a ~6s Unhealthy is
-  diagnosable. Do not stretch `start_period` until that dump shows
-  FailingStreak and configured Retries.
+  labdns, maildev, labmitm, and labinfo (a ~6s Unhealthy is no longer
+  a blind `exit status 1`). Do not stretch `start_period` until that
+  dump shows FailingStreak and configured Retries. The flake itself
+  is not fixed.
 
 ## [0.9.0] - 2026-08-29
 

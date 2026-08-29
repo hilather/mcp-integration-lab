@@ -14,8 +14,9 @@ labinfo, and MCPJungle. No Azure account. That default path does
 
 Jenkins jwt-rs (jwt-auth-filter) is the **same** Docker lab — not a one-off
 in go-jenkins-mcp. Copy `profiles/default` to a gitignored `profiles/<team>`,
-set `LABJENKINS_ENABLED=true`, then `make up PROFILE=<team>` (or set
-`PROFILE=` in `.env`). Empty `ENTRA_*` → Keycloak JWKS (lab audience
+set `LABJENKINS_ENABLED=true` in that profile's `profile.env` (process
+env on a profile that still says `false` fails preflight), then
+`make up PROFILE=<team>` (or set `PROFILE=` in `.env`). Empty `ENTRA_*` → Keycloak JWKS (lab audience
 `jenkins-api`). Fill all three GUIDs (`ENTRA_TENANT_ID` /
 `ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID`) → Entra JWKS; audience is the
 API app GUID, not `api://`. Placeholders `{tenant-id}` / `{api-app-id}` /

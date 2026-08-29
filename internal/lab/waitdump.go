@@ -48,18 +48,15 @@ func (r *Runner) dumpMainWaitHealth(cause error) {
 		raw, capErr := r.capture(".", "docker", "compose", "ps", "-aq", name)
 		if capErr != nil {
 			fmt.Printf("%s: compose ps -aq: %v\n%s\n", name, capErr, raw)
-			continue
-		}
-		id := extractComposeContainerID(raw)
-		if id == "" {
+		} else if id := extractComposeContainerID(raw); id == "" {
 			fmt.Printf("%s: no container id in: %q\n", name, strings.TrimSpace(raw))
-			continue
-		}
-		insp, inspErr := r.capture(".", "docker", "inspect", "-f", "{{json .State}} {{json .Config.Healthcheck}}", id)
-		if inspErr != nil {
-			fmt.Printf("%s: inspect %s: %v\n%s\n", name, id, inspErr, insp)
 		} else {
-			fmt.Printf("%s %s: %s\n", name, id, strings.TrimSpace(insp))
+			insp, inspErr := r.capture(".", "docker", "inspect", "-f", "{{json .State}} {{json .Config.Healthcheck}}", id)
+			if inspErr != nil {
+				fmt.Printf("%s: inspect %s: %v\n%s\n", name, id, inspErr, insp)
+			} else {
+				fmt.Printf("%s %s: %s\n", name, id, strings.TrimSpace(insp))
+			}
 		}
 		if err := r.run(".", "docker", "compose", "logs", "--tail=80", name); err != nil {
 			fmt.Printf("%s: logs: %v\n", name, err)
