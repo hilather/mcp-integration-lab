@@ -6,8 +6,7 @@ import (
 	"strings"
 )
 
-// labldapAllowedHostsEnv is LabLDAP config.AllowedHostsEnv. Overlay maps it
-// from LAB_PUBLIC_HOST; extras union LoopbackHosts and "*" is rejected.
+// YAML cannot interpolate ${VAR}; the overlay maps this from LAB_PUBLIC_HOST.
 const labldapAllowedHostsEnv = "LABLDAP_MANAGEMENT_ALLOWED_HOSTS"
 
 // LabLDAPUp brings up the LabLDAP stack (separate compose project `labldap`)
@@ -111,10 +110,7 @@ func (r *Runner) labldapDirectoryIs389() bool {
 	return strings.Contains(img, "dirsrv") || strings.Contains(img, "389")
 }
 
-// labldapMergedControlEnv interpolates the stacked LabLDAP compose files
-// (compose.yaml + compose.ephemeral.yaml + overlay) and returns control's
-// environment. Combined docker output may prefix warnings; JSON is sliced
-// from the first '{'.
+// Combined docker output may prefix warnings; JSON is sliced from the first '{'.
 func (r *Runner) labldapMergedControlEnv() (map[string]string, error) {
 	out, err := r.capture(".", "docker", r.labldapComposeArgs("config", "--format", "json")...)
 	if err != nil {

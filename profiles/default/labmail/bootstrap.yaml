@@ -24,9 +24,8 @@ spec:
         certFile: ""
         keyFile: ""
 
-  # Optional QA (LabMail 1.0.0-rc.2+): spec.smtp.behavior is deterministic
-  # handshake scripting, default-off, not a chaos engine. Omit in this profile.
-  # Do not add relay/outbound keys. smtp.auth.mode stays none; smtp.tls.mode stays off.
+  # Optional QA (LabMail 1.0.0-rc.2+): spec.smtp.behavior is default-off
+  # handshake scripting. Omit in this profile.
   smtp:
     hostname: labmail.lab
     maxMessageBytes: 10MiB

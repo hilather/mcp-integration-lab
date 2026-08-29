@@ -169,6 +169,7 @@ spec:
     groupsRDN: "ou=groups"
   lifecycle: { storageMode: ephemeral, startupMode: merge, softReset: true }
   transport:
+    insecureLabMode: true
     ldap:  { enabled: true, port: 3389 }
     ldaps: { enabled: true, port: 3636 }
     startTLS: true
