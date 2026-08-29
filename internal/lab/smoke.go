@@ -408,7 +408,7 @@ func (s *smokeState) labmitmScenario() {
 
 	// 1.3 hop/accept catalog is discovered at Register() during make up.
 	// make reload APP=labmitm does not re-register (gateway SQLite is tmpfs
-	// only on mcpjungle reload / make register).
+	// — only mcpjungle reload / make up / make register refresh the tool list).
 	featOut, err := s.invoke("labmitm__mitm_features_list", `{}`)
 	s.check(err == nil,
 		fmt.Sprintf("mitm_features_list is registered (err=%v out=%q)", err, featOut))

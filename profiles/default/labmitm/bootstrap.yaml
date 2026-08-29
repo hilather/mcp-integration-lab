@@ -16,13 +16,13 @@
 # compat.flowREST.enabled
 #
 # LabMITM 1.3: hop/accept (http2, SOCKS CONNECT, websocket/connect/absoluteForm, compat)
-# are live setFeature (D51') — no Reset, flows kept. Overlay omits D22-carve
+# are live setFeature — no Reset, flows kept. Overlay omits
 # websocket/connect/absoluteForm so they stay on (1.0 hop).
 # Native /v1 catalog is 31 rows (includes features.get). GET /v1/features and
 # MCP mitm_features_list return the frozen 11-row hop/accept catalog — not the
 # native REST row count. Do not write "catalog 11" as the /v1 surface.
 #
-# LabMITM 1.4: omit spec.proxy.httpAuth entirely (D76 default-off). Do not
+# LabMITM 1.4: omit spec.proxy.httpAuth entirely (default-off). Do not
 # write httpAuth: {enabled: false} — KnownFields on a v1.1.1 image reject the
 # key. Do not enable HTTP 407 on the published proxy. New rule actions
 # (silent/hang/redirect/throttle, phase: websocket) ride replaceRules; this

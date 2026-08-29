@@ -157,6 +157,7 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 	unknownKeys := []string{
 		"httpAuth", "inspectFrames", "acceptBind", "acceptUDPAssociate",
 		"acceptUserPass", "userPass", "clientCleartext",
+		"acceptSOCKS5", "acceptSOCKS4", "originalDestination", "flowREST",
 	}
 	visitYAMLMapping(spec, func(key string, val any) {
 		for _, k := range unknownKeys {
@@ -174,13 +175,8 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 		t.Fatalf("spec.rules.enabled = %#v, want false", rules["enabled"])
 	}
 	items, _ := rules["items"].([]any)
-	for i, item := range items {
-		m, _ := item.(map[string]any)
-		action, _ := m["action"].(string)
-		switch action {
-		case "silent", "hang", "redirect", "throttle":
-			t.Errorf("rules.items[%d] action %q is a 1.4 type; keep items empty", i, action)
-		}
+	if len(items) != 0 {
+		t.Fatalf("rules.items = %#v, want empty", items)
 	}
 }
 
