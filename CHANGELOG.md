@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-29
+
 ### Changed
 
 - Pin MCPJungle gateway + registrar to **0.4.6** (`MCPJUNGLE_IMAGE_TAG`;
