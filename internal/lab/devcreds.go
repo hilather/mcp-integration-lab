@@ -102,8 +102,9 @@ func parseDevCredentials(r io.Reader) (*DevCredentials, error) {
 }
 
 // Validate fail-closes on wrong apiVersion/kind, missing/empty required
-// keys, LabLDAP passwords shorter than minLength, and TacLab shared secrets
-// that would crash the appliance at boot.
+// keys, LabLDAP passwords shorter than minLength, TacLab shared secrets
+// that would crash the appliance at boot, equal TACACS/RADIUS secrets,
+// and whitespace/NUL/newline in secrets-from-bound fields.
 func (d *DevCredentials) Validate() error {
 	if d == nil {
 		return fmt.Errorf("dev credentials document is nil")
@@ -159,6 +160,34 @@ func (d *DevCredentials) Validate() error {
 	}
 	if err := checkSharedSecret(d.Spec.SharedSecrets.RadiusLabSwitches, "spec.sharedSecrets.radiusLabSwitches"); err != nil {
 		return err
+	}
+	if d.Spec.SharedSecrets.TacacsLabSwitches == d.Spec.SharedSecrets.RadiusLabSwitches {
+		return fmt.Errorf("spec.sharedSecrets: TACACS and RADIUS shared secrets must be distinct")
+	}
+
+	for _, f := range []struct{ path, value string }{
+		{"spec.tokens.labtacacsAdmin", d.Spec.Tokens.LabTacacsAdmin},
+		{"spec.sharedSecrets.tacacsLabSwitches", d.Spec.SharedSecrets.TacacsLabSwitches},
+		{"spec.sharedSecrets.radiusLabSwitches", d.Spec.SharedSecrets.RadiusLabSwitches},
+		{"spec.passwords.taclabAdmin", d.Spec.Passwords.TaclabAdmin},
+		{"spec.passwords.taclabAdminEnable", d.Spec.Passwords.TaclabAdminEnable},
+		{"spec.passwords.taclabReadonly", d.Spec.Passwords.TaclabReadonly},
+		{"spec.passwords.taclabDisabled", d.Spec.Passwords.TaclabDisabled},
+		{"spec.passwords.taclabChallenge", d.Spec.Passwords.TaclabChallenge},
+	} {
+		if err := checkSecretsFromBound(f.path, f.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkSecretsFromBound(path, value string) error {
+	if value != strings.TrimSpace(value) {
+		return fmt.Errorf("%s has leading or trailing whitespace", path)
+	}
+	if strings.ContainsAny(value, "\n\r\x00") {
+		return fmt.Errorf("%s contains a newline or NUL", path)
 	}
 	return nil
 }

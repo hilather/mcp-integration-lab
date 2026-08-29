@@ -177,11 +177,14 @@ we work by.
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
-  `LAB_DEV_MODE=true`, `applyDevTaclabSecrets` then pins token, shared
-  secrets, challenge, `PASSWORDS.txt`, and Argon2id verifiers from the
-  catalog (PHC rewrite only when `VerifyArgon2id` fails). PKI and YAML
-  stay labgen's. v1.4.0 `labgen -secrets-from` is unwired (would mint
-  Argon2id from catalog passwords; does not replace EnableLegacyClientsDir).
+  `LAB_DEV_MODE=true`, first mint and pin-bump pass `labgen -secrets-from`
+  a YAML generated from the catalog (`secrets/taclab-secrets-from.yaml`)
+  so Argon2id is labgen-minted. Enter-dev on an existing baseline skips
+  labgen and `applyDevTaclabSecrets` still pins token, shared secrets,
+  challenge, `PASSWORDS.txt`, and Argon2id verifiers (PHC rewrite only
+  when `VerifyArgon2id` fails). PKI and YAML stay labgen's. Leave-dev is
+  `labgen -force` without the flag (unlinks leftover YAML). Always
+  EnableLegacyClientsDir.
 - LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and

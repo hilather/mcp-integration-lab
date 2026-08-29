@@ -57,7 +57,7 @@ func installTestSecretsDeps(r *Runner, exists map[string]bool) {
 		setupsecrets: func(force bool) error {
 			return fakeSetupsecrets(r.Root, force)
 		},
-		ensureTaclab: func(force bool) error {
+		ensureTaclab: func(force bool, secretsFromAbs string) error {
 			return fakeLabgen(r.Root, force)
 		},
 		containerExists: func(name string) (bool, error) {
@@ -563,9 +563,118 @@ func TestSecretsMatchingCatalogDoesNotReload(t *testing.T) {
 	}
 }
 
+func TestLabgenArgsSecretsFrom(t *testing.T) {
+	path := "/abs/secrets/taclab-secrets-from.yaml"
+	cases := []struct {
+		name, secretsFrom string
+		force             bool
+		want              []string
+	}{
+		{
+			name:        "force+path",
+			force:       true,
+			secretsFrom: path,
+			want:        []string{"run", "./tools/labgen", "-force", "-secrets-from", path, "deployments/compose"},
+		},
+		{
+			name:        "first-mint+path",
+			force:       false,
+			secretsFrom: path,
+			want:        []string{"run", "./tools/labgen", "-secrets-from", path, "deployments/compose"},
+		},
+		{
+			name:        "force+empty",
+			force:       true,
+			secretsFrom: "",
+			want:        []string{"run", "./tools/labgen", "-force", "deployments/compose"},
+		},
+		{
+			name:        "neither",
+			force:       false,
+			secretsFrom: "",
+			want:        []string{"run", "./tools/labgen", "deployments/compose"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := labgenArgs(tc.force, tc.secretsFrom)
+			if len(got) != len(tc.want) {
+				t.Fatalf("len=%d want %d: %v", len(got), len(tc.want), got)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("args=%v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
+func TestEnterDevWritesSecretsFromYAML(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	var sawYAML bool
+	var gotAbs string
+	wantAbs := r.path(taclabSecretsFromRel)
+	r.deps.ensureTaclab = func(force bool, secretsFromAbs string) error {
+		gotAbs = secretsFromAbs
+		b, err := os.ReadFile(wantAbs)
+		if err != nil {
+			t.Errorf("YAML missing when ensureTaclab ran: %v", err)
+			return fakeLabgen(r.Root, force)
+		}
+		sawYAML = true
+		golden, err := os.ReadFile(filepath.Join("..", "taclabcfg", "testdata", "secrets-from.golden.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(b, golden) {
+			t.Errorf("written YAML != golden\ngot:\n%s", b)
+		}
+		if secretsFromAbs != wantAbs {
+			t.Errorf("secretsFromAbs=%q, want %q", secretsFromAbs, wantAbs)
+		}
+		return fakeLabgen(r.Root, force)
+	}
+	if err := r.secretsEnterDev(r.path(devModeMarkerRel)); err != nil {
+		t.Fatal(err)
+	}
+	if !sawYAML {
+		t.Fatal("ensureTaclab ran before YAML write")
+	}
+	if gotAbs != wantAbs {
+		t.Fatalf("secretsFromAbs=%q, want %q", gotAbs, wantAbs)
+	}
+	assertTaclabCatalog(t, r)
+}
+
+func TestLeaveDevUnlinksSecretsFromYAML(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", validCatalogBytes(t))
+	path := r.path(taclabSecretsFromRel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("leftover\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var gotAbs string
+	r.deps.ensureTaclab = func(force bool, secretsFromAbs string) error {
+		gotAbs = secretsFromAbs
+		return fakeLabgen(r.Root, force)
+	}
+	if err := r.leaveDevRemint(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("leftover YAML still present: %v", err)
+	}
+	if gotAbs != "" {
+		t.Fatalf("secretsFromAbs=%q, want empty", gotAbs)
+	}
+}
+
 func TestSecretsDevPinsTaclabAfterForcedLabgen(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
-	r.deps.ensureTaclab = func(force bool) error {
+	r.deps.ensureTaclab = func(force bool, secretsFromAbs string) error {
 		return fakeLabgenAlways(r.Root)
 	}
 	if err := r.Secrets(); err != nil {

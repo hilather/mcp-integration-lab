@@ -10,6 +10,40 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestExpectTokenEncoding(t *testing.T) {
+	cases := []struct {
+		name       string
+		dev, ciDev bool
+		got        string
+		wantErr    bool
+	}{
+		{"non-dev unpadded", false, false, tokenEncodingUnpadded, false},
+		{"non-dev caller", false, false, tokenEncodingCaller, true},
+		{"non-dev unknown", false, false, "hex", true},
+		{"non-dev empty", false, false, "", true},
+		{"ci-dev caller", true, true, tokenEncodingCaller, false},
+		{"ci-dev unpadded", true, true, tokenEncodingUnpadded, true},
+		{"ci-dev unknown", true, true, "hex", true},
+		{"other-dev caller", true, false, tokenEncodingCaller, false},
+		{"other-dev unpadded", true, false, tokenEncodingUnpadded, false},
+		{"other-dev unknown", true, false, "hex", true},
+		{"other-dev empty", true, false, "", true},
+		{"non-dev ignores ciDev flag", false, true, tokenEncodingUnpadded, false},
+		{"non-dev ignores ciDev flag caller", false, true, tokenEncodingCaller, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := expectTokenEncoding(tc.dev, tc.ciDev, tc.got)
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestCatalogFileExpectsCoversEveryRequiredKey(t *testing.T) {
 	doc, err := LoadDevCredentials(testdataDevcreds("valid.yaml"))
 	if err != nil {

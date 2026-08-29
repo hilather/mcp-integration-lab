@@ -14,6 +14,10 @@ changes since the previous one (AGENTS.md rule 13).
   get that compose default. Set the key only to override. This lab’s
   default is 0.4.6, not upstream Compose `latest` / `latest-stdio`. Do
   not set `MCPJUNGLE_BIND_HOST` (unset = all interfaces).
+- In `LAB_DEV_MODE=true`, first mint and pin-bump feed catalog secrets
+  into TacLab `labgen -secrets-from` so Argon2id is labgen-minted.
+  Leave-dev stays random `labgen -force` (unlinks leftover YAML).
+  Catalog-only enter-dev still uses `ApplyDevSecrets` (no PKI wipe).
 
 ### Added
 

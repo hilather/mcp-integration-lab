@@ -20,6 +20,8 @@ const (
 	devModeMarkerRel = "secrets/.lab-dev-mode"
 	reloadsPending   = "pending"
 	reloadsDone      = "done"
+	// Gitignored labgen -secrets-from input. Unlinked on leave-dev.
+	taclabSecretsFromRel = "secrets/taclab-secrets-from.yaml"
 	// Sidecar so a failed directory recreate is retried even after SANs
 	// already match (same class as enter-dev reloads=pending).
 	labldapTLSReloadPendingRel = "third_party/go-lab-ldap-mcp/secrets/tls/.reload-pending"
@@ -35,7 +37,7 @@ type devModeMarker struct {
 type secretsDeps struct {
 	setupsecrets    func(force bool) error
 	ensureTLS       func() (labTLSResult, error)
-	ensureTaclab    func(force bool) error
+	ensureTaclab    func(force bool, secretsFromAbs string) error
 	containerExists func(name string) (bool, error)
 	reloadMain      func(service string) error
 	reloadGateway   func() error
@@ -153,7 +155,15 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if err := r.labldapSetupsecrets(false); err != nil {
 		return err
 	}
-	if err := r.generateTaclabLab(false); err != nil {
+	if err := os.MkdirAll(r.path("secrets"), 0o755); err != nil {
+		return err
+	}
+	sf := r.path(taclabSecretsFromRel)
+	if err := taclabcfg.WriteSecretsFrom(sf, taclabCatalog(doc)); err != nil {
+		return err
+	}
+	fmt.Println("wrote secrets/taclab-secrets-from.yaml")
+	if err := r.generateTaclabLab(false, sf); err != nil {
 		return err
 	}
 	tac, err := r.applyDevTaclabSecrets(doc)
@@ -254,7 +264,7 @@ func (r *Runner) secretsRandomMint() error {
 	if err := r.persistLabLDAPTLSReloadIf(tls.leavesRewritten()); err != nil {
 		return err
 	}
-	if err := r.generateTaclabLab(false); err != nil {
+	if err := r.generateTaclabLab(false, ""); err != nil {
 		return err
 	}
 	if err := r.stageLabinfoCreds(); err != nil {
@@ -335,7 +345,10 @@ func (r *Runner) leaveDevRemint() error {
 	if err := r.labldapSetupsecrets(true); err != nil {
 		return err
 	}
-	return r.generateTaclabLab(true)
+	if err := os.Remove(r.path(taclabSecretsFromRel)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return r.generateTaclabLab(true, "")
 }
 
 func writeDevModeMarker(path, profileName, catalogSHA, reloads string) error {
@@ -427,19 +440,32 @@ func (r *Runner) clearLabLDAPTLSReloadPending() error {
 	return nil
 }
 
-func (r *Runner) generateTaclabLab(force bool) error {
+func (r *Runner) generateTaclabLab(force bool, secretsFromAbs string) error {
 	if r.deps != nil && r.deps.ensureTaclab != nil {
-		return r.deps.ensureTaclab(force)
+		return r.deps.ensureTaclab(force, secretsFromAbs)
 	}
-	return r.ensureTaclabLab(force)
+	return r.ensureTaclabLab(force, secretsFromAbs)
+}
+
+// labgenArgs is the argv after "go" for tools/labgen.
+func labgenArgs(force bool, secretsFromAbs string) []string {
+	args := []string{"run", "./tools/labgen"}
+	if force {
+		args = append(args, "-force")
+	}
+	if secretsFromAbs != "" {
+		args = append(args, "-secrets-from", secretsFromAbs)
+	}
+	return append(args, "deployments/compose")
 }
 
 // ensureTaclabLab materializes TacLab's labgen bundle (configs, PKI, secrets)
 // and turns on api.mcp.allow_legacy_clients so MCPJungle can connect. labgen
 // is rerun with -force when the vendored checkout moves to a new tag, so a
 // pin bump cannot leave a stale baseline behind. force also covers leave-dev.
-// Dev-mode catalog pinning runs after this from secretsEnterDev.
-func (r *Runner) ensureTaclabLab(force bool) error {
+// secretsFromAbs is -secrets-from when labgen actually runs in dev mode.
+// Dev-mode catalog pinning still runs after this from secretsEnterDev.
+func (r *Runner) ensureTaclabLab(force bool, secretsFromAbs string) error {
 	ref, err := r.taclabVendorRef()
 	if err != nil {
 		return err
@@ -447,18 +473,18 @@ func (r *Runner) ensureTaclabLab(force bool) error {
 	marker := r.path(taclabDir + "/" + taclabLabgenMarker)
 	prev, _ := os.ReadFile(marker)
 	need := force || strings.TrimSpace(string(prev)) != ref
-	if _, err := os.Stat(r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")); err != nil {
+	tokenPath := r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")
+	if _, err := os.Stat(tokenPath); err != nil {
 		need = true
 	}
 	if need {
-		args := []string{"run", "./tools/labgen", "deployments/compose"}
-		tokenPath := r.path(taclabDir + "/deployments/compose/secrets/api_admin_token")
-		if force {
-			args = []string{"run", "./tools/labgen", "-force", "deployments/compose"}
-		} else if _, err := os.Stat(tokenPath); err == nil {
-			args = []string{"run", "./tools/labgen", "-force", "deployments/compose"}
+		labForce := force
+		if !force {
+			if _, err := os.Stat(tokenPath); err == nil {
+				labForce = true
+			}
 		}
-		if err := r.run(taclabDir, "go", args...); err != nil {
+		if err := r.run(taclabDir, "go", labgenArgs(labForce, secretsFromAbs)...); err != nil {
 			return err
 		}
 		if err := os.WriteFile(marker, []byte(ref+"\n"), 0o644); err != nil {
@@ -471,16 +497,8 @@ func (r *Runner) ensureTaclabLab(force bool) error {
 	return nil
 }
 
-func (r *Runner) applyDevTaclabSecrets(doc *DevCredentials) (taclabcfg.ApplyResult, error) {
-	params := taclabcfg.DefaultParams
-	entropy := rand.Reader
-	if r.deps != nil && r.deps.taclabArgon2Params != nil {
-		params = *r.deps.taclabArgon2Params
-	}
-	if r.deps != nil && r.deps.taclabEntropy != nil {
-		entropy = r.deps.taclabEntropy
-	}
-	cat := taclabcfg.Catalog{
+func taclabCatalog(doc *DevCredentials) taclabcfg.Catalog {
+	return taclabcfg.Catalog{
 		APIAdminToken:    doc.Spec.Tokens.LabTacacsAdmin,
 		TacacsSecret:     doc.Spec.SharedSecrets.TacacsLabSwitches,
 		RadiusSecret:     doc.Spec.SharedSecrets.RadiusLabSwitches,
@@ -490,7 +508,18 @@ func (r *Runner) applyDevTaclabSecrets(doc *DevCredentials) (taclabcfg.ApplyResu
 		DisabledPassword: doc.Spec.Passwords.TaclabDisabled,
 		ChallengeSecret:  doc.Spec.Passwords.TaclabChallenge,
 	}
-	return taclabcfg.ApplyDevSecrets(r.path(taclabDir+"/deployments/compose/secrets"), cat, params, entropy)
+}
+
+func (r *Runner) applyDevTaclabSecrets(doc *DevCredentials) (taclabcfg.ApplyResult, error) {
+	params := taclabcfg.DefaultParams
+	entropy := rand.Reader
+	if r.deps != nil && r.deps.taclabArgon2Params != nil {
+		params = *r.deps.taclabArgon2Params
+	}
+	if r.deps != nil && r.deps.taclabEntropy != nil {
+		entropy = r.deps.taclabEntropy
+	}
+	return taclabcfg.ApplyDevSecrets(r.path(taclabDir+"/deployments/compose/secrets"), taclabCatalog(doc), params, entropy)
 }
 
 const taclabLabgenMarker = "deployments/compose/.mcplab-labgen-ref"

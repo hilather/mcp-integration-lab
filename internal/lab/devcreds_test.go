@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -136,5 +137,74 @@ func TestCharacterClassesLabDevRadius(t *testing.T) {
 	got := characterClasses([]byte("LabDev-Switches-Radius-01"))
 	if got != 4 {
 		t.Fatalf("characterClasses(LabDev-Switches-Radius-01) = %d, want 4", got)
+	}
+}
+
+func mustParseValidDevcreds(t *testing.T) *DevCredentials {
+	t.Helper()
+	f, err := os.Open(testdataDevcreds("valid.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	doc, err := parseDevCredentials(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
+func TestDevCredentialsRejectsReusedAAASecret(t *testing.T) {
+	doc := mustParseValidDevcreds(t)
+	doc.Spec.SharedSecrets.RadiusLabSwitches = doc.Spec.SharedSecrets.TacacsLabSwitches
+	err := doc.Validate()
+	if err == nil || !strings.Contains(err.Error(), "must be distinct") {
+		t.Fatalf("expected distinct TACACS/RADIUS failure, got %v", err)
+	}
+}
+
+func TestDevCredentialsRejectsWhitespaceSecretsFromFields(t *testing.T) {
+	type field struct {
+		path string
+		set  func(*DevCredentials, string)
+		get  func(*DevCredentials) string
+	}
+	fields := []field{
+		{"spec.tokens.labtacacsAdmin", func(d *DevCredentials, v string) { d.Spec.Tokens.LabTacacsAdmin = v }, func(d *DevCredentials) string { return d.Spec.Tokens.LabTacacsAdmin }},
+		{"spec.sharedSecrets.tacacsLabSwitches", func(d *DevCredentials, v string) { d.Spec.SharedSecrets.TacacsLabSwitches = v }, func(d *DevCredentials) string { return d.Spec.SharedSecrets.TacacsLabSwitches }},
+		{"spec.sharedSecrets.radiusLabSwitches", func(d *DevCredentials, v string) { d.Spec.SharedSecrets.RadiusLabSwitches = v }, func(d *DevCredentials) string { return d.Spec.SharedSecrets.RadiusLabSwitches }},
+		{"spec.passwords.taclabAdmin", func(d *DevCredentials, v string) { d.Spec.Passwords.TaclabAdmin = v }, func(d *DevCredentials) string { return d.Spec.Passwords.TaclabAdmin }},
+		{"spec.passwords.taclabAdminEnable", func(d *DevCredentials, v string) { d.Spec.Passwords.TaclabAdminEnable = v }, func(d *DevCredentials) string { return d.Spec.Passwords.TaclabAdminEnable }},
+		{"spec.passwords.taclabReadonly", func(d *DevCredentials, v string) { d.Spec.Passwords.TaclabReadonly = v }, func(d *DevCredentials) string { return d.Spec.Passwords.TaclabReadonly }},
+		{"spec.passwords.taclabDisabled", func(d *DevCredentials, v string) { d.Spec.Passwords.TaclabDisabled = v }, func(d *DevCredentials) string { return d.Spec.Passwords.TaclabDisabled }},
+		{"spec.passwords.taclabChallenge", func(d *DevCredentials, v string) { d.Spec.Passwords.TaclabChallenge = v }, func(d *DevCredentials) string { return d.Spec.Passwords.TaclabChallenge }},
+	}
+	mutations := []struct {
+		name string
+		wrap func(string) string
+		want string
+	}{
+		{"leading-space", func(v string) string { return " " + v }, "whitespace"},
+		{"trailing-space", func(v string) string { return v + " " }, "whitespace"},
+		{"newline", func(v string) string { return v[:1] + "\n" + v[1:] }, "newline"},
+		{"nul", func(v string) string { return v[:1] + "\x00" + v[1:] }, "NUL"},
+	}
+	for _, f := range fields {
+		for _, m := range mutations {
+			t.Run(f.path+"/"+m.name, func(t *testing.T) {
+				doc := mustParseValidDevcreds(t)
+				f.set(doc, m.wrap(f.get(doc)))
+				err := doc.Validate()
+				if err == nil {
+					t.Fatal("expected rejection")
+				}
+				if !strings.Contains(err.Error(), f.path) {
+					t.Fatalf("error %q missing path %s", err, f.path)
+				}
+				if !strings.Contains(err.Error(), m.want) {
+					t.Fatalf("error %q missing %q", err, m.want)
+				}
+			})
+		}
 	}
 }

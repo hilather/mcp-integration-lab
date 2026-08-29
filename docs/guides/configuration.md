@@ -43,9 +43,9 @@ TacLab’s baseline is generated, not hand-written. `labgen` materializes
 users, groups, clients, policies, PKI, and shared secrets into
 `third_party/go-lab-tacacs-mcp/deployments/compose/` on first `make up`.
 The profile owns the host ports (`TACLAB_*`). When `LAB_DEV_MODE=true`,
-`mcplab secrets` post-processes the secret files to the catalog (token,
-shared secrets, lab-user passwords, Argon2id verifiers) and leaves PKI
-and YAML alone.
+first mint and pin-bump feed the catalog into labgen (`-secrets-from`);
+PKI stays labgen-random. Catalog-only enter-dev still pins secret files
+after labgen and leaves PKI and YAML alone.
 
 ```bash
 cp -a profiles/default profiles/teamx
@@ -322,12 +322,14 @@ TACLAB_RADIUS_DYNAUTH_PORT=3799
 
 Lab-user passwords land in
 `third_party/go-lab-tacacs-mcp/deployments/compose/secrets/PASSWORDS.txt`.
-In `LAB_DEV_MODE=true` those values (and the TACACS+/RADIUS shared secrets)
-come from `dev-credentials.yaml`. RADIUS Access-Requests must carry
-Message-Authenticator (RFC 3579). TacLab v1.4.0 `labgen -secrets-from`
-would mint Argon2id from catalog passwords; this lab does not pass it
-(dev mode still post-processes after labgen). The flag would not replace
-`EnableLegacyClientsDir`.
+In `LAB_DEV_MODE=true`, first mint and pin-bump pass `labgen -secrets-from`
+a YAML generated from `dev-credentials.yaml` (`secrets/taclab-secrets-from.yaml`,
+gitignored, 0o600) so Argon2id is labgen-minted. Enter-dev on an existing
+baseline skips labgen and still post-processes secret files (token, shared
+secrets, lab-user passwords, Argon2id verifiers) and leaves PKI and YAML
+alone. Leave-dev is `labgen -force` without the flag (unlinks leftover YAML).
+Always `EnableLegacyClientsDir`. RADIUS Access-Requests must carry
+Message-Authenticator (RFC 3579).
 
 ## LabMail
 
@@ -550,7 +552,8 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   lab-user passwords, LabLDAP CA PEM), and `mcplab secrets` writes this
   profile's `dev-credentials.yaml` (fail-closed if missing or incomplete;
   no merge with `default`), including TacLab lab-user passwords and AAA
-  shared secrets after `labgen`. The default profile ships `lab-dev-*`
+  shared secrets (first mint / pin-bump via `labgen -secrets-from`;
+  catalog-only enter-dev still pins after `labgen`). The default profile ships `lab-dev-*`
   values; they are inert unless this knob is on. `make creds` prints the
   shareable sheet from files on disk (never TLS private keys). Never
   default a shared team profile to dev mode. Set the knob in **that

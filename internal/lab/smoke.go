@@ -39,6 +39,7 @@ func (r *Runner) Smoke() error {
 	s.labldapHostAllowListMerge()
 	s.nfsScenario()
 	s.tacacsScenario()
+	s.taclabTokenEncoding()
 	s.maildevScenario()
 	s.labmitmScenario()
 	s.labinfoScenario()
@@ -261,6 +262,52 @@ func (s *smokeState) tacacsScenario() {
 
 	code, err = radiusAuth("127.0.0.1:"+port, "lab-admin", "wrong-password", secret)
 	s.check(err == nil && code == radius.CodeAccessReject, "RADIUS rejects a wrong password")
+}
+
+const (
+	tokenEncodingUnpadded = "unpadded-base64url"
+	tokenEncodingCaller   = "caller-supplied"
+)
+
+// expectTokenEncoding is the split labgen -secrets-from flag proof.
+// Non-dev requires unpadded-base64url. CI first-mint-in-dev (GITHUB_ACTIONS
+// + PROFILE=ci-dev) requires caller-supplied. Other dev smokes accept either
+// known encoding (enter-dev on an existing random baseline skips labgen).
+func expectTokenEncoding(dev, ciDevSmoke bool, got string) error {
+	switch {
+	case !dev:
+		if got != tokenEncodingUnpadded {
+			return fmt.Errorf("token_encoding = %q, want %s (non-dev)", got, tokenEncodingUnpadded)
+		}
+	case ciDevSmoke:
+		if got != tokenEncodingCaller {
+			return fmt.Errorf("token_encoding = %q, want %s (CI first-mint-in-dev)", got, tokenEncodingCaller)
+		}
+	default:
+		if got != tokenEncodingCaller && got != tokenEncodingUnpadded {
+			return fmt.Errorf("token_encoding = %q, want %s or %s", got, tokenEncodingCaller, tokenEncodingUnpadded)
+		}
+	}
+	return nil
+}
+
+func (s *smokeState) taclabTokenEncoding() {
+	s.step("TacLab labgen token_encoding")
+	b, err := os.ReadFile(s.r.path(taclabDir + "/deployments/compose/manifest.json"))
+	if !s.check(err == nil, fmt.Sprintf("read TacLab manifest.json (err=%v)", err)) {
+		return
+	}
+	var man struct {
+		TokenEncoding string `json:"token_encoding"`
+	}
+	err = json.Unmarshal(b, &man)
+	if !s.check(err == nil && man.TokenEncoding != "", fmt.Sprintf("decode token_encoding (err=%v value=%q)", err, man.TokenEncoding)) {
+		return
+	}
+	dev := s.devMode()
+	ciDev := os.Getenv("GITHUB_ACTIONS") == "true" && s.r.Prof.Name == "ci-dev"
+	err = expectTokenEncoding(dev, ciDev, man.TokenEncoding)
+	s.check(err == nil, fmt.Sprintf("token_encoding=%s (dev=%v ci-dev=%v err=%v)", man.TokenEncoding, dev, ciDev, err))
 }
 
 func (s *smokeState) maildevScenario() {

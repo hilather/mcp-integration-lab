@@ -27,14 +27,18 @@ Parse is fail-closed: unknown fields are rejected, every token / password /
 shared-secret key is required (including `tokens.labmitm`), LabLDAP
 passwords must be at least 12 characters, and TacLab shared secrets must
 pass the appliance's shared-secret policy (length ≥16, ≥3 unicode character
-classes, exact-match known-weak list — not a substring match).
+classes, exact-match known-weak list — not a substring match, TACACS ≠
+RADIUS). Secrets-from-bound fields (TacLab token, both shared secrets, five
+lab-user passwords) reject leading/trailing whitespace and NUL/newline.
 
 The catalog is consumed only when `LAB_DEV_MODE=true` (never from
 `MCPJUNGLE_MODE`). The default profile ships live `lab-dev-*` values in
 `dev-credentials.yaml`; they are inert while `LAB_DEV_MODE=false`. There
 is no merge with `default` — a team profile that enables dev mode must
-have its own complete catalog. TacLab lab-user passwords and AAA shared
-secrets are pinned from this file after `labgen` (PKI stays generated).
+have its own complete catalog. In `LAB_DEV_MODE=true`, first mint and
+pin-bump feed this file into `labgen -secrets-from` (PKI stays generated).
+Catalog-only enter-dev still pins TacLab lab-user passwords and AAA shared
+secrets after `labgen`.
 After `make up` (or `mcplab secrets`), `make creds` prints the shareable
 sheet from staged files. `make smoke` against a profile with
 `LAB_DEV_MODE=true` asserts those catalog values on the wire. CI copies

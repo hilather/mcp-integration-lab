@@ -97,9 +97,10 @@ the full lab baseline (combined TACACS+RADIUS config, PKI, shared secrets,
 lab-user passwords) into `third_party/go-lab-tacacs-mcp/deployments/compose/`
 on first `mcplab secrets`; the lab runs that bundle as compose project
 `labtacacs` with an overlay for the shared network, and the profile owns
-the host ports (`TACLAB_*`). In `LAB_DEV_MODE=true`, `internal/taclabcfg`
-pins the secret files to `dev-credentials.yaml` after labgen (PKI and YAML
-stay generated).
+the host ports (`TACLAB_*`). In `LAB_DEV_MODE=true`, first mint and pin-bump
+pass `labgen -secrets-from` from `dev-credentials.yaml` (PKI and YAML stay
+generated). Catalog-only enter-dev still pins secret files via
+`internal/taclabcfg` after labgen.
 
 Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
 `profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
@@ -161,7 +162,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
   `secrets/labinfo-creds/` (lab-grade static secrets, gitignored).
   `mcplab secrets` writes the active profile's `dev-credentials.yaml` into
   those files, including TacLab lab-user passwords and AAA shared secrets
-  after labgen (fail-closed if the catalog is missing; no merge with
+  (first mint / pin-bump via `labgen -secrets-from`; catalog-only enter-dev
+  still pins after labgen; fail-closed if the catalog is missing; no merge with
   `default`). The default profile ships `lab-dev-*` values; they are inert
   unless this knob is on. Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
@@ -239,9 +241,12 @@ per-persona tool groups and OTel metrics scraping.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
   RADIUS Challenge/EAP/MS-CHAP/PEAP, named Cisco-AVPair, optional RadSec
   (TCP 2083, default off) and inbound DAS (UDP 3799, default off). v1.4.0
-  added `labgen -secrets-from`; this lab does not pass it (dev mode still
-  post-processes after labgen). The flag would not replace
-  `EnableLegacyClientsDir`. Dev mode does not patch the vendor.
+  added `labgen -secrets-from`; in `LAB_DEV_MODE=true` this lab passes it
+  on first mint and pin-bump so Argon2id is labgen-minted. Leave-dev is
+  `labgen -force` without the flag. Catalog-only enter-dev still
+  post-processes after labgen (`ApplyDevSecrets`; no PKI wipe). The flag
+  does not replace `EnableLegacyClientsDir`. Dev mode does not patch the
+  vendor.
 - LabLDAP is pinned to release **v0.4.1**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
