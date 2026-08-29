@@ -266,3 +266,44 @@ services:
         - name: labmitm-token
           file: /run/lab-secrets/labmitm-token
           usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labmitm-token"
+
+  - id: labjenkins
+    name: Jenkins jwt-rs (opt-in)
+    description: Optional Jenkins LTS with jwt-auth-filter (vendored go-jenkins-mcp testdata/jwt-rs-lab). Off unless LABJENKINS_ENABLED=true. No streamable HTTP MCP — prove with jenkins-mcp login --oidc and Bearer curl.
+    urls:
+      - name: Jenkins UI
+        url: http://${LAB_PUBLIC_HOST}:${JWT_RS_JENKINS_PORT}/
+      - name: Keycloak admin (unused as JWKS when idp=entra)
+        url: http://${LAB_PUBLIC_HOST}:${JWT_RS_KC_PORT}/
+    note: "enabled=${LABJENKINS_ENABLED}. Default profile leaves this project down. jwt-auth-filter protects /**/api/** only; the UI is documented lab admin/admin on all interfaces (network boundary). serve --gateway / AgentCore Obtain/OBO is residual. CLI login --oidc binds 127.0.0.1:8400 on the operator machine. Entra fill-in: two app registrations; API requestedAccessTokenVersion=2; preferred_username on the access token; public/native client not SPA; audience is the API app GUID not api://. After ENTRA_* change: make reload APP=labjenkins and APP=labinfo. Walkthrough: https://github.com/hilather/go-jenkins-mcp/blob/a225ef47013f034432e45403499e7b016fe647a7/docs/testing/entra-jwt-rs-lab.md"
+    connection:
+      endpoints:
+        - name: Jenkins HTTP
+          protocol: http
+          address: ${LAB_PUBLIC_HOST}:${JWT_RS_JENKINS_PORT}
+          note: jwt-auth-filter on /**/api/**; UI is local securityRealm admin
+        - name: Keycloak HTTP
+          protocol: http
+          address: ${LAB_PUBLIC_HOST}:${JWT_RS_KC_PORT}
+          note: lab IdP when LABJENKINS_IDP=keycloak; still starts when entra (upstream depends_on)
+      parameters:
+        enabled: "${LABJENKINS_ENABLED}"
+        idp: "${LABJENKINS_IDP}"
+        jwks_url: "${JWT_RS_JWKS_URL}"
+        audience: "${JWT_RS_AUDIENCE}"
+        protected_paths: "${JWT_RS_PROTECTED_PATHS}"
+        username_claim: preferred_username
+        login_callback: "http://127.0.0.1:8400/callback"
+        jenkins_admin: "local securityRealm user admin / JWT_RS_JENKINS_ADMIN_PASSWORD (default admin); not an Entra secret"
+        keycloak_admin: "start-dev admin/admin (lab only); unused as JWKS when idp=entra"
+        mcp: "none — jenkins-mcp is local-first stdio; this lab does not register it with MCPJungle"
+        entra_cli_profile: |
+          Hand-written jenkins-mcp JSON (profile add --auth-method oidc_bearer is not enough). Placeholders {tenant-id} {api-app-id} {gateway-app-id} are docs only.
+          jenkinsURL: http://${LAB_PUBLIC_HOST}:${JWT_RS_JENKINS_PORT}/
+          authMethod: oidc_bearer
+          oidc.issuer: https://login.microsoftonline.com/{tenant-id}/v2.0
+          oidc.clientId: {gateway-app-id}
+          oidc.jenkinsAudience: {api-app-id}
+          oidc.scopes: openid, profile, api://{api-app-id}/jenkins.access
+          oidc.redirectUris: http://127.0.0.1:8400/callback
+          oidc.tenantId: {tenant-id}

@@ -55,7 +55,7 @@
 cd mcp-integration-lab
 make up
 make smoke</code></pre>
-        <p><code>make up</code> is idempotent. It clones pinned vendors into <code>third_party/</code>, applies patches, mints gitignored secrets, builds local images, starts three compose projects on <code>mcplab-shared</code>, and registers every MCP server with the gateway. First run is image-build heavy.</p>
+        <p><code>make up</code> is idempotent. It clones pinned vendors into <code>third_party/</code>, applies patches, mints gitignored secrets, builds local images, starts the always-on compose projects on <code>mcplab-shared</code> (LabJenkins only when <code>LABJENKINS_ENABLED=true</code>), and registers every MCP server with the gateway. First run is image-build heavy.</p>
         <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with <code>LAB_DEV_MODE=true</code> it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog <code>taclabAdmin</code>, <code>connections_list</code> secrets equal the files on disk, <code>devMode=true</code>).</p>
 
         <h2 id="client">Attach an MCP client</h2>
@@ -111,7 +111,8 @@ make reload APP=labinfo     # labinfo/services.yaml
 make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
 make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
 make reload APP=labtacacs   # TacLab compose project
-make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register</code></pre>
+make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register
+make reload APP=labjenkins  # opt-in jwt-rs; requires LABJENKINS_ENABLED</code></pre>
         <p>Same as <code>mcplab reload &lt;app&gt;</code>. Sibling services stay up. Use full <code>make up</code> after a vendor pin bump, a profile switch, or first bring-up.</p>
 
         <h2 id="stop">Stop and reset</h2>

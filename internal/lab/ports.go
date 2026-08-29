@@ -25,9 +25,10 @@ type portBinding struct {
 	Protos []portProto
 }
 
-// publishedPortSpecs lists every host port the three compose projects may
-// publish from the active profile. Keep in sync with docker-compose.yaml and
-// the LabLDAP / TacLab overlays.
+// publishedPortSpecs lists every host port the always-on compose projects
+// may publish from the active profile. Keep in sync with docker-compose.yaml
+// and the LabLDAP / TacLab overlays. LabJenkins ports are appended only
+// when LABJENKINS_ENABLED is true.
 var publishedPortSpecs = []struct {
 	EnvKey string
 	Protos []portProto
@@ -53,10 +54,25 @@ var publishedPortSpecs = []struct {
 	{"TACLAB_RADIUS_DYNAUTH_PORT", []portProto{portUDP}},
 }
 
+var labjenkinsPortSpecs = []struct {
+	EnvKey string
+	Protos []portProto
+}{
+	{"JWT_RS_JENKINS_PORT", []portProto{portTCP}},
+	{"JWT_RS_KC_PORT", []portProto{portTCP}},
+}
+
 func publishedPortBindings(p *profile.Profile) ([]portBinding, error) {
 	seen := map[string]bool{}
 	var out []portBinding
-	for _, spec := range publishedPortSpecs {
+	specs := publishedPortSpecs
+	if p != nil && profile.IsTrue(p.Get("LABJENKINS_ENABLED", "false")) {
+		specs = append(append([]struct {
+			EnvKey string
+			Protos []portProto
+		}{}, publishedPortSpecs...), labjenkinsPortSpecs...)
+	}
+	for _, spec := range specs {
 		raw := strings.TrimSpace(p.Get(spec.EnvKey, ""))
 		if raw == "" {
 			continue
@@ -127,7 +143,7 @@ func probePort(proto portProto, port int) error {
 	}
 }
 
-var labContainerPrefixes = []string{"mcplab-", "labldap-", "labtacacs-"}
+var labContainerPrefixes = []string{"mcplab-", "labldap-", "labtacacs-", "labjenkins-"}
 
 func isLabContainer(name string) bool {
 	for _, prefix := range labContainerPrefixes {

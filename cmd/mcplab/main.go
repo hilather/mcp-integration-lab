@@ -1,5 +1,5 @@
 // mcplab orchestrates the MCP integration lab: vendored service repos,
-// secrets, fixtures, the two docker compose projects, gateway registration,
+// secrets, fixtures, the compose projects, gateway registration,
 // and the end-to-end smoke test. Configuration comes from the active profile
 // (profiles/<name>, selected via PROFILE in .env or the environment).
 package main
@@ -24,7 +24,7 @@ Usage: mcplab <command> [args]
   smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM scenario through the gateway
                  (dev mode also asserts catalog values on the wire)
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
-                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
+                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labjenkins
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
   secrets        generate or reconcile tokens/passwords (mode-aware); ensure LabLDAP TLS SANs; reload running apps
@@ -34,6 +34,8 @@ Usage: mcplab <command> [args]
   labldap-down   stop only the LabLDAP compose project
   labtacacs-up   bring up only the TacLab compose project (idempotent)
   labtacacs-down stop only the TacLab compose project
+  labjenkins-up  bring up only the opt-in jwt-rs Jenkins project (needs LABJENKINS_ENABLED)
+  labjenkins-down stop only the jwt-rs Jenkins project
 
 Profile selection: PROFILE=<name> (env or .env), directories under profiles/.
 Use reload when a single service's YAML or image changed; use up after a
@@ -72,20 +74,22 @@ func main() {
 	}
 
 	commands := map[string]func() error{
-		"up":             r.Up,
-		"down":           r.Down,
-		"reset":          r.Reset,
-		"register":       r.Register,
-		"preflight":      r.Preflight,
-		"smoke":          r.Smoke,
-		"vendor":         r.Vendor,
-		"secrets":        r.Secrets,
-		"creds":          r.Creds,
-		"fixtures":       r.Fixtures,
-		"labldap-up":     r.LabLDAPUp,
-		"labldap-down":   func() error { return r.LabLDAPDown(false) },
-		"labtacacs-up":   r.LabTacacsUp,
-		"labtacacs-down": func() error { return r.LabTacacsDown(false) },
+		"up":              r.Up,
+		"down":            r.Down,
+		"reset":           r.Reset,
+		"register":        r.Register,
+		"preflight":       r.Preflight,
+		"smoke":           r.Smoke,
+		"vendor":          r.Vendor,
+		"secrets":         r.Secrets,
+		"creds":           r.Creds,
+		"fixtures":        r.Fixtures,
+		"labldap-up":      r.LabLDAPUp,
+		"labldap-down":    func() error { return r.LabLDAPDown(false) },
+		"labtacacs-up":    r.LabTacacsUp,
+		"labtacacs-down":  func() error { return r.LabTacacsDown(false) },
+		"labjenkins-up":   r.LabJenkinsUp,
+		"labjenkins-down": func() error { return r.LabJenkinsDown(false) },
 	}
 	fn, ok := commands[cmd]
 	if !ok {

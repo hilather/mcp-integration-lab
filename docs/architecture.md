@@ -20,6 +20,7 @@ secrets layout, and gateway policy.
 | LabMITM (`go-lab-mitmproxy` **v1.4.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
+| LabJenkins (`go-jenkins-mcp` **a225ef47**, opt-in) | Jenkins LTS + jwt-auth-filter; Keycloak or Entra JWKS | none (CLI `login --oidc`) | 18092 · Keycloak 18091 (down unless `LABJENKINS_ENABLED`) |
 | MCPJungle (**0.4.6**) | MCP gateway: aggregation, tool groups, ACLs; operator dashboard `GET /` in development mode only | `http://<host>:8080/mcp` | gateway 8080 |
 
 All host ports are profile-defined (`profiles/<name>/profile.env`) and bind on
@@ -46,6 +47,10 @@ flowchart LR
   subgraph labtacacs [compose project labtacacs]
     Taclab["taclabd :49/:300 tacacs, :1812/:1813 radius, :8080 http"]
   end
+  subgraph labjenkins [compose project labjenkins — opt-in]
+    Jenkins["Jenkins jwt-rs :18092"]
+    KC["Keycloak :18091"]
+  end
   Jungle -->|"HTTP + bearer"| DNS
   Jungle -->|"HTTP + bearer"| Info
   Jungle -->|"HTTPS + bearer, lab CA"| Control
@@ -56,6 +61,7 @@ flowchart LR
   Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP, HTTP proxy"| mcplab
   Testers --> labldap
   Testers --> labtacacs
+  Testers -.-> labjenkins
 ```
 
 - The compose projects meet on the shared external docker network
@@ -121,8 +127,8 @@ separated from the exec layer and covered by unit/regression tests
 (`make test`). Changes to orchestration behavior require tests where the
 logic is testable without docker.
 
-`make up` is the full bring-up (vendor, secrets, fixtures, all three compose
-projects, gateway registration). `mcplab reload <app>` / `make reload
+`make up` is the full bring-up (vendor, secrets, fixtures, always-on compose
+projects, optional LabJenkins, gateway registration). `mcplab reload <app>` / `make reload
 APP=<app>` rebuilds and recreates **one** application so a YAML or image
 tweak does not bounce the rest of the lab:
 
@@ -136,9 +142,10 @@ tweak does not bounce the rest of the lab:
 | `labldap` | rebuild images, force-recreate directory + control, re-run bootstrap | ephemeral `/data` (re-seeded from scenario.yaml) |
 | `labtacacs` | `compose up --force-recreate` on the TacLab project | in-process AAA state (labgen files on disk survive) |
 | `labmitm` | same for compose service `labmitm` | captured flows; generate-mode CA rotates (does not re-register) |
+| `labjenkins` | force-recreate jwt-rs compose project (fails if `LABJENKINS_ENABLED` is false) | `jenkins_home` survives unless `make reset` (`down -v`) |
 
 `make labldap-up` / `make labtacacs-up` stay idempotent project bring-up
-(used by `make up`). Use full `make up` after a vendor pin bump, a profile
+(used by `make up`). `make labjenkins-up` requires the enable flag. Use full `make up` after a vendor pin bump, a profile
 switch, or first run.
 
 ## Security model

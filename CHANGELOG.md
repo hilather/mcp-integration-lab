@@ -7,6 +7,18 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in **LabJenkins** compose project overlays vendored
+  `go-jenkins-mcp` jwt-rs-lab (pin
+  `a225ef47013f034432e45403499e7b016fe647a7`). Default profile keeps
+  `LABJENKINS_ENABLED=false` so `make up` / `make smoke` / CI do not
+  start Jenkins or Keycloak and do not call Entra. Copy the profile,
+  set the flag, and optionally fill `ENTRA_TENANT_ID` /
+  `ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID` (GUIDs) to point
+  jwt-auth-filter at Entra JWKS. Audience is the API app GUID. No
+  MCPJungle registration — jenkins-mcp stays CLI `login --oidc`.
+
 ## [0.9.0] - 2026-08-29
 
 ### Changed

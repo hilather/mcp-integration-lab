@@ -7,7 +7,7 @@ import (
 
 // CanonicalReloadApps are the names operators pass to `mcplab reload`.
 var CanonicalReloadApps = []string{
-	"labdns", "maildev", "nfs", "labinfo", "mcpjungle", "labldap", "labtacacs", "labmitm",
+	"labdns", "maildev", "nfs", "labinfo", "mcpjungle", "labldap", "labtacacs", "labmitm", "labjenkins",
 }
 
 type reloadKind int
@@ -17,6 +17,7 @@ const (
 	reloadGateway
 	reloadLabLDAP
 	reloadLabTacacs
+	reloadLabJenkins
 )
 
 type reloadTarget struct {
@@ -46,6 +47,8 @@ func ResolveReload(name string) (reloadTarget, error) {
 		return reloadTarget{kind: reloadLabTacacs, canonical: "labtacacs"}, nil
 	case "labmitm", "mitm":
 		return reloadTarget{kind: reloadMainCompose, composeService: "labmitm", canonical: "labmitm"}, nil
+	case "labjenkins", "jenkins", "jwt-rs":
+		return reloadTarget{kind: reloadLabJenkins, canonical: "labjenkins"}, nil
 	default:
 		return reloadTarget{}, fmt.Errorf("unknown app %q (want one of: %s)", name, strings.Join(CanonicalReloadApps, ", "))
 	}
@@ -76,6 +79,8 @@ func (r *Runner) Reload(name string) error {
 		return r.reloadLabLDAP()
 	case reloadLabTacacs:
 		return r.reloadLabTacacs()
+	case reloadLabJenkins:
+		return r.reloadLabJenkins()
 	default:
 		return fmt.Errorf("internal: unhandled reload kind for %s", target.canonical)
 	}
@@ -88,6 +93,11 @@ func reloadMainArgs(service string) []string {
 }
 
 func (r *Runner) reloadMain(service string) error {
+	if service == "labinfo" && r.LabJenkinsEnabled() {
+		if err := r.applyLabJenkinsEnv(); err != nil {
+			return err
+		}
+	}
 	return r.compose(reloadMainArgs(service)...)
 }
 

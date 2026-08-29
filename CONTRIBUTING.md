@@ -10,7 +10,7 @@ make test          # go vet + unit/regression tests
 # if you touched compose, profiles, or the CLI lifecycle:
 make up && make smoke
 # iterating on one service's YAML after the stack is up:
-make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
+make reload APP=labdns   # or maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labjenkins
 ```
 
 CI runs `make test` on the default (non-dev) profile, then copies
@@ -24,7 +24,7 @@ there. Do not set `LAB_DEV_MODE=true` as process env on `default`.
 | --- | --- |
 | Ports, YAML, gateway registrations | `profiles/<name>/` (`default` is shipped; other names are gitignored locally) |
 | Orchestration logic | `cmd/mcplab` and `internal/` |
-| Compose overlays for LabLDAP / TacLab | `compose/` |
+| Compose overlays for LabLDAP / TacLab / LabJenkins | `compose/` |
 | Upstream fix you need now | `patches/` — and open a PR on the upstream repo |
 | User-facing docs | `docs/` (HTML site) and `docs/guides/` |
 
@@ -34,10 +34,12 @@ Do not edit `third_party/` in place. Do not commit generated files under
 `LAB_DEV_MODE=true`. Do not hardcode a port in `docker-compose.yaml` —
 add a variable to `profile.env`.
 
-Every new service needs three things: a compose service, a
+Every new MCP service needs three things: a compose service, a
 `mcpjungle/servers/<name>.json` whose filename matches the JSON `name`,
 and a `labinfo/services.yaml` entry with a `connection` block. labinfo
-refuses to start without one.
+refuses to start without one. LabJenkins is an explicit exception: it is
+Jenkins resource-server + CLI `login --oidc` only (no streamable HTTP MCP),
+so it has an overlay + catalog entry and no gateway JSON.
 
 ## Project site
 

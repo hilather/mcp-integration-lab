@@ -59,8 +59,49 @@ func TestIsLabContainer(t *testing.T) {
 	if !isLabContainer("mcplab-labdns-1") {
 		t.Fatal("expected mcplab container")
 	}
+	if !isLabContainer("labjenkins-jenkins-1") {
+		t.Fatal("expected labjenkins container")
+	}
 	if isLabContainer("other-nginx-1") {
 		t.Fatal("did not expect non-lab container")
+	}
+}
+
+func TestPublishedPortBindingsJenkinsGated(t *testing.T) {
+	disabled := &profile.Profile{Values: map[string]string{
+		"JWT_RS_JENKINS_PORT": "18092",
+		"JWT_RS_KC_PORT":      "18091",
+	}}
+	got, err := publishedPortBindings(disabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, b := range got {
+		if b.Port == 18091 || b.Port == 18092 {
+			t.Fatalf("disabled profile must not probe Jenkins ports, got %+v", got)
+		}
+	}
+
+	enabled := &profile.Profile{Values: map[string]string{
+		"LABJENKINS_ENABLED":  "true",
+		"JWT_RS_JENKINS_PORT": "18092",
+		"JWT_RS_KC_PORT":      "18091",
+	}}
+	got, err = publishedPortBindings(enabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawJ, sawKC bool
+	for _, b := range got {
+		if b.EnvKey == "JWT_RS_JENKINS_PORT" && b.Port == 18092 {
+			sawJ = true
+		}
+		if b.EnvKey == "JWT_RS_KC_PORT" && b.Port == 18091 {
+			sawKC = true
+		}
+	}
+	if !sawJ || !sawKC {
+		t.Fatalf("enabled profile missing Jenkins ports: %+v", got)
 	}
 }
 

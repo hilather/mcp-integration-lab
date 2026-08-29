@@ -73,7 +73,7 @@ func serve(args []string) int {
 		server.WithInstructions("Lab service directory. Call endpoints_list for the user-facing web/REST URLs of every lab service (to direct users to the right place), and connections_list for protocol-level client configuration — hosts/ports, parameters like LDAP base/bind DNs, DNS zones, NFS mount options, SMTP settings — plus connection credentials when the lab runs in dev mode."),
 	)
 	endpointsTool := mcp.NewTool("endpoints_list",
-		mcp.WithDescription("List the user-facing web/REST endpoints of every lab service (gateway, DNS, LDAP, TACACS+/RADIUS, mail sink, NFS, ...): names, descriptions, URLs, and how to authenticate. In dev mode the response includes the actual credentials (profile-owned via dev-credentials.yaml when LAB_DEV_MODE=true); otherwise it explains how credentials are obtained."),
+		mcp.WithDescription("List the user-facing web/REST endpoints of every lab service (gateway, DNS, LDAP, TACACS+/RADIUS, mail sink, NFS, HTTP intercept, optional Jenkins jwt-rs, ...): names, descriptions, URLs, and how to authenticate. In dev mode the response includes the actual credentials (profile-owned via dev-credentials.yaml when LAB_DEV_MODE=true); otherwise it explains how credentials are obtained."),
 		mcp.WithReadOnlyHintAnnotation(true),
 	)
 	mcpSrv.AddTool(endpointsTool, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {

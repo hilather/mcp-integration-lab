@@ -8,9 +8,10 @@
 # Published ports bind on all interfaces on purpose: remote systems point at
 # this host to run integration tests against the lab services.
 #
-# LabLDAP and TacLab run as their own compose projects (driven by
-# `mcplab labldap-up` / `mcplab labtacacs-up` from the vendored repos) and
-# meet the gateway on the shared external network `mcplab-shared`.
+# LabLDAP, TacLab, and opt-in LabJenkins run as their own compose projects
+# (driven by `mcplab labldap-up` / `mcplab labtacacs-up` /
+# `mcplab labjenkins-up` from the vendored repos) and meet the gateway on
+# the shared external network `mcplab-shared`.
 name: mcplab
 
 networks:
@@ -206,6 +207,13 @@ services:
       MAILDEV_WEB_PORT: ${MAILDEV_WEB_PORT:-1080}
       LABMITM_PROXY_PORT: ${LABMITM_PROXY_PORT:-18888}
       LABMITM_WEB_PORT: ${LABMITM_WEB_PORT:-18088}
+      LABJENKINS_ENABLED: ${LABJENKINS_ENABLED:-false}
+      LABJENKINS_IDP: ${LABJENKINS_IDP:-keycloak}
+      JWT_RS_JENKINS_PORT: ${JWT_RS_JENKINS_PORT:-18092}
+      JWT_RS_KC_PORT: ${JWT_RS_KC_PORT:-18091}
+      JWT_RS_JWKS_URL: ${JWT_RS_JWKS_URL:-http://keycloak:8080/realms/jwt-rs-lab/protocol/openid-connect/certs}
+      JWT_RS_AUDIENCE: ${JWT_RS_AUDIENCE:-jenkins-api}
+      JWT_RS_PROTECTED_PATHS: ${JWT_RS_PROTECTED_PATHS:-/**/api/**}
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labinfo/services.yaml:/etc/labinfo/services.yaml:ro
       # Staged by `mcplab secrets`: world-readable copies of web tokens,

@@ -65,7 +65,7 @@
         <div class="sec-head">
           <div class="eyebrow">Topology</div>
           <h2>Agents talk to one URL. Testers talk to the wire.</h2>
-          <p>Three compose projects meet on <code>mcplab-shared</code>. Gateway registration is tmpfs. Profiles are the source of truth.</p>
+          <p>Always-on compose projects plus opt-in LabJenkins meet on <code>mcplab-shared</code>. Gateway registration is tmpfs. Profiles are the source of truth.</p>
         </div>
         <div class="topo">
           <div class="topo-flow">
@@ -210,6 +210,7 @@ make smoke
             <tr><td>LabMITM proxy / inspector</td><td>18888 / 18088</td><td>unauthenticated HTTP/1.1 proxy; intercept :443 only</td></tr>
             <tr><td>NFS export</td><td>20490</td><td>userspace NFSv3, writable overlay, nolock</td></tr>
             <tr><td>labinfo</td><td>18090</td><td>service-directory MCP</td></tr>
+            <tr><td>LabJenkins / Keycloak</td><td>18092 / 18091</td><td>opt-in jwt-rs; off unless LABJENKINS_ENABLED</td></tr>
           </tbody>
         </table>
       </div>

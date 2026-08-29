@@ -25,6 +25,7 @@ var preflightKeys = []string{
 	"LABINFO_PORT",
 	"LAB_DEV_MODE",
 	"MCPJUNGLE_MODE",
+	"LABJENKINS_ENABLED",
 }
 
 // Preflight fails fast when effective env values drift from profile.env for
@@ -32,6 +33,11 @@ var preflightKeys = []string{
 func (r *Runner) Preflight() error {
 	if err := r.preflightEnvDrift(); err != nil {
 		return err
+	}
+	if r.LabJenkinsEnabled() {
+		if err := r.applyLabJenkinsEnv(); err != nil {
+			return err
+		}
 	}
 	r.warnLabmitmOrigin()
 	return r.preflightPortsAvailable()

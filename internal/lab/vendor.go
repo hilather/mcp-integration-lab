@@ -16,6 +16,7 @@ var vendorRepos = []struct{ URL, Dest, Ref string }{
 	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.4.0"},
 	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.3"},
 	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.4.0"},
+	{"https://github.com/hilather/go-jenkins-mcp", "third_party/go-jenkins-mcp", "a225ef47013f034432e45403499e7b016fe647a7"},
 }
 
 // Vendor clones or updates the service repos to their pinned refs and
@@ -53,7 +54,32 @@ func (r *Runner) Vendor() error {
 	return nil
 }
 
+// isCommitRef reports a full lowercase hex SHA (vendor pin, not a tag).
+func isCommitRef(ref string) bool {
+	if len(ref) != 40 {
+		return false
+	}
+	for i := 0; i < len(ref); i++ {
+		c := ref[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func commitFetchArgs(sha string) []string {
+	return []string{"fetch", "--depth", "1", "origin", sha}
+}
+
+func commitCheckoutArgs() []string {
+	return []string{"checkout", "--detach", "FETCH_HEAD"}
+}
+
 func (r *Runner) vendorCheckout(url, dest, ref string) error {
+	if isCommitRef(ref) {
+		return r.vendorCheckoutSHA(url, dest, ref)
+	}
 	gitDir := filepath.Join(r.path(dest), ".git")
 	if _, err := os.Stat(gitDir); err != nil {
 		args := []string{"clone", "--depth", "1"}
@@ -87,5 +113,47 @@ func (r *Runner) vendorCheckout(url, dest, ref string) error {
 		return err
 	}
 	fmt.Printf("vendor: %s checked out %s\n", dest, ref)
+	return nil
+}
+
+func (r *Runner) vendorCheckoutSHA(url, dest, sha string) error {
+	gitDir := filepath.Join(r.path(dest), ".git")
+	if _, err := os.Stat(gitDir); err != nil {
+		if err := os.MkdirAll(r.path(dest), 0o755); err != nil {
+			return err
+		}
+		if err := r.run(".", "git", "-C", dest, "init"); err != nil {
+			return err
+		}
+		if err := r.run(".", "git", "-C", dest, "remote", "add", "origin", url); err != nil {
+			return err
+		}
+		if err := r.run(".", "git", append([]string{"-C", dest}, commitFetchArgs(sha)...)...); err != nil {
+			return err
+		}
+		if err := r.run(".", "git", append([]string{"-C", dest}, commitCheckoutArgs()...)...); err != nil {
+			return err
+		}
+		fmt.Printf("vendor: %s checked out %s\n", dest, sha)
+		return nil
+	}
+
+	if err := r.run(".", "git", "-C", r.path(dest), "reset", "--hard"); err != nil {
+		return err
+	}
+	if err := r.run(".", "git", "-C", r.path(dest), "clean", "-fd"); err != nil {
+		return err
+	}
+	if at, err := r.capture(".", "git", "-C", r.path(dest), "rev-parse", "HEAD"); err == nil && strings.TrimSpace(at) == sha {
+		fmt.Printf("vendor: %s at %s\n", dest, sha)
+		return nil
+	}
+	if err := r.run(".", "git", append([]string{"-C", r.path(dest)}, commitFetchArgs(sha)...)...); err != nil {
+		return err
+	}
+	if err := r.run(".", "git", append([]string{"-C", r.path(dest)}, commitCheckoutArgs()...)...); err != nil {
+		return err
+	}
+	fmt.Printf("vendor: %s checked out %s\n", dest, sha)
 	return nil
 }

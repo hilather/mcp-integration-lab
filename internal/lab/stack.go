@@ -3,8 +3,8 @@ package lab
 import "fmt"
 
 // Up brings the whole lab up under the active profile: vendored repos,
-// secrets, fixtures, LabLDAP and TacLab projects, main compose project, and
-// gateway registration. Idempotent.
+// secrets, fixtures, LabLDAP, TacLab, optional LabJenkins, main compose
+// project, and gateway registration. Idempotent.
 func (r *Runner) Up() error {
 	if err := r.Preflight(); err != nil {
 		return err
@@ -31,13 +31,23 @@ func (r *Runner) Up() error {
 	} else if err := r.LabTacacsUp(); err != nil {
 		return err
 	}
+	if r.alreadyReloaded("labjenkins") {
+		fmt.Println("up: skip labjenkins (reloaded this process)")
+	} else if err := r.syncLabJenkins(); err != nil {
+		return err
+	}
+	if r.LabJenkinsEnabled() {
+		if err := r.applyLabJenkinsEnv(); err != nil {
+			return err
+		}
+	}
 	if err := r.compose("up", "-d", "--build", "--wait"); err != nil {
 		return err
 	}
 	return r.Register()
 }
 
-// Down stops both compose projects. Persistent state (none by design, apart
+// Down stops the compose projects. Persistent state (none by design, apart
 // from bind-mounted storage dirs) survives.
 func (r *Runner) Down() error {
 	if err := r.compose("down", "--remove-orphans"); err != nil {
@@ -46,7 +56,10 @@ func (r *Runner) Down() error {
 	if err := r.LabLDAPDown(false); err != nil {
 		return err
 	}
-	return r.LabTacacsDown(false)
+	if err := r.LabTacacsDown(false); err != nil {
+		return err
+	}
+	return r.LabJenkinsDown(false)
 }
 
 // Reset stops everything and wipes all runtime state (volumes included).
@@ -57,5 +70,8 @@ func (r *Runner) Reset() error {
 	if err := r.LabLDAPDown(true); err != nil {
 		return err
 	}
-	return r.LabTacacsDown(true)
+	if err := r.LabTacacsDown(true); err != nil {
+		return err
+	}
+	return r.LabJenkinsDown(true)
 }

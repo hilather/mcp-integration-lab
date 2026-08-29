@@ -732,6 +732,11 @@ func (r *Runner) serviceExists(name string) (bool, error) {
 }
 
 func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
+	if r.LabJenkinsEnabled() {
+		if err := r.applyLabJenkinsEnv(); err != nil {
+			return err
+		}
+	}
 	if err := r.reloadMainIf("labdns", leaveDev || ch.labdnsToken); err != nil {
 		return err
 	}

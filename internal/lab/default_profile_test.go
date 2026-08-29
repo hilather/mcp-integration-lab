@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hilather/mcp-integration-lab/internal/envfile"
+	"github.com/hilather/mcp-integration-lab/internal/profile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -270,5 +272,26 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	}
 	if *got != *want {
 		t.Fatalf("profiles/default/dev-credentials.yaml drifted from testdata/devcreds/valid.yaml\ngot  %+v\nwant %+v", got, want)
+	}
+}
+
+func TestDefaultProfileLabJenkinsDisabled(t *testing.T) {
+	vals, err := envfile.ParseFile(filepath.Join(defaultProfileDir(t), "profile.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.IsTrue(vals["LABJENKINS_ENABLED"]) {
+		t.Fatal("default profile must keep LABJENKINS_ENABLED=false")
+	}
+	for _, k := range []string{"ENTRA_TENANT_ID", "ENTRA_API_APP_ID", "ENTRA_GATEWAY_APP_ID"} {
+		if v := strings.TrimSpace(vals[k]); v != "" {
+			t.Fatalf("%s must be empty in default, got %q", k, v)
+		}
+	}
+	for _, v := range vals {
+		switch v {
+		case "{tenant-id}", "{api-app-id}", "{gateway-app-id}":
+			t.Fatalf("placeholder %q must not be a profile.env value", v)
+		}
 	}
 }

@@ -3,7 +3,7 @@
 SHELL := /bin/bash
 export PROFILE
 
-.PHONY: help up down reset register preflight smoke vendor secrets creds fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down test
+.PHONY: help up down reset register preflight smoke vendor secrets creds fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down labjenkins-up labjenkins-down test
 
 help:
 	@go run ./cmd/mcplab 2>&1 || true
@@ -38,9 +38,9 @@ creds:
 fixtures:
 	go run ./cmd/mcplab fixtures
 
-# Recreate one app. APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
+# Recreate one app. APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labjenkins
 reload:
-	@test -n "$(APP)" || { echo "usage: make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm" >&2; exit 2; }
+	@test -n "$(APP)" || { echo "usage: make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labjenkins" >&2; exit 2; }
 	go run ./cmd/mcplab reload $(APP)
 
 labldap-up:
@@ -54,6 +54,12 @@ labtacacs-up:
 
 labtacacs-down:
 	go run ./cmd/mcplab labtacacs-down
+
+labjenkins-up:
+	go run ./cmd/mcplab labjenkins-up
+
+labjenkins-down:
+	go run ./cmd/mcplab labjenkins-down
 
 # Unit + regression tests for the orchestration CLI. Run before landing
 # changes to cmd/, internal/, compose files, or profiles.

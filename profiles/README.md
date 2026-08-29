@@ -19,6 +19,28 @@ Your local profile survives `git pull` — only `default` changes upstream.
 
 Select the active profile with `PROFILE=` in `.env` or `make up PROFILE=<name>`.
 
+## Opt-in LabJenkins / Entra fill-in
+
+Default `LABJENKINS_ENABLED=false`. To run Jenkins jwt-auth-filter:
+
+```bash
+cp -a profiles/default profiles/myteam
+# profiles/myteam/profile.env:
+#   LABJENKINS_ENABLED=true
+#   ENTRA_TENANT_ID=          # empty = Keycloak
+#   ENTRA_API_APP_ID=
+#   ENTRA_GATEWAY_APP_ID=
+make up PROFILE=myteam
+```
+
+Fill all three GUIDs to point Jenkins at Entra JWKS (audience = API app
+GUID). Do not put `{tenant-id}` literals in the values. Process
+`LABJENKINS_ENABLED=true` on the default profile fails preflight; set the
+flag in the team `profile.env`. After changing `ENTRA_*`,
+`make reload APP=labjenkins` and `make reload APP=labinfo`.
+`make reset` wipes `jenkins_home`. See
+[docs/guides/configuration.md](../docs/guides/configuration.md).
+
 ## Dev credentials catalog
 
 The orchestrator understands `dev-credentials.yaml` as a `DevCredentials`

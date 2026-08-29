@@ -27,6 +27,31 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	if got["third_party/go-lab-mitmproxy"] != "v1.4.0" {
 		t.Fatalf("labmitm pin = %q, want v1.4.0", got["third_party/go-lab-mitmproxy"])
 	}
+	const jenkinsSHA = "a225ef47013f034432e45403499e7b016fe647a7"
+	if got["third_party/go-jenkins-mcp"] != jenkinsSHA {
+		t.Fatalf("labjenkins pin = %q, want %s", got["third_party/go-jenkins-mcp"], jenkinsSHA)
+	}
+}
+
+func TestIsCommitRef(t *testing.T) {
+	if !isCommitRef("a225ef47013f034432e45403499e7b016fe647a7") {
+		t.Fatal("full SHA must be a commit ref")
+	}
+	if isCommitRef("v1.4.0") || isCommitRef("a225ef47") || isCommitRef("A225EF47013F034432E45403499E7B016FE647A7") {
+		t.Fatal("tag / short / uppercase must not be treated as a commit ref")
+	}
+}
+
+func TestCommitFetchCheckoutArgs(t *testing.T) {
+	sha := "a225ef47013f034432e45403499e7b016fe647a7"
+	fetch := strings.Join(commitFetchArgs(sha), " ")
+	if !strings.Contains(fetch, sha) || strings.Contains(fetch, "tag") {
+		t.Fatalf("fetch args = %v", commitFetchArgs(sha))
+	}
+	co := commitCheckoutArgs()
+	if strings.Join(co, " ") != "checkout --detach FETCH_HEAD" {
+		t.Fatalf("checkout args = %v", co)
+	}
 }
 
 func TestRatarmountDebPin(t *testing.T) {

@@ -6,7 +6,7 @@
 
 <p align="center">
   One gateway. Every lab protocol.<br />
-  DNS, LDAP, TACACS+, RADIUS, mail, NFS, and HTTP intercept — YAML-configured, ephemeral, ready for integration tests.
+  DNS, LDAP, TACACS+, RADIUS, mail, NFS, HTTP intercept, and optional Jenkins jwt-rs — YAML-configured, ephemeral, ready for integration tests.
 </p>
 
 <p align="center">
@@ -77,6 +77,7 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 | **LabMITM** | HTTP(S) intercepting forward proxy + inspector / REST / MCP | 18888 · 18088 |
 | **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 |
 | **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
+| **LabJenkins** | Opt-in Jenkins LTS + jwt-auth-filter (Keycloak or Entra JWKS). Off by default. | 18092 · Keycloak 18091 |
 | **MCPJungle** | Single MCP gateway, tool groups, optional ACLs. Pinned **0.4.6**. | 8080 |
 
 Every port is published on all interfaces so remote systems can test against the lab. Values live in the active profile, not in compose files.
@@ -99,6 +100,10 @@ flowchart LR
   subgraph labtacacs [compose project labtacacs]
     Taclab[taclabd TACACS+ / RADIUS]
   end
+  subgraph labjenkins [compose project labjenkins — opt-in]
+    Jenkins[Jenkins jwt-rs :18092]
+    Keycloak[Keycloak :18091]
+  end
   Jungle --> DNS
   Jungle --> Info
   Jungle --> Control
@@ -109,6 +114,7 @@ flowchart LR
   Testers[integration testers] -->|DNS LDAP NFS TACACS+ RADIUS SMTP HTTP-proxy| mcplab
   Testers --> labldap
   Testers --> labtacacs
+  Testers -.-> labjenkins
 ```
 
 ## Configure
@@ -181,10 +187,11 @@ Configuration reference with every variable and a working snippet for each servi
 | `make test` | `go vet` + unit/regression tests for the CLI |
 
 `APP` is one of `labdns`, `maildev`, `nfs`, `labinfo`, `mcpjungle`, `labldap`,
-`labtacacs`, `labmitm`. Use this after editing that service's YAML or bumping its image.
+`labtacacs`, `labmitm`, `labjenkins`. Use this after editing that service's YAML or bumping its image.
 Gateway reload (`APP=mcpjungle`) also re-runs `make register` because
 registration SQLite is tmpfs. `make labldap-up` / `make labtacacs-up` remain
-idempotent bring-up of those compose projects.
+idempotent bring-up of those compose projects. `make labjenkins-up` requires
+`LABJENKINS_ENABLED=true` in the active profile.
 
 `make up` and `make register` run the same preflight check automatically. To
 bypass intentionally, set `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`. Use `make up`
@@ -202,6 +209,7 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.3**. Compose service name stays `maildev`. |
 | [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.4.0**. Data plane is unauthenticated; intercept is :443 only. |
 | [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.28**. |
+| [hilather/go-jenkins-mcp](https://github.com/hilather/go-jenkins-mcp) | Jenkins MCP CLI + jwt-rs lab (Jenkins LTS + jwt-auth-filter + Keycloak). Vendored for the opt-in LabJenkins project. Pinned commit **a225ef47** (Entra walkthrough). Not registered with MCPJungle. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. Pinned **0.4.6**. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |
 
@@ -209,7 +217,7 @@ Vendored checkouts live in `third_party/` (cloned by `mcplab vendor`). Do not ed
 
 ## Architecture and security
 
-Three compose projects (`mcplab`, `labldap`, `labtacacs`) meet on the external docker network `mcplab-shared`. Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
+Always-on compose projects (`mcplab`, `labldap`, `labtacacs`) plus opt-in `labjenkins` meet on the external docker network `mcplab-shared`. Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
 
 Design, topology, and the phase-1 OAuth plan: [docs/architecture.md](docs/architecture.md).
 

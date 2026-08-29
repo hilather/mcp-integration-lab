@@ -1,7 +1,7 @@
 # Agent guide — MCP Integration Lab
 
 This repo orchestrates AI-ready lab services (DNS, LDAP, TACACS+/RADIUS,
-mail, NFS, HTTP intercept) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
+mail, NFS, HTTP intercept, optional Jenkins jwt-rs) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
 and gateway policy; the services themselves are vendored. These are the rules
 we work by.
 
@@ -51,7 +51,9 @@ we work by.
    through the profile's `mcpjungle/servers/*.json` + tool group. The
    registrar discovers servers from that directory (filename must match the
    JSON `name`), so adding a service to a profile is a single-file change
-   plus its catalog entry (rule 9).
+   plus its catalog entry (rule 9). Exception: LabJenkins is Jenkins RS +
+   documented CLI login only — jwt-rs-lab does not expose streamable HTTP
+   MCP, so there is no `mcpjungle/servers/labjenkins.json`.
 9. **Every user-facing surface goes in the labinfo catalog — URLs *and*
  connection details.** The `labinfo` MCP service (first-party,
  `cmd/labinfo`) serves `endpoints_list` (web/REST URLs so agents can direct
@@ -135,10 +137,12 @@ we work by.
   service `maildev`, LabMITM, NFS, labinfo); MCPJungle image is
   `ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}` (gateway +
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
-  LabLDAP and TacLab compose projects onto the shared network
+  LabLDAP, TacLab, and opt-in LabJenkins compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.2.0`,
-  LabLDAP `v0.4.1`, TacLab `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.4.0`).
+  release tags (and the go-jenkins-mcp commit pin) are in
+  `internal/lab/vendor.go` (LabDNS `v1.2.0`, LabLDAP `v0.4.1`, TacLab
+  `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.4.0`, go-jenkins-mcp
+  `a225ef47013f034432e45403499e7b016fe647a7`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -279,7 +283,7 @@ we work by.
   (never errors) when `LAB_PUBLIC_HOST` is not loopback and
   `originAllowlist` is empty.
 - Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
-  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm). It is
+  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labjenkins). It is
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,
@@ -294,3 +298,19 @@ we work by.
   `LAB_DEV_MODE=true` as process env on `default` (preflight). CI copies
   `profiles/default` to gitignored `profiles/ci-dev/` and flips the knob
   there.
+- LabJenkins is **opt-in** (`LABJENKINS_ENABLED=false` on default). Vendored
+  pin is go-jenkins-mcp commit `a225ef47013f034432e45403499e7b016fe647a7`
+  (SHA checkout in `vendorCheckout`; no release tag includes the Entra
+  docs). Overlay `compose/labjenkins.overlay.yaml` publishes Jenkins
+  `:18092` and Keycloak `:18091` on all interfaces (not host-net, not
+  loopback). Empty `ENTRA_*` → Keycloak JWKS; all three UUID GUIDs →
+  Entra JWKS, audience = API app GUID (not `api://`). Placeholders
+  `{tenant-id}` / `{api-app-id}` / `{gateway-app-id}` must never be
+  profile values. `applyLabJenkinsEnv` writes `Prof.Values` then rebuilds
+  `r.Env` on up / reload labjenkins / reload labinfo / `applySecretReloads`
+  — not in `New()`. `LabJenkinsDown` no-ops if the vendor compose file is
+  missing. Reload fails closed when disabled. No MCP registration. Default
+  smoke does not call Entra or `live-jwt-rs-smoke`. After filling
+  `ENTRA_*`, `make reload APP=labjenkins` and `APP=labinfo`. `make reset`
+  passes `-v` so `jenkins_home` is wiped. `vendor` still clones
+  go-jenkins-mcp on default `make up`.

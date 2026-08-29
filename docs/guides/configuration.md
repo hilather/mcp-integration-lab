@@ -127,6 +127,11 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
+| `LABJENKINS_ENABLED` | `false` | Opt-in jwt-rs Jenkins + Keycloak. Set `true` only in a gitignored team profile (process env on `default` fails preflight). |
+| `JWT_RS_JENKINS_PORT` | `18092` | Jenkins HTTP (jwt-auth-filter). Published on all interfaces when enabled. |
+| `JWT_RS_KC_PORT` | `18091` | Keycloak HTTP (lab IdP; unused as JWKS when Entra IDs are filled). |
+| `JWT_RS_JWKS_URL` / `JWT_RS_AUDIENCE` | Keycloak defaults | Overwritten to Entra when all three `ENTRA_*` GUIDs are set. Audience is the API **app GUID**, not `api://`. |
+| `ENTRA_TENANT_ID` / `ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID` | empty | Fill all three UUIDs for Entra. Never commit real IDs or `{tenant-id}` literals as values. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
@@ -136,8 +141,8 @@ different `LABDNS_DNS_PORT` in your team profile.
 
 ## Reload vs full redeploy
 
-`make up` vendors, mints or reconciles secrets, builds every image, starts three compose
-projects, and registers the gateway. Use it for first bring-up, a vendor pin
+`make up` vendors, mints or reconciles secrets, builds every image, starts the always-on compose
+projects (and LabJenkins when enabled), and registers the gateway. Use it for first bring-up, a vendor pin
 bump, or a profile switch. After a `dev-credentials.yaml` or `LAB_DEV_MODE` edit, or a
 `LAB_PUBLIC_HOST` SAN change, `mcplab secrets` reloads running apps
 whose files changed; `make up` skips those names. Changing `LAB_PUBLIC_HOST`
@@ -148,7 +153,7 @@ reload recreates directory + control).
 After that, recreate **one** application:
 
 ```bash
-make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
+make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labjenkins
 # equivalent: mcplab reload <app>
 ```
 
@@ -164,9 +169,11 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 | `LAB_PUBLIC_HOST` | `mcplab secrets` then `make reload APP=labldap` | leaf SAN rewrite; control Host allow-list env |
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
 | `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates; does not re-register |
+| `ENTRA_*` / jwt-rs IdP | `make reload APP=labjenkins` then `APP=labinfo` | Jenkins CASC re-reads JWKS/audience; catalog URLs refresh. `make reset` when switching Keycloak ↔ Entra (`jenkins_home`). |
 
 `make labldap-up` / `make labtacacs-up` are idempotent project bring-up
 (the path `make up` uses). They do not force-recreate a running directory.
+`make labjenkins-up` requires `LABJENKINS_ENABLED=true`.
 
 ## LabDNS
 
@@ -497,10 +504,33 @@ services:
           usage: "simple-bind password for alice"
 ```
 
-Adding a service: write the compose service, add a
+Adding an MCP service: write the compose service, add a
 `mcpjungle/servers/<name>.json` (filename must match JSON `name`), and
 add the catalog entry. New ports must be exported into the labinfo
-container environment so expansion sees them.
+container environment so expansion sees them. LabJenkins is an exception
+(no streamable HTTP MCP — catalog + overlay only).
+
+## LabJenkins (opt-in jwt-rs)
+
+Off on `profiles/default`. Copy the profile and set `LABJENKINS_ENABLED=true`.
+Leave `ENTRA_*` empty for Keycloak JWKS, or fill all three GUIDs for Entra.
+
+This does **not** flip go-jenkins-mcp `mode_*_live_*_qualified` or close
+OAUTH-009/010. `serve --gateway` is residual. Prove Entra with
+`jenkins-mcp login --oidc` (loopback `127.0.0.1:8400` is the CLI callback)
+and Bearer curl to `/whoAmI/api/json` and `/api/json`. Do not run
+`live-jwt-rs-smoke` against Entra JWKS.
+
+Two Entra app registrations: API resource (`requestedAccessTokenVersion=2`,
+`preferred_username` on the **access** token) and a public/native client
+(not SPA). Audience is the API app GUID; scopes still use
+`api://{api-app-id}/jenkins.access`. Walkthrough:
+https://github.com/hilather/go-jenkins-mcp/blob/a225ef47013f034432e45403499e7b016fe647a7/docs/testing/entra-jwt-rs-lab.md
+
+First enabled bring-up builds the Jenkins image (plugin download, several
+minutes). Keycloak still starts in Entra mode (`depends_on`). Jenkins UI
+is lab `admin`/`admin` on all interfaces; jwt-auth-filter covers
+`/**/api/**` only.
 
 ## MCPJungle
 

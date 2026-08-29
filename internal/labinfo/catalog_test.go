@@ -356,7 +356,8 @@ func TestDefaultCatalogConnectionCredentialsRedactOutsideDev(t *testing.T) {
 		"labmitm": {
 			"labmitm-token",
 		},
-		"nfs": nil,
+		"nfs":        nil,
+		"labjenkins": nil,
 	}
 	if len(got.Services) != len(want) {
 		t.Fatalf("services = %d, want %d complete catalog (got ids %v)", len(got.Services), len(want), serviceIDs(got))
@@ -503,6 +504,104 @@ func TestLoadRejectsInvalid(t *testing.T) {
 		}
 		if _, err := Load(p); err == nil {
 			t.Errorf("%s: expected error", name)
+		}
+	}
+}
+
+func TestDefaultCatalogLabjenkins(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var svc *Service
+	for i := range cat.Services {
+		if cat.Services[i].ID == "labjenkins" {
+			svc = &cat.Services[i]
+			break
+		}
+	}
+	if svc == nil {
+		t.Fatal("default catalog missing labjenkins")
+	}
+	if svc.Credential != nil {
+		t.Fatal("labjenkins must not add file-backed web credentials")
+	}
+	if svc.Connection == nil || len(svc.Connection.Endpoints) == 0 {
+		t.Fatal("labjenkins must have a connection block")
+	}
+	for _, u := range svc.URLs {
+		if strings.Contains(strings.ToLower(u.URL), "/mcp") {
+			t.Fatalf("labjenkins must not advertise MCP: %q", u.URL)
+		}
+	}
+	for _, e := range svc.Connection.Endpoints {
+		if strings.Contains(e.Protocol, "mcp") {
+			t.Fatalf("labjenkins must not catalog an MCP endpoint: %+v", e)
+		}
+	}
+	if !strings.Contains(svc.Note, "LABJENKINS_ENABLED") {
+		t.Fatalf("note must say the project is opt-in: %q", svc.Note)
+	}
+	if svc.Connection.Parameters["idp"] != "${LABJENKINS_IDP}" {
+		t.Fatalf("idp parameter = %q", svc.Connection.Parameters["idp"])
+	}
+}
+
+func TestLabinfoComposeEnvCoversJenkinsCatalogVars(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var svc *Service
+	for i := range cat.Services {
+		if cat.Services[i].ID == "labjenkins" {
+			svc = &cat.Services[i]
+			break
+		}
+	}
+	if svc == nil {
+		t.Fatal("missing labjenkins")
+	}
+	compose, err := os.ReadFile(filepath.Join(root, "docker-compose.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(compose)
+	need := map[string]bool{}
+	collectVars := func(s string) {
+		for i := 0; i < len(s); {
+			j := strings.Index(s[i:], "${")
+			if j < 0 {
+				return
+			}
+			j += i
+			k := strings.Index(s[j:], "}")
+			if k < 0 {
+				return
+			}
+			name := s[j+2 : j+k]
+			if name != "" && name != "LAB_PUBLIC_HOST" {
+				need[name] = false
+			}
+			i = j + k + 1
+		}
+	}
+	for _, u := range svc.URLs {
+		collectVars(u.URL)
+	}
+	collectVars(svc.Note)
+	for _, e := range svc.Connection.Endpoints {
+		collectVars(e.Address)
+		collectVars(e.Note)
+	}
+	for _, v := range svc.Connection.Parameters {
+		collectVars(v)
+	}
+	for name := range need {
+		if !strings.Contains(body, name+":") {
+			t.Errorf("labinfo.environment missing %s (used by labjenkins catalog)", name)
 		}
 	}
 }

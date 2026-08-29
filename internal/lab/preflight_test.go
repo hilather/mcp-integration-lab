@@ -27,6 +27,15 @@ func testProfileDir(root string) string {
 	return filepath.Join(root, "profiles", testProfileName)
 }
 
+func TestPreflightKeysIncludesLabJenkins(t *testing.T) {
+	for _, k := range preflightKeys {
+		if k == "LABJENKINS_ENABLED" {
+			return
+		}
+	}
+	t.Fatal("preflightKeys missing LABJENKINS_ENABLED")
+}
+
 func TestPreflightKeysIncludesLabMITM(t *testing.T) {
 	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false}
 	for _, k := range preflightKeys {

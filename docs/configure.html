@@ -124,8 +124,8 @@ PROFILE=default
         </table>
 
         <h2 id="reload">Reload one app (not a full redeploy)</h2>
-        <p><code>make up</code> vendors, mints or reconciles secrets, builds every image, starts all three compose projects, and registers the gateway. Use it for first bring-up, a vendor pin bump, or a profile switch. After a <code>dev-credentials.yaml</code> or <code>LAB_DEV_MODE</code> edit, or a <code>LAB_PUBLIC_HOST</code> SAN change, <code>mcplab secrets</code> reloads running apps whose files changed; <code>make up</code> skips those names. Changing <code>LAB_PUBLIC_HOST</code> also needs <code>make reload APP=labldap</code> so the control container picks up <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>. After that, recreate one application:</p>
-        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm</code></pre>
+        <p><code>make up</code> vendors, mints or reconciles secrets, builds every image, starts the always-on compose projects (and LabJenkins when enabled), and registers the gateway. Use it for first bring-up, a vendor pin bump, or a profile switch. After a <code>dev-credentials.yaml</code> or <code>LAB_DEV_MODE</code> edit, or a <code>LAB_PUBLIC_HOST</code> SAN change, <code>mcplab secrets</code> reloads running apps whose files changed; <code>make up</code> skips those names. Changing <code>LAB_PUBLIC_HOST</code> also needs <code>make reload APP=labldap</code> so the control container picks up <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>. After that, recreate one application:</p>
+        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labjenkins</code></pre>
         <p>YAML edits for LabDNS, LabMail, LabMITM, labinfo, or LabLDAP do not need a full stack bounce. Gateway JSON is <code>make register</code> (no container restart). Gateway <em>container</em> reload also re-registers because SQLite is tmpfs. LabLDAP reload re-seeds ephemeral <code>/data</code>. Mail reload wipes the inbox. LabMITM reload wipes captured flows and does not re-register.</p>
 
         <h2 id="labdns">LabDNS</h2>
@@ -300,7 +300,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         - name: bind-password-alice
           file: /run/lab-secrets/labldap-user-alice
           usage: "simple-bind password for alice"</code></pre>
-        <p>Adding a service: write the compose service, add a <code>mcpjungle/servers/<name>.json</code> (filename must match JSON <code>name</code>), and add the catalog entry. New ports must be exported into the labinfo container environment so expansion sees them.</p>
+        <p>Adding an MCP service: write the compose service, add a <code>mcpjungle/servers/<name>.json</code> (filename must match JSON <code>name</code>), and add the catalog entry. New ports must be exported into the labinfo container environment so expansion sees them. LabJenkins is an exception (no streamable HTTP MCP).</p>
 
         <h2 id="gateway">MCPJungle</h2>
         <p>Pinned <strong>0.4.6</strong>. <code>MCPJUNGLE_IMAGE_TAG</code> is profile-owned; copied profiles that omit the key still get compose <code>:-0.4.6</code>. This lab’s default is 0.4.6, not upstream Compose <code>latest</code> / <code>latest-stdio</code>. Do not set <code>MCPJUNGLE_BIND_HOST</code> (unset = all interfaces). Operator dashboard is <code>GET /</code> in development mode only (enterprise 404s).</p>

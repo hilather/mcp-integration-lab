@@ -9,22 +9,25 @@ import (
 
 func TestResolveReloadAliases(t *testing.T) {
 	cases := map[string]string{
-		"labdns":    "labdns",
-		"DNS":       "labdns",
-		"maildev":   "maildev",
-		"labmail":   "maildev",
-		"mail":      "maildev",
-		"nfs":       "nfs",
-		"labinfo":   "labinfo",
-		"mcpjungle": "mcpjungle",
-		"gateway":   "mcpjungle",
-		"labldap":   "labldap",
-		"ldap":      "labldap",
-		"labtacacs": "labtacacs",
-		"taclab":    "labtacacs",
-		"tacacs":    "labtacacs",
-		"labmitm":   "labmitm",
-		"mitm":      "labmitm",
+		"labdns":     "labdns",
+		"DNS":        "labdns",
+		"maildev":    "maildev",
+		"labmail":    "maildev",
+		"mail":       "maildev",
+		"nfs":        "nfs",
+		"labinfo":    "labinfo",
+		"mcpjungle":  "mcpjungle",
+		"gateway":    "mcpjungle",
+		"labldap":    "labldap",
+		"ldap":       "labldap",
+		"labtacacs":  "labtacacs",
+		"taclab":     "labtacacs",
+		"tacacs":     "labtacacs",
+		"labmitm":    "labmitm",
+		"mitm":       "labmitm",
+		"labjenkins": "labjenkins",
+		"jenkins":    "labjenkins",
+		"jwt-rs":     "labjenkins",
 	}
 	for in, want := range cases {
 		got, err := ResolveReload(in)
@@ -66,6 +69,13 @@ func TestResolveReloadComposeService(t *testing.T) {
 	}
 	if gw.kind != reloadGateway {
 		t.Fatalf("gateway should re-register after recreate, kind=%v", gw.kind)
+	}
+	jj, err := ResolveReload("jenkins")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if jj.kind != reloadLabJenkins || jj.canonical != "labjenkins" {
+		t.Fatalf("jenkins should use reloadLabJenkins, got %+v", jj)
 	}
 }
 

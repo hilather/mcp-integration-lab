@@ -1,0 +1,24 @@
+# Overlay on vendored go-jenkins-mcp testdata/jwt-rs-lab/docker-compose.yml.
+#
+# 1. Rewires the project's default network onto mcplab-shared.
+# 2. Re-publishes Jenkins and Keycloak on all interfaces with profile ports.
+#    Upstream binds 127.0.0.1 via JWT_RS_HOST_BIND; this lab publishes for
+#    remote systems (AGENTS.md rule 5). Do not use host networking.
+# 3. Mapping-form environment only — do not !override environment or
+#    upstream JWT_RS_* / JENKINS_* disappear.
+#
+# Requires Docker Compose v2.24.4+ (!override). First -f must stay the
+# vendored compose file so ./jenkins and ./keycloak/realm resolve.
+networks:
+  default:
+    external: true
+    name: mcplab-shared
+
+services:
+  keycloak:
+    ports: !override
+      - "${JWT_RS_KC_PORT:-18091}:8080"
+
+  jenkins:
+    ports: !override
+      - "${JWT_RS_JENKINS_PORT:-18092}:8080"

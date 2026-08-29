@@ -77,6 +77,13 @@
             <p><strong>Auth.</strong> AUTH_SYS. No credential.</p>
           </article>
           <article class="card">
+            <h3>LabJenkins — <a href="https://github.com/hilather/go-jenkins-mcp">hilather/go-jenkins-mcp</a></h3>
+            <p>Opt-in Jenkins LTS + jwt-auth-filter (vendored jwt-rs-lab, pin a225ef47). Default profile leaves it down. Empty <code>ENTRA_*</code> uses Keycloak JWKS; three GUIDs point at Entra (audience = API app GUID). No streamable HTTP MCP — prove with <code>jenkins-mcp login --oidc</code>.</p>
+            <p><strong>Connect.</strong> Jenkins <code>http://&lt;host&gt;:18092/</code>. Keycloak <code>:18091</code> (unused as JWKS when Entra). CLI callback <code>127.0.0.1:8400</code>.</p>
+            <p><strong>Configure.</strong> <code>LABJENKINS_ENABLED=true</code> in a gitignored team profile. After <code>ENTRA_*</code> edits: <code>make reload APP=labjenkins</code> and <code>APP=labinfo</code>.</p>
+            <p><strong>Auth.</strong> jwt-auth-filter on <code>/**/api/**</code>. UI is lab admin/admin on all interfaces. Public/native Entra client, not SPA.</p>
+          </article>
+          <article class="card">
             <h3>labinfo + MCPJungle — <a href="https://github.com/mcpjungle/MCPJungle">mcpjungle/MCPJungle</a></h3>
             <p>Service directory MCP plus the single client gateway. MCPJungle pinned 0.4.6. Operator dashboard is <code>GET /</code> in development mode only (enterprise 404s).</p>
             <p><strong>Connect.</strong> Gateway <code>http://<host>:8080/mcp</code> or <code>/v0/groups/integration/mcp</code>. labinfo at :18090.</p>
