@@ -67,6 +67,7 @@ services:
         auth: none (plain DNS; the bearer token is only for the REST/MCP management plane)
         authoritative_zone: "lab.test. (records defined in the profile's labdns/bootstrap.yaml, mutable via the labdns MCP tools)"
         resolver_config: "point systems under test at ${LAB_PUBLIC_HOST} port ${LABDNS_DNS_PORT} as their nameserver; example: dig @${LAB_PUBLIC_HOST} -p ${LABDNS_DNS_PORT} ldap.lab.test"
+        over_length_names: "management resolve/explain only (LabDNS 1.2); not a data-plane feature — do not add over-length owners to lab.test."
 
   - id: labldap
     name: LabLDAP control plane

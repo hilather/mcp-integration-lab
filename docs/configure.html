@@ -129,7 +129,7 @@ PROFILE=default
 
         <h2 id="labdns">LabDNS</h2>
         <p><code>labdns/bootstrap.yaml</code> is the desired state, mounted read-only. After editing, <code>make reload APP=labdns</code>. MCP <code>dns_state_reset</code> returns the service to this file. Non-loopback peers present the bearer in <code>secrets/labdns-token</code>.</p>
-        <p>LabDNS <strong>v1.1.1</strong> serves an operator console at <code>GET /</code> on port 18080 (<code>spec.ui.enabled</code>, default true). Paste the bearer. Loopback Origins are allowed. A remote browser must list its Origin in <code>spec.management.allowedOrigins</code> (exact <code>http(s)://host[:port]</code>; no <code>"*"</code> sentinel). Profile YAML sets <code>spec.management.mcp.allowLegacyClients: true</code> for MCPJungle.</p>
+        <p>LabDNS <strong>v1.2.0</strong> serves an operator console at <code>GET /</code> on port 18080 (<code>spec.ui.enabled</code>, default true). Paste the bearer. Loopback Origins are allowed. A remote browser must list its Origin in <code>spec.management.allowedOrigins</code> (exact <code>http(s)://host[:port]</code>; no <code>"*"</code> sentinel). Profile YAML sets <code>spec.management.mcp.allowLegacyClients: true</code> for MCPJungle. Over-length desired-state owners answer on management <code>resolve</code> / <code>explain</code> only (the DNS wire is still RFC 1035); do not add them to <code>lab.test.</code>.</p>
         <pre><code>apiVersion: labdns.dev/v1alpha1
 kind: LabDNS
 metadata:

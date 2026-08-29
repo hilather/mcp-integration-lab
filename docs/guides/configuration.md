@@ -174,12 +174,14 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 `make reload APP=labdns` recreates only LabDNS. Non-loopback peers
 present the bearer in `secrets/labdns-token`.
 
-LabDNS **v1.1.1** serves an operator console at `GET /` on
+LabDNS **v1.2.0** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
 the login screen. Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
 `http(s)://host[:port]` string (no `"*"` sentinel). `spec.ui.enabled:
-false` 404s the SPA only; REST and MCP stay.
+false` 404s the SPA only; REST and MCP stay. Over-length desired-state
+owners answer on management `resolve` / `explain` only (the DNS wire is
+still RFC 1035); do not add them to `lab.test.`.
 
 Default profile — authoritative for `lab.test.` with `ns1`, `nfs`,
 `ldap`, and a `*.tools` wildcard:

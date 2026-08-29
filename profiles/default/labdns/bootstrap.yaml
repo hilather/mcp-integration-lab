@@ -2,6 +2,10 @@
 # Read-only bootstrap: runtime mutations (REST /v1, MCP /mcp) are ephemeral
 # and `dns_state_reset` returns the service to this file. After editing,
 # `make reload APP=labdns` recreates only this container.
+#
+# v1.2.0 accepts over-length owners in desired state; they answer on
+# management resolve/explain only (the DNS wire is still RFC 1035). Do
+# not add over-length records to lab.test. — they cannot appear on the wire.
 apiVersion: labdns.dev/v1alpha1
 kind: LabDNS
 metadata:

@@ -36,7 +36,7 @@
         <div class="cards" style="grid-template-columns:1fr">
           <article class="card">
             <h3>LabDNS — <a href="https://github.com/hilather/go-lab-dns">hilather/go-lab-dns</a></h3>
-            <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. Pinned v1.1.1.</p>
+            <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. Pinned v1.2.0. Over-length names answer on management resolve/explain only; do not add them to <code>lab.test.</code>.</p>
             <p><strong>Connect.</strong> <code>dig @<host> -p 10053 ns1.lab.test</code> — console at :18080/, REST at :18080/v1, MCP at :18080/mcp.</p>
             <p><strong>Configure.</strong> <code>profiles/<name>/labdns/bootstrap.yaml</code>. Mutations via MCP are ephemeral; <code>dns_state_reset</code> restores the file. Reload: <code>make reload APP=labdns</code>. Remote console Origins go in <code>spec.management.allowedOrigins</code>.</p>
             <p><strong>Auth.</strong> Bearer in <code>secrets/labdns-token</code> for the management plane. Data plane is plain DNS.</p>

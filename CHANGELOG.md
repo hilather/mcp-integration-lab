@@ -7,6 +7,13 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Vendor pin: LabDNS **v1.2.0** (over-length desired-state names).
+  Management `resolve` / `explain` can answer those owners; the DNS
+  wire is still RFC 1035. The demo zone does not add over-length
+  records. `allowLegacyClients` stays true. Other pins unchanged.
+
 ### Added
 
 - LabLDAP management Host allow-list now includes `LAB_PUBLIC_HOST` via

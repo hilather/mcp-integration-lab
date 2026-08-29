@@ -136,7 +136,7 @@ we work by.
   merging the vendored LabLDAP and TacLab compose projects onto the shared
   network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.1.1`,
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.2.0`,
   LabLDAP `v0.4.1`, TacLab `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.1.1`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.24`). TacLab's generated lab baseline also lives under its checkout
@@ -156,13 +156,15 @@ we work by.
   as occupied. Default TacLab ports 49/300 are privileged; the GH-hosted
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.
   `EADDRINUSE` still fails preflight.
-- LabDNS is pinned to **v1.1.1**. MCP is wired into `serve` upstream. Do
+- LabDNS is pinned to **v1.2.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
   register (default pin is still `2026-07-28`). Operator console is
   `GET /` on the management listener (`spec.ui.enabled`, default true).
   Remote browsers need exact Origins in `spec.management.allowedOrigins`
-  (no `"*"` sentinel; loopback is already allowed). `make reload
+  (no `"*"` sentinel; loopback is already allowed). Over-length desired-state
+  names answer on management `resolve` / `explain` only — do not add them
+  to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.
 - TacLab (pinned `v1.4.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
