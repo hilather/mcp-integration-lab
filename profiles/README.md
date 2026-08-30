@@ -24,7 +24,8 @@ Select the active profile with `PROFILE=` in `.env` or `make up PROFILE=<name>`.
 The orchestrator understands `dev-credentials.yaml` as a `DevCredentials`
 document (`apiVersion: mcplab.dev/v1alpha1`; see `internal/lab/devcreds.go`).
 Parse is fail-closed: unknown fields are rejected, every token / password /
-shared-secret key is required (including `tokens.labmitm`), LabLDAP
+shared-secret key is required (including `tokens.labmitm`), LabMail and
+LabMITM tokens must be at least 32 bytes (`auth.MinTokenBytes`), LabLDAP
 passwords must be at least 12 characters, and TacLab shared secrets must
 pass the appliance's shared-secret policy (length ≥16, ≥3 unicode character
 classes, exact-match known-weak list — not a substring match, TACACS ≠

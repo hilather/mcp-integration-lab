@@ -256,8 +256,8 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 	want := map[string]string{
 		"secrets/labdns-token":                              "lab-dev-labdns-token",
 		"secrets/labinfo-token":                             "lab-dev-labinfo-token",
-		"secrets/labmail-token":                             "lab-dev-labmail-token",
-		"secrets/labmitm-token":                             "lab-dev-labmitm-token",
+		"secrets/labmail-token":                             "lab-dev-labmail-token-32b-minimum",
+		"secrets/labmitm-token":                             "lab-dev-labmitm-token-32b-minimum",
 		"secrets/mcp-client-token":                          "lab-dev-mcp-client-token",
 		"secrets/maildev-web-password":                      "lab-dev-mail-admin-1",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":   "lab-dev-labldap-token-admin",
@@ -332,6 +332,17 @@ func TestSecretsDevFailsClosedWithoutCatalog(t *testing.T) {
 	err := r.Secrets()
 	if err == nil || !strings.Contains(err.Error(), "dev-credentials.yaml") {
 		t.Fatalf("want fail-closed missing catalog, got %v", err)
+	}
+}
+
+func TestSecretsDevFailsClosedShortApplianceToken(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", mustRead(t, testdataDevcreds("labmail-short.yaml")))
+	err := r.Secrets()
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labmail") {
+		t.Fatalf("want enter-dev fail-closed on short labmail token, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "MinTokenBytes") {
+		t.Fatalf("expected MinTokenBytes in error, got %v", err)
 	}
 }
 

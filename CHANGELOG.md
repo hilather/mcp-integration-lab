@@ -7,6 +7,15 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Fixed
+
+- Dev-mode LabMail and LabMITM catalog tokens must be at least 32 bytes
+  (appliance `auth.MinTokenBytes`). The previous `lab-dev-labmail-token` /
+  `lab-dev-labmitm-token` values made those containers exit on serve, so
+  `make up --wait` reported them unhealthy. Catalog validate now
+  fail-closes on a short token the same way it does for a short Alice
+  password.
+
 ## [0.11.0] - 2026-08-29
 
 ### Fixed

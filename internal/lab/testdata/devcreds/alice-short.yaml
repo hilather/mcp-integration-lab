@@ -6,8 +6,8 @@ spec:
   tokens:
     labdns:            "lab-dev-labdns-token"
     labinfo:           "lab-dev-labinfo-token"
-    labmail:           "lab-dev-labmail-token"
-    labmitm:           "lab-dev-labmitm-token"
+    labmail:           "lab-dev-labmail-token-32b-minimum"
+    labmitm:           "lab-dev-labmitm-token-32b-minimum"
     mcpClient:         "lab-dev-mcp-client-token"
     labldapAdmin:      "lab-dev-labldap-token-admin"
     labtacacsAdmin:    "lab-dev-labtacacs-token-admin"

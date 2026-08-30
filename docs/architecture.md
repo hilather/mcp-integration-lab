@@ -108,6 +108,9 @@ generated). Catalog-only enter-dev still pins secret files via
 Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
 `profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
 default profile ships `lab-dev-*` values) and is inert unless `LAB_DEV_MODE=true`.
+LabMail and LabMITM tokens must be at least 32 bytes (`auth.MinTokenBytes`);
+catalog validate fail-closes so a short value cannot crash-loop those
+containers.
 Container storage is profile-definable (`NFS_ARCHIVE_DIR`, `NFS_DATA_DIR`);
 the NFS work dir is a host bind mount so it gets real disk for indexes and
 the durable write overlay. The archive dir is also writable: live overlay
@@ -171,7 +174,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
   (first mint / pin-bump via `labgen -secrets-from`; catalog-only enter-dev
   still pins after labgen; fail-closed if the catalog is missing; no merge with
   `default`). The default profile ships `lab-dev-*` values; they are inert
-  unless this knob is on. Catalog reconcile never inspects `MCPJUNGLE_MODE`.
+  unless this knob is on. LabMail and LabMITM tokens must be at least 32
+  bytes (`auth.MinTokenBytes`). Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
   from reveal. `Secrets()` reloads running containers whose files changed
   (or when the marker is missing / `reloads` is not `done`, so a crash
