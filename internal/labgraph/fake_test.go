@@ -73,6 +73,8 @@ type fakeLDAP struct {
 	PostCode  int
 	PostState LDAPResetStatus
 	GetState  LDAPResetStatus
+	GetSeq    []LDAPResetStatus
+	getN      int
 	PostErr   error
 	FailGet   bool
 }
@@ -102,8 +104,13 @@ func (f *fakeLDAP) GetReset(context.Context) (LDAPResetStatus, error) {
 	if f.FailGet {
 		return LDAPResetStatus{}, fmt.Errorf("get reset failed")
 	}
+	if f.getN < len(f.GetSeq) {
+		st := f.GetSeq[f.getN]
+		f.getN++
+		return st, nil
+	}
 	st := f.GetState
-	if st.State == "" {
+	if st.State == "" && len(f.GetSeq) == 0 {
 		st.State = LDAPReady
 	}
 	return st, nil

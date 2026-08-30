@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -222,6 +223,17 @@ func (s *Service) Status(ctx context.Context, name string) (*ScenarioStatus, err
 				if b, err := s.Clients.LDAP.GetBaseline(ctx); err == nil {
 					as.RuntimeRevision = b.AppliedRevision
 					as.Drifted = !b.Match
+				} else {
+					as.Detail = err.Error()
+				}
+			}
+		case "labtacacs":
+			if s.Clients.TacLab != nil {
+				if raw, err := s.Clients.TacLab.Status(ctx); err == nil {
+					as.RuntimeRevision = "ok"
+					if as.Detail == "" {
+						as.Detail = strings.TrimSpace(string(raw))
+					}
 				} else {
 					as.Detail = err.Error()
 				}
@@ -470,18 +482,25 @@ func (s *Service) waitLDAPReset(ctx context.Context) error {
 	defer cancel()
 	t := time.NewTicker(ldapResetPoll)
 	defer t.Stop()
+	// Idle Ready on GET is not this reset. Require a non-idle observation
+	// (PreparingReset / Resetting / Verifying) before treating Ready as success.
+	sawProgress := false
 	for {
 		st, err := s.Clients.LDAP.GetReset(ctx)
 		if err != nil {
 			return err
 		}
 		switch st.State {
+		case LDAPPreparingReset, LDAPResetting, LDAPVerifying:
+			sawProgress = true
 		case LDAPReady:
-			return nil
+			if sawProgress {
+				return nil
+			}
 		case LDAPFailed:
 			return fmt.Errorf("labldap reset failed")
-		case LDAPPreparingReset, LDAPResetting, LDAPVerifying, "":
-			// keep polling; empty state after 202 is under-specified — wait
+		case "":
+			// under-specified after 202 — keep polling
 		default:
 			return fmt.Errorf("labldap reset unknown state %q", st.State)
 		}

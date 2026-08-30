@@ -44,20 +44,24 @@ func MCPServer(svc *Service) *server.MCPServer {
 		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")))
 	add("scenario_plan", "Dry-run apply. Family operations call POST /v1/changes:plan with expectedRevision from GET /v1/state when omitted.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			res, err := svc.Plan(ctx, req.GetString("name", "default"), ApplyRequest{})
+			res, err := svc.Plan(ctx, req.GetString("name", "default"), applyReqFromMCP(req))
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			return marshalTool(res)
-		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")))
+		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")),
+		mcp.WithString("expectedRevision", mcp.Description("Optional JSON object of appliance id → expectedRevision")),
+		mcp.WithNumber("generation", mcp.Description("Optional labgraph journal generation for OCC")))
 	add("scenario_apply", "Apply in order DNS→MITM→mail→LDAP→TacLab. Stop on first failure; no auto-rollback. Empty default is a no-op.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			res, err := svc.Apply(ctx, req.GetString("name", "default"), ApplyRequest{})
+			res, err := svc.Apply(ctx, req.GetString("name", "default"), applyReqFromMCP(req))
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			return marshalTool(res)
-		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")))
+		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")),
+		mcp.WithString("expectedRevision", mcp.Description("Optional JSON object of appliance id → expectedRevision")),
+		mcp.WithNumber("generation", mcp.Description("Optional labgraph journal generation for OCC")))
 	add("scenario_reset", "Native reset of named appliances or all five (family :reset, LabLDAP POST /api/v1/reset, TacLab runtime.reset). Empty omit = all five — a lab-wide mutation even on the empty default scenario. Do not use that on default in smoke.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			var apps []string
@@ -83,6 +87,18 @@ func MCPServer(svc *Service) *server.MCPServer {
 			return marshalTool(st)
 		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")), mcp.WithReadOnlyHintAnnotation(true))
 	return s
+}
+
+func applyReqFromMCP(req mcp.CallToolRequest) ApplyRequest {
+	out := ApplyRequest{Reason: req.GetString("reason", "")}
+	if raw := req.GetString("expectedRevision", ""); raw != "" {
+		_ = json.Unmarshal([]byte(raw), &out.ExpectedRevision)
+	}
+	if v, err := req.RequireInt("generation"); err == nil {
+		g := int64(v)
+		out.Generation = &g
+	}
+	return out
 }
 
 func marshalTool(v any) (*mcp.CallToolResult, error) {

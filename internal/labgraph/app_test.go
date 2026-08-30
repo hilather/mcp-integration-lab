@@ -321,7 +321,10 @@ func TestResetLDAPUsesCompiledRevision(t *testing.T) {
 			Match:            false,
 		},
 		PostCode: 202,
-		GetState: LDAPResetStatus{State: LDAPReady},
+		GetSeq: []LDAPResetStatus{
+			{State: LDAPResetting},
+			{State: LDAPReady},
+		},
 	}
 	s := testService(t, "default.yaml", emptyYAML, nil, ldap, &fakeTac{})
 	res, err := s.Reset(context.Background(), "default", ResetRequest{Appliances: []string{"labldap"}})
@@ -339,6 +342,40 @@ func TestResetLDAPUsesCompiledRevision(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("calls %v", ldap.Calls)
+	}
+}
+
+func TestResetLDAPIdleReadyIsNotSuccess(t *testing.T) {
+	ldap := &fakeLDAP{
+		Baseline: LDAPBaseline{ExpectedRevision: "compiled"},
+		PostCode: 202,
+		GetState: LDAPResetStatus{State: LDAPReady},
+	}
+	s := testService(t, "default.yaml", emptyYAML, nil, ldap, &fakeTac{})
+	s.LDAPResetWait = 200 * time.Millisecond
+	res, err := s.Reset(context.Background(), "default", ResetRequest{Appliances: []string{"labldap"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.OK {
+		t.Fatal("idle Ready without PreparingReset/Resetting/Verifying must not count as this reset")
+	}
+}
+
+func TestStatusIncludesTacLab(t *testing.T) {
+	s := testService(t, "default.yaml", emptyYAML, nil, nil, &fakeTac{})
+	st, err := s.Status(context.Background(), "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, a := range st.Appliances {
+		if a.Appliance == "labtacacs" && a.RuntimeRevision == "ok" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("status missing TacLab: %+v", st.Appliances)
 	}
 }
 
