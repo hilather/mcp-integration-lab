@@ -60,9 +60,10 @@ Never hardcode a port in `docker-compose.yaml` — add a variable to
 
 `dev-credentials.yaml` is a `DevCredentials` document
 (`apiVersion: mcplab.dev/v1alpha1`). Every token, password, and shared-secret
-key is required. LabLDAP passwords must be at least 12 characters; TacLab
-shared secrets must pass the appliance policy (length ≥16, ≥3 character
-classes, exact-match known-weak list). The active profile's file is the only
+key is required. LabMail and LabMITM tokens must be at least 32 bytes
+(appliance `auth.MinTokenBytes`). LabLDAP passwords must be at least 12
+characters; TacLab shared secrets must pass the appliance policy (length ≥16,
+≥3 character classes, exact-match known-weak list). The active profile's file is the only
 source — there is no merge with `profiles/default`. `mcplab secrets` consumes
 it only when `LAB_DEV_MODE=true`.
 
@@ -556,7 +557,8 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   no merge with `default`), including TacLab lab-user passwords and AAA
   shared secrets (first mint / pin-bump via `labgen -secrets-from`;
   catalog-only enter-dev still pins after `labgen`). The default profile ships `lab-dev-*`
-  values; they are inert unless this knob is on. `make creds` prints the
+  values; they are inert unless this knob is on. LabMail and LabMITM tokens
+  must be at least 32 bytes (appliance `auth.MinTokenBytes`). `make creds` prints the
   shareable sheet from files on disk (never TLS private keys). Never
   default a shared team profile to dev mode. Set the knob in **that
   profile's** `profile.env` (process env on `default` fails preflight).

@@ -23,6 +23,9 @@ const (
 	// not read secret files).
 	taclabSharedSecretMinLen     = 16
 	taclabSharedSecretMinClasses = 3
+
+	// LabMail / LabMITM auth.MinTokenBytes (serve fail-closes).
+	applianceTokenMinBytes = 32
 )
 
 // DevCredentials is the mcplab.dev/v1alpha1 catalog at
@@ -102,7 +105,8 @@ func parseDevCredentials(r io.Reader) (*DevCredentials, error) {
 }
 
 // Validate fail-closes on wrong apiVersion/kind, missing/empty required
-// keys, LabLDAP passwords shorter than minLength, TacLab shared secrets
+// keys, LabMail/LabMITM tokens shorter than appliance auth.MinTokenBytes,
+// LabLDAP passwords shorter than minLength, TacLab shared secrets
 // that would crash the appliance at boot, equal TACACS/RADIUS secrets,
 // and whitespace/NUL/newline in secrets-from-bound fields.
 func (d *DevCredentials) Validate() error {
@@ -142,6 +146,15 @@ func (d *DevCredentials) Validate() error {
 	for _, f := range required {
 		if strings.TrimSpace(f.value) == "" {
 			return fmt.Errorf("%s is required", f.path)
+		}
+	}
+
+	for _, f := range []struct{ path, value string }{
+		{"spec.tokens.labmail", d.Spec.Tokens.Labmail},
+		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
+	} {
+		if len(f.value) < applianceTokenMinBytes {
+			return fmt.Errorf("%s is shorter than appliance auth.MinTokenBytes (%d)", f.path, applianceTokenMinBytes)
 		}
 	}
 
