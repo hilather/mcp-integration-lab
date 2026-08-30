@@ -272,10 +272,12 @@ we work by.
   unbound. Bind-mounted `secrets/labmitm-token` must be **0o644** (UID
   65532). Management is bearer-only (no HTTP Basic); the HTTP/1.1 data
   plane is unauthenticated — do not publish without a network boundary.
-  Omit `spec.proxy.httpAuth` entirely (`enabled: false` still fails
-  KnownFields on a v1.1.1 image). 1.2 nested flags (inspectFrames, h2c,
-  BIND/UDP/user-pass, orig-dest) stay omitted (Reset-only). 1.4 rule
-  actions stay off (`rules.enabled: false`, no items). Native `/v1`
+  Write `spec.proxy.httpAuth.enabled: false` (legal on v1.5.0; do not
+  omit the key for a stale v1.1.1 KnownFields rule). 1.2 nested flags
+  (inspectFrames, h2c, BIND/UDP/user-pass, orig-dest) are present and
+  false (Reset-only). D22-carve hop gates `websocket` / `connect` /
+  `absoluteForm` stay on. 1.4 rule actions stay off (`rules.enabled:
+  false`, `items: []`). Native `/v1`
   catalog is 31 (includes `features.get`); `GET /v1/features` / MCP
   `mitm_features_list` is the frozen 11-row hop/accept catalog. Do not
   write “catalog 11” as the `/v1` surface. `allowHosts` is HTTP-useful

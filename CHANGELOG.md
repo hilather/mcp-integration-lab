@@ -7,6 +7,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Default LabMITM overlay now writes every 1.1–1.4 knob the pinned
+  v1.5.0 appliance understands (`spec.proxy.httpAuth.enabled: false`,
+  1.2 nested flags, orig-dest, hop/accept including D22-carve
+  websocket/connect/absoluteForm on). The stale v1.1.1 “omit these
+  keys or KnownFields fails” rule is gone. Pin stays v1.5.0.
+
 ### Fixed
 
 - Dev-mode `mcplab secrets` now marks enter-dev reloads pending before

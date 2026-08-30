@@ -290,9 +290,10 @@ per-persona tool groups and OTel metrics scraping.
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (no LabMITM patch). Compose must pass `--management-listen=:8088`
   (binary default is off). The HTTP/1.1 data plane is unauthenticated;
-  do not publish without a network boundary. Omit `spec.proxy.httpAuth`
-  (do not write `enabled: false`). 1.2 nested flags (SOCKS BIND/UDP/user-pass,
-  inspectFrames, orig-dest) stay off. Native `/v1` catalog is 31 (includes
+  do not publish without a network boundary. Write
+  `spec.proxy.httpAuth.enabled: false` (legal on v1.5.0). 1.2 nested
+  flags (SOCKS BIND/UDP/user-pass, inspectFrames, orig-dest) are present
+  and off. D22-carve hop gates stay on. Native `/v1` catalog is 31 (includes)
   `features.get`); `GET /v1/features` / MCP `mitm_features_list` is the
   frozen 11-row hop/accept catalog. HTTPS intercept is `:443` only —
   CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt.
