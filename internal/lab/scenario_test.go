@@ -37,6 +37,25 @@ func TestParseScenarioArgs(t *testing.T) {
 	}
 }
 
+func TestParseFixtureArgs(t *testing.T) {
+	id, err := parseFixtureArgs([]string{"apply", "broken-bind"})
+	if err != nil || id != "broken-bind" {
+		t.Fatalf("got id=%q err=%v", id, err)
+	}
+	if _, err := parseFixtureArgs([]string{"apply", "default"}); err == nil {
+		t.Fatal("default must be rejected")
+	}
+	if _, err := parseFixtureArgs([]string{"apply"}); err == nil {
+		t.Fatal("missing id must fail")
+	}
+	if _, err := parseFixtureArgs([]string{"list"}); err == nil {
+		t.Fatal("list is not a fixture op")
+	}
+	if _, err := parseFixtureArgs([]string{"apply", "broken-bind", "--appliances=labldap"}); err == nil {
+		t.Fatal("--appliances on fixture apply must fail")
+	}
+}
+
 func TestLabgraphClientRequiresTokenFile(t *testing.T) {
 	r := &Runner{
 		Root: t.TempDir(),

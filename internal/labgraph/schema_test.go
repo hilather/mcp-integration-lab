@@ -67,7 +67,9 @@ spec: {}
 }
 
 func TestRegistryParity(t *testing.T) {
+	byID := map[string]Capability{}
 	for _, c := range Registry() {
+		byID[c.ID] = c
 		if c.Disposition() == ParityRequired {
 			if c.MCP == nil || c.MCP.Tool == "" {
 				t.Errorf("%s missing MCP", c.ID)
@@ -82,5 +84,19 @@ func TestRegistryParity(t *testing.T) {
 		if c.Disposition() == RESTOnlyProtocol && c.MCP != nil {
 			t.Errorf("%s REST_ONLY must not have MCP", c.ID)
 		}
+	}
+	apply, ok := byID["fixture.apply"]
+	if !ok || apply.MCP == nil || apply.MCP.Tool != "fixture_apply" || apply.RESTOnly {
+		t.Fatalf("fixture.apply = %+v", apply)
+	}
+	if apply.REST[0].Path != "/v1/fixtures/{id}:apply" {
+		t.Fatalf("fixture.apply REST %v", apply.REST)
+	}
+	get, ok := byID["fixture.get"]
+	if !ok || !get.RESTOnly || get.MCP != nil {
+		t.Fatalf("fixture.get must be REST_ONLY: %+v", get)
+	}
+	if _, ok := byID["fixture.list"]; ok {
+		t.Fatal("fixture.list must not be in the registry")
 	}
 }

@@ -269,7 +269,7 @@ services:
 
   - id: labgraph
     name: LabScenario orchestrator (labgraph)
-    description: Applies LabScenario YAML across appliances via native plan/apply/reset. Operator console at /, REST under /v1, MCP under /mcp. Omitted appliances are left alone. LabLDAP and TacLab have no native file-level apply.
+    description: Applies LabScenario YAML across appliances via native plan/apply/reset. Named fixture packs (broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port) load at labgraph://fixtures/{id} and apply via fixture.apply. Operator console at /, REST under /v1, MCP under /mcp. Omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; flatten and TacLab apply fail closed.
     urls:
       - name: Operator console
         url: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/
@@ -292,6 +292,9 @@ services:
       parameters:
         auth: "bearer on /v1 and /mcp; SPA uses cookie + CSRF after POST /v1/session"
         applyOrder: "labdns → labmitm → maildev → labldap → labtacacs"
+        fixtures: "broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port"
+        fixtureResources: "labgraph://fixtures/{id}"
+        fixtureApply: "fixture.apply (POST /v1/fixtures/{id}:apply); same Service.Apply as scenario.apply"
       credentials:
         - name: labgraph-token
           file: /run/lab-secrets/labgraph-token

@@ -34,7 +34,25 @@ type LabScenario struct {
 }
 
 type Metadata struct {
-	Name string `yaml:"name"`
+	Name        string `yaml:"name"`
+	Description string `yaml:"description,omitempty"`
+}
+
+// FixtureIDs is the closed set of named packs. default is not a fixture.
+var FixtureIDs = []string{
+	"broken-bind",
+	"expired-cert",
+	"split-horizon-dns",
+	"mitm-intercept-extra-port",
+}
+
+func IsFixture(name string) bool {
+	for _, id := range FixtureIDs {
+		if id == name {
+			return true
+		}
+	}
+	return false
 }
 
 // RawYAML holds an opaque YAML subtree. UnmarshalYAML keeps KnownFields

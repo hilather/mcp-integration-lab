@@ -1,0 +1,33 @@
+# LabDNS overlay override (not BIND views). Overlay is a second zone name —
+# duplicate lab.test. is invalid. clientGroup is an access class (CIDRs),
+# not a per-zone view. Re-apply without reset hits AlreadyExists; reset first.
+# Reset: scenario.reset --appliances=labdns.
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: split-horizon-dns
+  description: Overlay zone split.lab.test. plus internal-horizon client group (default docker subnet, no forward).
+spec:
+  labdns:
+    operations:
+      - op: add
+        target:
+          kind: zone
+          id: split-horizon
+        value:
+          id: split-horizon
+          name: split.lab.test.
+          mode: overlay
+          records:
+            - id: api-a
+              owner: api
+              type: A
+              values: ["10.42.0.10"]
+      - op: add
+        target:
+          kind: clientGroup
+          id: internal-horizon
+        value:
+          id: internal-horizon
+          cidrs: ["10.99.42.0/24"]
+          allowForward: false

@@ -62,7 +62,12 @@ func REST(mux *http.ServeMux, svc *Service, sess *SessionStore) {
 				writeErr(w, http.StatusNotFound, err.Error())
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]any{"name": doc.Metadata.Name, "kind": doc.Kind, "apiVersion": doc.APIVersion})
+			view, err := scenarioView(doc)
+			if err != nil {
+				writeErr(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, view)
 		case verb == "status" && r.Method == http.MethodGet:
 			st, err := svc.Status(r.Context(), name)
 			if err != nil {
@@ -110,6 +115,41 @@ func REST(mux *http.ServeMux, svc *Service, sess *SessionStore) {
 			writeJSON(w, statusOK(res), res)
 		default:
 			writeErr(w, http.StatusNotFound, "unknown scenario route")
+		}
+	})
+	mux.HandleFunc("/v1/fixtures/", func(w http.ResponseWriter, r *http.Request) {
+		rest := strings.TrimPrefix(r.URL.Path, "/v1/fixtures/")
+		id, verb := splitAction(rest)
+		if id == "" {
+			writeErr(w, http.StatusNotFound, "missing id")
+			return
+		}
+		switch {
+		case verb == "" && r.Method == http.MethodGet:
+			view, err := svc.GetFixture(r.Context(), id)
+			if err != nil {
+				writeErr(w, http.StatusNotFound, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusOK, view)
+		case verb == "apply" && r.Method == http.MethodPost:
+			var req ApplyRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			res, err := svc.ApplyFixture(r.Context(), id, req)
+			if err != nil {
+				code := http.StatusBadRequest
+				if strings.Contains(err.Error(), "generation") {
+					code = http.StatusConflict
+				}
+				if strings.Contains(err.Error(), errNotFixture) {
+					code = http.StatusNotFound
+				}
+				writeErr(w, code, err.Error())
+				return
+			}
+			writeJSON(w, statusOK(res), res)
+		default:
+			writeErr(w, http.StatusNotFound, "unknown fixture route")
 		}
 	})
 }
