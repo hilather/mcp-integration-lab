@@ -13,18 +13,67 @@ secrets layout, and gateway policy.
 
 | Service | Role | MCP | External host ports (default profile) |
 | --- | --- | --- | --- |
-| LabDNS (`go-lab-dns` **v1.3.0**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053 (UDP/TCP), REST/MCP/UI 18080 |
-| LabLDAP (`go-lab-ldap-mcp` **v0.5.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389 / LDAPS 3636, control HTTPS 8443 |
+| LabDNS (`go-lab-dns` **v1.3.0**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053† (UDP/TCP), REST/MCP/UI 18080 |
+| LabLDAP (`go-lab-ldap-mcp` **v0.5.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.5.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
-| LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025, web 1080 |
-| LabMITM (`go-lab-mitmproxy` **v1.5.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated), inspector 18088 |
-| ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490 |
+| LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
+| LabMITM (`go-lab-mitmproxy` **v1.5.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
+| ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490† |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | MCPJungle (**0.4.6**) | MCP gateway: aggregation, tool groups, ACLs; operator dashboard `GET /` in development mode only | `http://<host>:8080/mcp` | gateway 8080 |
 
+† Residual default-profile dest, not the designed IANA dest (DNS 53, LDAP
+389 / LDAPS 636, SMTP 25, NFS 2049). TacLab 49/300/1812/1813 are already
+native. LabMITM 18888 is a forward-proxy listen (SUT sets `HTTP_PROXY`),
+not dest 443. Remaps are follow-on PRs per service. See
+[Host ports and preflight](#host-ports-and-preflight).
+
 All host ports are profile-defined (`profiles/<name>/profile.env`) and bind on
-all interfaces: the lab exists for remote systems to test against. Container-
-internal ports are fixed and irrelevant to consumers.
+all interfaces: the lab exists for remote systems to test against. Container
+listen ports are unprivileged and irrelevant to consumers (compose maps
+host:container).
+
+## Host ports and preflight
+
+Protocol data planes SUTs already speak use the IANA/standard dest on the
+**host**: DNS 53, NTP 123, LDAP 389 / LDAPS 636, SMTP 25, TACACS+ 49 / 300,
+RADIUS 1812/1813, NFS 2049 (AGENTS.md rule 15). Management/control planes
+stay high (collision with the gateway and with each other is fine).
+Today's default profile numbers above that are not native are residual, not
+a second policy — do not invent 10053-as-design.
+
+LabMITM is a forward proxy, not an IANA dest-443 service. Do not move
+`LABMITM_PROXY_PORT` to 443; HTTPS intercept of CONNECT `:443` stays inside
+the proxy. NFS userspace 2049 is native when remapped; 20490 today is
+residual. Operator escape (a non-native host port in `profile.env`) is
+allowed when preflight cannot free the IANA port; it is an escape, not the
+default.
+
+**Host occupancy** (`internal/lab/ports.go`): every published host port.
+`EACCES` / `EPERM` is not occupied (TacLab 49; the operator uid may not
+bind privileged ports, but dockerd can still publish). Occupancy is
+`/proc/net` TCP LISTEN / UDP bound. Fail closed if a non-lab process holds
+the port.
+
+**Docker/host feature knobs.** When a lab feature depends on a Docker
+daemon or host setting, preflight fails closed **with the configuration
+change in the error**. Do not boot a lab that pretends the feature works.
+Example for the LabNTP integrator slice (LabNTP is not in compose yet; do
+not add this Go check until then): per-IP views need published UDP source
+IPs, which requires `userland-proxy: false`. Normative error copy when
+those checks exist:
+
+- DNS 53 held by systemd-resolved: stop/disable resolved **or** extra IP
+  for `LAB_PUBLIC_HOST` **or** escape `LABDNS_DNS_PORT` (SUTs that cannot
+  set dest port cannot follow the escape).
+- NTP 123 held by systemd-timesyncd: stop/disable timesyncd (lab host
+  clock may drift; LabNTP never settimeofday) **or** extra IP **or**
+  escape `LABNTP_NTP_PORT=10123` (timesyncd/W32Time cannot).
+- `userland-proxy` true: write `/etc/docker/daemon.json`
+  `{"userland-proxy": false}` then `systemctl restart docker`.
+- Docker Desktop / VM NAT cannot preserve UDP source: Linux dockerd +
+  `userland-proxy` false, or macvlan/ipvlan. Do not start that feature
+  there.
 
 ## Topology
 
@@ -128,10 +177,15 @@ separated from the exec layer and covered by unit/regression tests
 logic is testable without docker.
 
 `make up` is the full bring-up (vendor, secrets, fixtures, all three compose
-projects, gateway registration). It runs preflight first: profile drift and
-host-port occupancy. Privileged ports (default TacLab 49/300) are probed
-without requiring the operator uid to bind — `EACCES` is not "in use";
-occupancy is `/proc/net` (TCP LISTEN / UDP bound). `mcplab reload <app>` / `make reload
+projects, gateway registration). It runs preflight first: profile drift,
+host-port occupancy, and (when a lab feature depends on a Docker daemon or
+host setting) those feature knobs. Privileged ports (default TacLab 49/300)
+are probed without requiring the operator uid to bind — `EACCES` is not
+"in use"; occupancy is `/proc/net` (TCP LISTEN / UDP bound). Feature-knob
+preflights fail closed with the configuration change in the error (see
+[Host ports and preflight](#host-ports-and-preflight)); LabNTP's
+`userland-proxy` check is not in Go yet because LabNTP is not in compose.
+`mcplab reload <app>` / `make reload`
 APP=<app>` rebuilds and recreates **one** application so a YAML or image
 tweak does not bounce the rest of the lab:
 
