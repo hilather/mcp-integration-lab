@@ -1,7 +1,7 @@
 # Agent guide — MCP Integration Lab
 
 This repo orchestrates AI-ready lab services (DNS, LDAP, TACACS+/RADIUS,
-mail, NFS, HTTP intercept, LabScenario orchestration) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
+mail, NFS, HTTP intercept, NTP, LabScenario orchestration) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
 and gateway policy; the services themselves are vendored. These are the rules
 we work by.
 
@@ -77,9 +77,9 @@ we work by.
  including the LabLDAP CA PEM, TacLab lab-user passwords, and the TACACS+
  shared secret), and reconciles secret files from that profile's
  `dev-credentials.yaml` (no merge with `default`; fail-closed if the
- catalog is missing). LabMail and LabMITM tokens must be ≥32 bytes
+ catalog is missing). LabMail, LabMITM, and LabNTP tokens must be ≥32 bytes
  (`auth.MinTokenBytes`); Validate fail-closes so a short catalog cannot
- crash-loop `maildev`/`labmitm`. `mcplab creds` / `make creds` prints the same sheet
+ crash-loop `maildev`/`labmitm`/`labntp`. `mcplab creds` / `make creds` prints the same sheet
  from files on disk (fails closed outside dev; never prints TLS private
  keys). `false` (default) hardens the gateway (enterprise: client tokens +
  ACLs), labinfo only describes how auth works, and minting stays
@@ -145,13 +145,13 @@ we work by.
       (TacLab 49; dockerd can publish). Occupancy is `/proc/net` TCP
       LISTEN / UDP bound. Fail closed if a non-lab process holds the port.
     - **Preflight Docker/host feature knobs.** When a lab feature depends
-      on a Docker daemon or host setting (example: LabNTP per-IP views
-      need published UDP source IPs → `userland-proxy: false`), add a
-      preflight that fails closed **with the configuration change in the
-      error**. Do not boot a lab that pretends the feature works. Do
-      **not** enable a LabNTP userland-proxy check in Go until LabNTP is
-      in compose — document the rule so that integrator slice implements
-      it.
+      on a Docker daemon or host setting, add a preflight that fails
+      closed **with the configuration change in the error**. Do not boot
+      a lab that pretends the feature works. LabNTP is in compose;
+      **do not** add a Go `userland-proxy` probe (appliance ADR 0014:
+      document NAT collision; compose-network + `views.preview` are the
+      reliable paths). The daemon.json / Desktop-cannot copy below is
+      operator documentation only.
     - **Error messages must name the fix.** Normative copy for when those
       checks exist:
       - DNS 53 held by systemd-resolved: stop/disable resolved **or**
@@ -170,9 +170,11 @@ we work by.
       PR): DNS 10053 → native 53; LDAP 3389/3636 → 389/636; SMTP 1025 →
       25; NFS 20490 → 2049. TacLab 49/300/1812/1813 already native.
       Management ports stay high (18080, 18088, 18049, 8080, 8443, 1080,
-      18090, 18091). Port remaps are follow-on PRs per service, with preflight
-      errors, tests, labinfo dest-port, Pages. Do not invent
-      10053-as-design.
+      18090, 18091, 18123). LabNTP data-plane default 10123 is the FR /
+      ADR 0014 publish (not a residual-as-design); privileged 123 is
+      the operator escape. Port remaps for residual dests are follow-on
+      PRs per service, with preflight errors, tests, labinfo dest-port,
+      Pages. Do not invent 10053-as-design.
 
 ## Layout
 
@@ -183,13 +185,14 @@ we work by.
 - `cmd/labgraph`, `internal/labgraph` — first-party LabScenario orchestrator
   (REST + MCP + SPA); built by `docker/labgraph/`
 - `docker-compose.yaml` — main project (gateway, LabDNS, LabMail as compose
-  service `maildev`, LabMITM, NFS, labinfo, labgraph); MCPJungle image is
+  service `maildev`, LabMITM, LabNTP, NFS, labinfo, labgraph); MCPJungle image is
   `ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}` (gateway +
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.0`,
-  LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.0`).
+  LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.0`,
+  LabNTP `v1.0.0-rc.2`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -249,9 +252,9 @@ PR. Keystone runs a Thursday drift check.
   1812/1813 on GH-hosted Engine; `Register` re-runs this check after
   `LabTacacsUp`.
   Docker/host feature knobs are the same class of preflight (rule 15): fail
-  closed with the configuration change in the error. LabNTP is not in
-  compose yet — do not add a `userland-proxy` probe in Go until that
-  integrator slice.
+  closed with the configuration change in the error when a feature actually
+  depends on a daemon setting. LabNTP is in compose; there is **no** Go
+  `userland-proxy` probe (ADR 0014 — document NAT collision only).
 - Docker user-defined networks without `--subnet` take a /16 from the daemon
   default pool (~15 slots of 172.17–31). This lab used two (`mcplab-shared`
   plus compose `mcplab_default`) and exhausted the pool on a busy host.
@@ -379,6 +382,22 @@ PR. Keystone runs a Thursday drift check.
   `make up` / `make register` refresh the tool list). Preflight warns
   (never errors) when `LAB_PUBLIC_HOST` is not loopback and
   `originAllowlist` is empty.
+- LabNTP is pinned to **v1.0.0-rc.2** (`89841a6`). Do **not** patch it:
+  the profile bootstrap sets `spec.management.mcp.allowLegacyClients:
+  true`. Compose must pass `--management-listen=:8088` (binary default
+  is off). `--ntp-listen` empty uses YAML `:123`. UID 65532 needs
+  `cap_add: [NET_BIND_SERVICE]` to bind container `:123`. Bind-mounted
+  `secrets/labntp-token` is **0o644**. Host UDP default is **10123**
+  (FR / ADR 0014, not residual-as-design); privileged 123 is opt-in
+  and preflight occupancy uses the timesyncd copy. SPA
+  `allowedOrigins` is deny-all (`[]`; no `"*"`); loopback Origins are
+  appliance-exempt. Preflight warns (never errors) when
+  `LAB_PUBLIC_HOST` is not loopback and `allowedOrigins` is empty —
+  parse that key, not LabMITM `originAllowlist`. Host-published UDP is
+  SNAT'd (NAT collision / `userland-proxy`); compose-network +
+  `ntp_views_preview` stay reliable. No Go `userland-proxy` probe.
+  `make reload APP=labntp` recreates only that container and does
+  **not** re-register. No labgraph NTP fan-out in this pin.
 - labgraph is first-party orchestration (catalog id `labgraph`, host
   `LABGRAPH_PORT` 18091). It fans out LabScenario YAML to native
   appliance APIs; it does not invent LDAP/TacLab file-level apply.
@@ -402,7 +421,7 @@ PR. Keystone runs a Thursday drift check.
   is not in the integrator. Mira review of the SPA is scheduled via
   Keystone after merge.
 - Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
-  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph). It is
+  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp). It is
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,

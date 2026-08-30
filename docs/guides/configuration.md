@@ -34,6 +34,7 @@ profiles/<name>/
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
+  labntp/bootstrap.yaml    LabNTP desired state (allowedOrigins deny-all; no "*")
   labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
   scenarios/*.yaml         LabScenario files (empty default is a no-op;
                            named packs: broken-bind, expired-cert,
@@ -118,22 +119,24 @@ preflight cannot free the IANA port; it is an escape, not the default
 3. **Docker/host feature knobs** — when a lab feature depends on a Docker
    daemon or host setting, preflight must fail closed **with the
    configuration change in the error**. Do not boot a lab that pretends
-   the feature works. LabNTP is not in compose yet; do not add a
-   `userland-proxy` probe in Go until that integrator slice. The
-   normative error for that check, when it exists: write
+   the feature works. LabNTP is in compose; there is **no** Go
+   `userland-proxy` probe (appliance ADR 0014: host-published UDP is
+   SNAT'd; compose-network + `views.preview` stay reliable). The
+   daemon.json copy is operator documentation only: write
    `/etc/docker/daemon.json` `{"userland-proxy": false}` then
    `systemctl restart docker`. Docker Desktop / VM NAT cannot preserve
    UDP source — Linux dockerd + `userland-proxy` false, or
-   macvlan/ipvlan; do not start that feature there.
+   macvlan/ipvlan.
 
 Error messages must name the fix. If a profile uses IANA port 53 for DNS
 and systemd-resolved already holds it, preflight fails before compose
 starts: stop/disable resolved **or** extra IP for `LAB_PUBLIC_HOST` **or**
 escape `LABDNS_DNS_PORT` (SUTs that cannot set dest port cannot follow
-the escape). Same shape for NTP 123 vs systemd-timesyncd when LabNTP
-lands (stop/disable timesyncd — lab host clock may drift; LabNTP never
-settimeofday — **or** extra IP **or** escape `LABNTP_NTP_PORT=10123`,
-which timesyncd/W32Time cannot follow).
+the escape). Same shape for NTP 123 vs systemd-timesyncd when the
+profile opts into `LABNTP_NTP_PORT=123` (stop/disable timesyncd — lab
+host clock may drift; LabNTP never settimeofday — **or** extra IP
+**or** keep `LABNTP_NTP_PORT=10123`, which timesyncd/W32Time cannot
+follow).
 
 ## profile.env — every knob
 
@@ -161,6 +164,8 @@ which timesyncd/W32Time cannot follow).
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LABGRAPH_PORT` | `18091` | LabScenario orchestrator REST / MCP / SPA. |
+| `LABNTP_NTP_PORT` | `10123` | LabNTP NTPv3/v4 data plane (UDP). FR / ADR 0014 default, not residual-as-design. Privileged 123 is opt-in. |
+| `LABNTP_REST_PORT` | `18123` | LabNTP operator console + REST `/v1` + MCP `/mcp`. |
 | `LABGRAPH_LABLDAP_SCENARIO_NAME` | `mcp-integration-lab` | Compiled LabLDAP scenario `metadata.name` for `POST /api/v1/reset`. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
 | `LAB_DOCKER_SUBNET` | `10.99.42.0/24` | IPv4 CIDR for `mcplab-shared` (`/24`–`/27`). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: `make down` then `make up`. |
@@ -184,7 +189,7 @@ reload recreates directory + control).
 After that, recreate **one** application:
 
 ```bash
-make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph
+make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph|labntp
 # equivalent: mcplab reload <app>
 ```
 
@@ -201,6 +206,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|l
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
 | `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates; does not re-register |
 | `labgraph/bootstrap.yaml` or `scenarios/*.yaml` | `make reload APP=labgraph` | in-memory apply/reset journal gone |
+| `labntp/bootstrap.yaml` | `make reload APP=labntp` | in-process NTP views / query log gone; does not re-register |
 
 `make labldap-up` / `make labtacacs-up` are idempotent project bring-up
 (the path `make up` uses). They do not force-recreate a running directory.
@@ -449,6 +455,33 @@ Desired-state shape (1.1–1.4 knobs included, default off except D22-carve
 hop gates) lives in `profiles/default/labmitm/bootstrap.yaml`. Do not
 recopy from the upstream examples tree.
 
+## LabNTP
+
+Laboratory NTPv3/v4 unicast (catalog id `labntp`, pin **v1.0.0-rc.2**).
+Desired state is `labntp/bootstrap.yaml` (`labntp.dev/v1alpha1`), a
+lab-owned overlay copy — do not recopy from the upstream examples tree
+without reviewing `allowClientCidrs` / Origins. `allowLegacyClients:
+true` is required for MCPJungle. Compose must pass
+`--management-listen=:8088` and `cap_add: [NET_BIND_SERVICE]` (UID 65532
+cannot bind container `:123` otherwise). Token file is 0o644.
+
+Host UDP default is **10123** (FR / ADR 0014, not residual-as-design).
+Privileged 123 is a profile opt-in; occupancy of 123 uses the
+timesyncd copy. Management is `:18123`. SPA `allowedOrigins` is
+deny-all (`[]`; loopback already allowed; no `"*"`). Preflight warns
+(never fails) when `LAB_PUBLIC_HOST` is not loopback and the list is
+empty.
+
+The NTP data plane has no MAC unless a key file is configured (this
+profile omits it). Per-IP views are first-match CIDR filters. Host
+publish is SNAT'd (NAT collision / Docker `userland-proxy`); there is
+no Go `userland-proxy` probe. Compose-network + `ntp_views_preview`
+stay reliable. `make reload APP=labntp` recreates only that container
+and does not re-register. No labgraph NTP fan-out in this pin.
+
+Point systems under test at `<lab-host>:10123` (UDP). Operator console
+/ REST / MCP is `:18123` (bearer in `secrets/labntp-token`).
+
 ## LabGraph
 
 First-party LabScenario orchestrator (catalog id `labgraph`). Desired
@@ -577,8 +610,8 @@ The curated tool group — this is what most agents should attach to:
 ```json
 {
   "name": "integration",
-  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph"]
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labgraph, LabNTP, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph", "labntp"]
 }
 ```
 

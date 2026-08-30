@@ -57,6 +57,7 @@ type secretChanges struct {
 	mcpClientToken bool
 	labmitmToken   bool
 	labgraphToken  bool
+	labntpToken    bool
 	labldapAlice   bool
 	labldapRuntime bool
 	labldapDM      bool
@@ -75,13 +76,13 @@ func (c secretChanges) labtacacsReload() bool {
 }
 
 func (c secretChanges) registrarEnv() bool {
-	return c.labdnsToken || c.labinfoToken || c.labmailToken || c.mcpClientToken || c.labmitmToken || c.labgraphToken || c.labldapAdmin || c.labtacacsAdmin
+	return c.labdnsToken || c.labinfoToken || c.labmailToken || c.mcpClientToken || c.labmitmToken || c.labgraphToken || c.labntpToken || c.labldapAdmin || c.labtacacsAdmin
 }
 
 func (c secretChanges) count() int {
 	n := 0
 	for _, v := range []bool{
-		c.labdnsToken, c.labinfoToken, c.labmailToken, c.maildevWeb, c.mcpClientToken, c.labmitmToken, c.labgraphToken,
+		c.labdnsToken, c.labinfoToken, c.labmailToken, c.maildevWeb, c.mcpClientToken, c.labmitmToken, c.labgraphToken, c.labntpToken,
 		c.labldapAlice, c.labldapRuntime, c.labldapDM, c.labldapAdmin,
 		c.labtacacs, c.labtacacsAdmin,
 	} {
@@ -103,6 +104,7 @@ func enterDevReloadChanges() secretChanges {
 		mcpClientToken: true,
 		labmitmToken:   true,
 		labgraphToken:  true,
+		labntpToken:    true,
 		labldapAlice:   true,
 		labldapRuntime: true,
 		labldapDM:      true,
@@ -271,6 +273,9 @@ func (r *Runner) secretsRandomMint() error {
 	if err := writeTokenIfMissing(r.path("secrets/labgraph-token"), 0o644); err != nil {
 		return err
 	}
+	if err := writeTokenIfMissing(r.path("secrets/labntp-token"), 0o644); err != nil {
+		return err
+	}
 	if err := r.labldapSetupsecrets(false); err != nil {
 		return err
 	}
@@ -328,6 +333,7 @@ func (r *Runner) applyDevCatalog(doc *DevCredentials) (secretChanges, error) {
 		{"secrets/mcp-client-token", doc.Spec.Tokens.MCPClient, 0o600, &ch.mcpClientToken},
 		{"secrets/labmitm-token", doc.Spec.Tokens.LabMITM, 0o644, &ch.labmitmToken},
 		{"secrets/labgraph-token", doc.Spec.Tokens.Labgraph, 0o644, &ch.labgraphToken},
+		{"secrets/labntp-token", doc.Spec.Tokens.LabNTP, 0o644, &ch.labntpToken},
 		{"secrets/maildev-web-password", doc.Spec.Passwords.MaildevWeb, 0o644, &ch.maildevWeb},
 		{ll + "token-admin", doc.Spec.Tokens.LabLDAPAdmin, 0o600, &ch.labldapAdmin},
 		{ll + "user-alice", doc.Spec.Passwords.LabLDAPAlice, 0o600, &ch.labldapAlice},
@@ -359,6 +365,7 @@ func (r *Runner) leaveDevRemint() error {
 		{"secrets/mcp-client-token", 0o600},
 		{"secrets/labmitm-token", 0o644},
 		{"secrets/labgraph-token", 0o644},
+		{"secrets/labntp-token", 0o644},
 	} {
 		if err := writeTokenAlways(r.path(it.rel), it.mode); err != nil {
 			return err
@@ -573,6 +580,7 @@ var labinfoCredFiles = []labinfoStageCopy{
 	{src: "secrets/maildev-web-password", dst: "maildev-web-password"},
 	{src: "secrets/labmitm-token", dst: "labmitm-token"},
 	{src: "secrets/labgraph-token", dst: "labgraph-token"},
+	{src: "secrets/labntp-token", dst: "labntp-token"},
 	{src: "third_party/go-lab-ldap-mcp/secrets/token-admin", dst: "labldap-token-admin"},
 	{src: "third_party/go-lab-ldap-mcp/secrets/user-alice", dst: "labldap-user-alice"},
 	{src: "third_party/go-lab-ldap-mcp/secrets/tls/ca.crt", dst: "labldap-ca.crt"},
@@ -769,7 +777,7 @@ func (r *Runner) serviceExists(name string) (bool, error) {
 		err error
 	)
 	switch name {
-	case "labdns", "maildev", "labinfo", "mcpjungle", "labmitm", "labgraph":
+	case "labdns", "maildev", "labinfo", "mcpjungle", "labmitm", "labgraph", "labntp":
 		out, err = r.capture(".", "docker", "compose", "ps", "-aq", name)
 	case "labldap":
 		out, err = r.capture(".", "docker", r.labldapComposeArgs("ps", "-aq", "directory")...)
@@ -798,6 +806,9 @@ func (r *Runner) applySecretReloads(ch secretChanges, leaveDev bool) error {
 		return err
 	}
 	if err := r.reloadMainIf("labgraph", leaveDev || ch.labgraphToken || ch.labdnsToken || ch.labmitmToken || ch.labmailToken || ch.labldapAdmin || ch.labtacacsAdmin); err != nil {
+		return err
+	}
+	if err := r.reloadMainIf("labntp", leaveDev || ch.labntpToken); err != nil {
 		return err
 	}
 

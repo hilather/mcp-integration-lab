@@ -45,6 +45,7 @@
         <a href="#taclab">TacLab</a>
         <a href="#mail">LabMail</a>
         <a href="#labmitm">LabMITM</a>
+        <a href="#labntp">LabNTP</a>
         <a href="#labgraph">LabGraph</a>
         <a href="#nfs">NFS</a>
         <a href="#labinfo">labinfo catalog</a>
@@ -72,6 +73,7 @@
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
+  labntp/bootstrap.yaml    LabNTP desired state (allowedOrigins deny-all; no "*")
   labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
   scenarios/*.yaml         LabScenario files (empty default is a no-op; named packs: broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port)
   mcpjungle/
@@ -100,8 +102,8 @@ PROFILE=default
         <h2 id="preflight">Preflight</h2>
         <p>Protocol data planes SUTs already speak use the IANA dest on the <strong>host</strong> (DNS 53, NTP 123, LDAP 389 / LDAPS 636, SMTP 25, TACACS+ 49 / 300, RADIUS 1812/1813, NFS 2049). Container listen ports are unprivileged and irrelevant to consumers. Management planes stay high. LabMITM is a forward proxy (SUT sets <code>HTTP_PROXY</code>), not dest 443. Today's default-profile numbers that are not native (DNS 10053, LDAP 3389/3636, SMTP 1025, NFS 20490) are residual, not a second policy — remaps are follow-on PRs. Operator escape (a non-native <code>profile.env</code> port) is allowed when preflight cannot free the IANA port; it is an escape, not the default (AGENTS.md rule 15).</p>
         <p><code>make preflight</code> (also run by <code>make up</code> and <code>make register</code>) checks profile drift and that every published host port is free or already held only by this lab's containers. Permission-denied on privileged ports (TacLab <code>49</code>/<code>300</code> as a non-root user) is not treated as occupied — dockerd can still publish them. Preflight then checks <code>/proc/net</code> for a real listener (TCP LISTEN / UDP bound) instead of skipping those ports. Fail closed if a non-lab process holds the port. Failures stop bring-up before compose dies mid-deploy.</p>
-        <p>When a lab feature depends on a Docker daemon or host setting, preflight must fail closed <strong>with the configuration change in the error</strong>. Do not boot a lab that pretends the feature works. LabNTP is not in compose yet; do not add a <code>userland-proxy</code> probe in Go until that integrator slice. Normative error when that check exists: write <code>/etc/docker/daemon.json</code> <code>{"userland-proxy": false}</code> then <code>systemctl restart docker</code>. Docker Desktop / VM NAT cannot preserve UDP source — Linux dockerd + <code>userland-proxy</code> false, or macvlan/ipvlan; do not start that feature there.</p>
-        <p>Error messages must name the fix. DNS 53 held by systemd-resolved: stop/disable resolved <strong>or</strong> extra IP for <code>LAB_PUBLIC_HOST</code> <strong>or</strong> escape <code>LABDNS_DNS_PORT</code> (SUTs that cannot set dest port cannot follow the escape). NTP 123 held by systemd-timesyncd (when LabNTP lands): stop/disable timesyncd (lab host clock may drift; LabNTP never settimeofday) <strong>or</strong> extra IP <strong>or</strong> escape <code>LABNTP_NTP_PORT=10123</code> (timesyncd/W32Time cannot).</p>
+        <p>When a lab feature depends on a Docker daemon or host setting, preflight must fail closed <strong>with the configuration change in the error</strong>. Do not boot a lab that pretends the feature works. LabNTP is in compose; there is <strong>no</strong> Go <code>userland-proxy</code> probe (appliance ADR 0014: host-published UDP is SNAT'd; compose-network + <code>views.preview</code> stay reliable). The daemon.json copy is operator documentation only: write <code>/etc/docker/daemon.json</code> <code>{"userland-proxy": false}</code> then <code>systemctl restart docker</code>. Docker Desktop / VM NAT cannot preserve UDP source — Linux dockerd + <code>userland-proxy</code> false, or macvlan/ipvlan.</p>
+        <p>Error messages must name the fix. DNS 53 held by systemd-resolved: stop/disable resolved <strong>or</strong> extra IP for <code>LAB_PUBLIC_HOST</code> <strong>or</strong> escape <code>LABDNS_DNS_PORT</code> (SUTs that cannot set dest port cannot follow the escape). NTP 123 held by systemd-timesyncd (when the profile opts into <code>LABNTP_NTP_PORT=123</code>): stop/disable timesyncd (lab host clock may drift; LabNTP never settimeofday) <strong>or</strong> extra IP <strong>or</strong> keep <code>LABNTP_NTP_PORT=10123</code> (timesyncd/W32Time cannot).</p>
 
         <h2 id="knobs">profile.env — every knob</h2>
         <table>
@@ -129,6 +131,8 @@ PROFILE=default
             <tr><td><code>LABMITM_WEB_PORT</code></td><td>18088</td><td>LabMITM inspector UI + /v1 + MCP.</td></tr>
             <tr><td><code>LABINFO_PORT</code></td><td>18090</td><td>Service-directory MCP.</td></tr>
             <tr><td><code>LABGRAPH_PORT</code></td><td>18091</td><td>LabScenario orchestrator REST / MCP / SPA.</td></tr>
+            <tr><td><code>LABNTP_NTP_PORT</code></td><td>10123</td><td>LabNTP NTPv3/v4 data plane (UDP). FR / ADR 0014 default, not residual-as-design. Privileged 123 is opt-in.</td></tr>
+            <tr><td><code>LABNTP_REST_PORT</code></td><td>18123</td><td>LabNTP operator console + REST /v1 + MCP /mcp.</td></tr>
             <tr><td><code>LABGRAPH_LABLDAP_SCENARIO_NAME</code></td><td>mcp-integration-lab</td><td>Compiled LabLDAP scenario name for reset.</td></tr>
             <tr><td><code>LAB_PUBLIC_HOST</code></td><td>localhost</td><td>Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>). Changing it needs <code>mcplab secrets</code> plus <code>make reload APP=labldap</code>.</td></tr>
             <tr><td><code>LAB_DOCKER_SUBNET</code></td><td>10.99.42.0/24</td><td>IPv4 CIDR for <code>mcplab-shared</code> (<code>/24</code>–<code>/27</code>). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: <code>make down</code> then <code>make up</code>.</td></tr>
@@ -141,7 +145,7 @@ PROFILE=default
 
         <h2 id="reload">Reload one app (not a full redeploy)</h2>
         <p><code>make up</code> vendors, mints or reconciles secrets, builds every image, starts all three compose projects, and registers the gateway. Use it for first bring-up, a vendor pin bump, or a profile switch. After a <code>dev-credentials.yaml</code> or <code>LAB_DEV_MODE</code> edit, or a <code>LAB_PUBLIC_HOST</code> SAN change, <code>mcplab secrets</code> reloads running apps whose files changed; <code>make up</code> skips those names. Changing <code>LAB_PUBLIC_HOST</code> also needs <code>make reload APP=labldap</code> so the control container picks up <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>. After that, recreate one application:</p>
-        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph</code></pre>
+        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph|labntp</code></pre>
         <p>YAML edits for LabDNS, LabMail, LabMITM, labinfo, or LabLDAP do not need a full stack bounce. Gateway JSON is <code>make register</code> (no container restart). Gateway <em>container</em> reload also re-registers because SQLite is tmpfs. LabLDAP reload re-seeds ephemeral <code>/data</code>. Mail reload wipes the inbox. LabMITM reload wipes captured flows and does not re-register.</p>
 
         <h2 id="labdns">LabDNS</h2>
@@ -262,6 +266,10 @@ spec:
         <p>Desired-state shape (1.1–1.4 knobs included, default off except D22-carve hop gates) lives in <code>profiles/default/labmitm/bootstrap.yaml</code>. Do not recopy from the upstream examples tree.</p>
         <p>Point systems under test at <code>&lt;lab-host&gt;:18888</code> as <code>HTTP_PROXY</code> (forward proxy — not dest 443). Inspector / REST / MCP is <code>:18088</code> (bearer in <code>secrets/labmitm-token</code>).</p>
 
+        <h2 id="labntp">LabNTP</h2>
+        <p>Laboratory NTPv3/v4 unicast (catalog id <code>labntp</code>, pin <strong>v1.0.0-rc.2</strong>). Desired state is <code>labntp/bootstrap.yaml</code>, a lab-owned overlay copy. <code>allowLegacyClients: true</code> is required for MCPJungle. Compose must pass <code>--management-listen=:8088</code> and <code>cap_add: [NET_BIND_SERVICE]</code>. Token file is 0o644. Host UDP default is <strong>10123</strong> (FR / ADR 0014, not residual-as-design); privileged 123 is opt-in. SPA <code>allowedOrigins</code> is deny-all (loopback already allowed; no <code>"*"</code>). Host-published UDP is SNAT'd (NAT collision); there is no Go <code>userland-proxy</code> probe. <code>make reload APP=labntp</code> does not re-register. No labgraph NTP fan-out in this pin.</p>
+        <p>Point systems under test at <code>&lt;lab-host&gt;:10123</code> (UDP). Operator console / REST / MCP is <code>:18123</code> (bearer in <code>secrets/labntp-token</code>).</p>
+
         <h2 id="labgraph">LabGraph</h2>
         <p>First-party LabScenario orchestrator (catalog id <code>labgraph</code>, host port <code>LABGRAPH_PORT</code> 18091). Desired state is <code>labgraph/bootstrap.yaml</code> plus <code>scenarios/*.yaml</code>. The default scenario has <code>spec: {}</code> so list/get/validate/plan/apply/status are no-ops. Named packs (<code>broken-bind</code>, <code>expired-cert</code>, <code>split-horizon-dns</code>, <code>mitm-intercept-extra-port</code>) load at <code>labgraph://fixtures/{id}</code> and apply via <code>fixture.apply</code>. Apply order is DNS → MITM → mail → LDAP → TacLab. LabLDAP control-plane <code>disableUser</code> is allowed; flatten and TacLab apply fail closed. <code>mcplab scenario</code> / <code>mcplab fixture apply</code> are HTTP clients of labgraph (<code>secrets/labgraph-token</code>). <code>make reload APP=labgraph</code> drops the in-memory journal. Origin allowlist is exact Origins (no <code>"*"</code>). Jenkins is not in the integrator.</p>
 
@@ -312,8 +320,8 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <p>The curated tool group — this is what most agents should attach to:</p>
         <pre><code>{
   "name": "integration",
-  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph"]
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labgraph, LabNTP, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph", "labntp"]
 }</code></pre>
         <p>Gateway SQLite sits on tmpfs; <code>make register</code> reapplies the JSON. Mode follows <code>LAB_DEV_MODE</code> unless you pin <code>MCPJUNGLE_MODE</code>.</p>
 

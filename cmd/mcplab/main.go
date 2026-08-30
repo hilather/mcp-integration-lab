@@ -21,10 +21,10 @@ Usage: mcplab <command> [args]
   reset          down -v for all compose projects: wipe all runtime state
   register       (re)apply gateway config from the active profile
   preflight      fail fast on profile drift and unavailable host ports
-  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM/labgraph scenario through the gateway
+  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM/LabNTP/labgraph scenario through the gateway
                  (dev mode also asserts catalog values on the wire)
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
-                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph
+                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp
   scenario       validate|plan|apply|reset [name] [--appliances=a,b]
                  HTTP client of labgraph (secrets/labgraph-token). Default name: default.
                  Named packs: broken-bind, expired-cert, split-horizon-dns,

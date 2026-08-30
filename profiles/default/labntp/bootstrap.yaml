@@ -1,0 +1,81 @@
+# LabNTP desired state. Mounted read-only at /etc/labntp/config.yaml.
+# lab-owned copy; do not recopy from the upstream examples tree without
+# reviewing allowClientCidrs/Origins. Pin is vendor tag v1.0.0-rc.2.
+# allowLegacyClients is on so MCPJungle can register without a LabNTP
+# patch. Bind-mounted secret files must be 0o644 (UID 65532).
+# Reload: `make reload APP=labntp`. Reload does not re-register —
+# gateway SQLite is tmpfs (make up / make register / mcpjungle reload).
+#
+# Host publish default is UDP 10123 (FR / ADR 0014). Privileged host 123
+# is a profile opt-in. YAML cannot interpolate LAB_DOCKER_SUBNET; if you
+# change the compose subnet, edit allowClientCidrs to match.
+# Two testers with the same egress IP share a view (NAT collision /
+# Docker userland-proxy SNAT). Compose-network + GET /v1/views/preview
+# stay reliable without source-preserving UDP.
+apiVersion: labntp.dev/v1alpha1
+kind: LabNTP
+metadata:
+  name: lab-time
+spec:
+  listeners:
+    ntp:
+      address: ":123" # container; host map is LABNTP_NTP_PORT (default 10123)
+    management:
+      address: ":8088"
+      restPath: /v1
+      mcpPath: /mcp
+  auth:
+    mode: bearer
+    tokens:
+      - id: admin
+        role: administrator
+        secretFile: /run/secrets/labntp-token
+  ui:
+    enabled: true
+  management:
+    allowedOrigins: []
+    mcp:
+      allowLegacyClients: true # MCPJungle (mark3labs/mcp-go) without a LabNTP patch
+    bodyLimit: 1MiB
+    requestsPerSecond: 32
+    burst: 64
+    maxConcurrent: 256
+  ntp:
+    versions: [3, 4]
+    serveMode: unicast
+    nts:
+      enabled: false
+    restrict:
+      default: serve
+      kod: true
+    # Overlay MUST set this. Omitted materializes universal allow + warning.
+    allowClientCidrs:
+      - "10.99.42.0/24"
+      - "127.0.0.0/8"
+      - "::1/128"
+    admission:
+      maxPacketsPerSec: 256
+      maxPacketsPerIP: 32
+    queryLog:
+      size: 256
+  filters:
+    # Tester-specific views. Uncomment and set SUT / tester source IPs.
+    # Two testers with the same egress IP share a view (NAT collision).
+    # - name: tester-a-kerberos
+    #   enabled: true
+    #   match:
+    #     cidrs: ["10.99.42.20/32"]
+    #   view:
+    #     mode: offset
+    #     offset: -6m
+    #     leap: none
+    #     stratum: 1
+    #     refid: LOCL
+    - name: default
+      enabled: true
+      match:
+        cidrs: ["0.0.0.0/0", "::/0"]
+      view:
+        mode: follow-real
+        stratum: 2
+        refid: GPS

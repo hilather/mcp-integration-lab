@@ -24,7 +24,7 @@ const (
 	taclabSharedSecretMinLen     = 16
 	taclabSharedSecretMinClasses = 3
 
-	// LabMail / LabMITM auth.MinTokenBytes (serve fail-closes).
+	// LabMail / LabMITM / LabNTP auth.MinTokenBytes (serve fail-closes).
 	applianceTokenMinBytes = 32
 )
 
@@ -55,6 +55,7 @@ type DevTokens struct {
 	Labmail        string `yaml:"labmail"`
 	LabMITM        string `yaml:"labmitm"`
 	Labgraph       string `yaml:"labgraph"`
+	LabNTP         string `yaml:"labntp"`
 	MCPClient      string `yaml:"mcpClient"`
 	LabLDAPAdmin   string `yaml:"labldapAdmin"`
 	LabTacacsAdmin string `yaml:"labtacacsAdmin"`
@@ -106,7 +107,7 @@ func parseDevCredentials(r io.Reader) (*DevCredentials, error) {
 }
 
 // Validate fail-closes on wrong apiVersion/kind, missing/empty required
-// keys, LabMail/LabMITM tokens shorter than appliance auth.MinTokenBytes,
+// keys, LabMail/LabMITM/LabNTP tokens shorter than appliance auth.MinTokenBytes,
 // LabLDAP passwords shorter than minLength, TacLab shared secrets
 // that would crash the appliance at boot, equal TACACS/RADIUS secrets,
 // and whitespace/NUL/newline in secrets-from-bound fields.
@@ -130,6 +131,7 @@ func (d *DevCredentials) Validate() error {
 		{"spec.tokens.labmail", d.Spec.Tokens.Labmail},
 		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
 		{"spec.tokens.labgraph", d.Spec.Tokens.Labgraph},
+		{"spec.tokens.labntp", d.Spec.Tokens.LabNTP},
 		{"spec.tokens.mcpClient", d.Spec.Tokens.MCPClient},
 		{"spec.tokens.labldapAdmin", d.Spec.Tokens.LabLDAPAdmin},
 		{"spec.tokens.labtacacsAdmin", d.Spec.Tokens.LabTacacsAdmin},
@@ -154,6 +156,7 @@ func (d *DevCredentials) Validate() error {
 	for _, f := range []struct{ path, value string }{
 		{"spec.tokens.labmail", d.Spec.Tokens.Labmail},
 		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
+		{"spec.tokens.labntp", d.Spec.Tokens.LabNTP},
 	} {
 		if len(f.value) < applianceTokenMinBytes {
 			return fmt.Errorf("%s is shorter than appliance auth.MinTokenBytes (%d)", f.path, applianceTokenMinBytes)

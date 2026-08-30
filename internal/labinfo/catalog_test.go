@@ -264,6 +264,46 @@ func TestDefaultCatalogLabmitm(t *testing.T) {
 	}
 }
 
+func TestDefaultCatalogLabntp(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var svc *Service
+	for i := range cat.Services {
+		if cat.Services[i].ID == "labntp" {
+			svc = &cat.Services[i]
+			break
+		}
+	}
+	if svc == nil {
+		t.Fatal("default catalog missing labntp")
+	}
+	if svc.Connection == nil || len(svc.Connection.Endpoints) == 0 {
+		t.Fatal("labntp must have a connection block")
+	}
+	foundUDP := false
+	for _, e := range svc.Connection.Endpoints {
+		if e.Protocol == "ntp-udp" && strings.Contains(e.Address, "${LABNTP_NTP_PORT}") {
+			foundUDP = true
+		}
+	}
+	if !foundUDP {
+		t.Fatalf("labntp must catalog ntp-udp at ${LABNTP_NTP_PORT}: %+v", svc.Connection.Endpoints)
+	}
+	if svc.Credential == nil || svc.Credential.File != "/run/lab-secrets/labntp-token" {
+		t.Fatalf("credential file = %#v, want /run/lab-secrets/labntp-token", svc.Credential)
+	}
+	if !strings.Contains(svc.Note, "10123") || !strings.Contains(svc.Note, "userland-proxy") {
+		t.Fatalf("note missing dest-port / NAT-collision sentence: %q", svc.Note)
+	}
+	dest := svc.Connection.Parameters["dest_port"]
+	if !strings.Contains(dest, "10123") || !strings.Contains(dest, "123") {
+		t.Fatalf("dest_port parameter missing 10123 / 123 opt-in: %q", dest)
+	}
+}
+
 func TestDefaultCatalogOperatorConsole(t *testing.T) {
 	root := filepath.Join("..", "..")
 	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
@@ -358,6 +398,9 @@ func TestDefaultCatalogConnectionCredentialsRedactOutsideDev(t *testing.T) {
 		},
 		"labgraph": {
 			"labgraph-token",
+		},
+		"labntp": {
+			"labntp-token",
 		},
 		"nfs": nil,
 	}

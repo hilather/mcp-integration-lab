@@ -24,6 +24,8 @@ var preflightKeys = []string{
 	"LABMITM_WEB_PORT",
 	"LABINFO_PORT",
 	"LABGRAPH_PORT",
+	"LABNTP_NTP_PORT",
+	"LABNTP_REST_PORT",
 	"LAB_DEV_MODE",
 	"MCPJUNGLE_MODE",
 	"LAB_DOCKER_SUBNET",
@@ -40,6 +42,7 @@ func (r *Runner) Preflight() error {
 	}
 	r.warnLabmitmOrigin()
 	r.warnLabgraphOrigin()
+	r.warnLabntpOrigin()
 	return r.preflightPortsAvailable()
 }
 
@@ -111,6 +114,39 @@ func (r *Runner) warnLabgraphOrigin() {
 	}
 	webPort := r.Prof.Get("LABGRAPH_PORT", "18091")
 	fmt.Printf("warning: LAB_PUBLIC_HOST=%s is not loopback; add http://%s:%s to\nlabgraph originAllowlist or the operator SPA will 403 /v1\n",
+		host, host, webPort)
+}
+
+// warnLabntpOrigin prints a stdout warning when a remote SPA Origin is
+// missing from bootstrap allowedOrigins. It never returns an error —
+// make up must not fail-close on this. LabNTP uses allowedOrigins, not
+// LabMITM/labgraph originAllowlist.
+func (r *Runner) warnLabntpOrigin() {
+	host := strings.TrimSpace(r.Prof.Get("LAB_PUBLIC_HOST", "localhost"))
+	if isLoopbackPublicHost(host) {
+		return
+	}
+	path := filepath.Join(r.Prof.Dir, "labntp", "bootstrap.yaml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var doc struct {
+		Spec struct {
+			Management struct {
+				AllowedOrigins []string `yaml:"allowedOrigins"`
+			} `yaml:"management"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		fmt.Printf("warning: labntp/bootstrap.yaml: %v\n", err)
+		return
+	}
+	if len(doc.Spec.Management.AllowedOrigins) > 0 {
+		return
+	}
+	webPort := r.Prof.Get("LABNTP_REST_PORT", "18123")
+	fmt.Printf("warning: LAB_PUBLIC_HOST=%s is not loopback; add http://%s:%s to\nlabntp allowedOrigins or the operator SPA will 403 /v1\n",
 		host, host, webPort)
 }
 

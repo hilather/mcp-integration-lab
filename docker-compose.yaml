@@ -167,6 +167,38 @@ services:
       retries: 12
       start_period: 3s
 
+  # LabNTP NTPv3/v4 with per-IP virtual clocks.
+  # Pinned go-lab-ntp v1.0.0-rc.2. Binary --management-listen defaults to
+  # off; compose must pass :8088 or HEALTHCHECK / REST / MCP / SPA stay
+  # unbound. Container :123 needs NET_BIND_SERVICE (UID 65532). Host
+  # publish default is 10123 (FR / ADR 0014); privileged 123 is opt-in.
+  # Reload: `make reload APP=labntp`. Does not re-register.
+  labntp:
+    build:
+      context: ./third_party/go-lab-ntp
+    image: labntp:local
+    command: ["serve", "--config=/etc/labntp/config.yaml", "--management-listen=:8088"]
+    networks: [default]
+    ports:
+      - "${LABNTP_NTP_PORT:-10123}:123/udp"
+      - "${LABNTP_REST_PORT:-18123}:8088/tcp"
+    volumes:
+      - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labntp/bootstrap.yaml:/etc/labntp/config.yaml:ro
+      - ./secrets/labntp-token:/run/secrets/labntp-token:ro
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    user: "65532:65532"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/labntp", "healthcheck", "--url=http://127.0.0.1:8088/v1/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+
   # ------------------------------------------------- labinfo service directory
   # First-party MCP service: tells agents the user-facing web/REST URLs of
   # every lab service (endpoints_list) and the protocol-level connection
@@ -209,6 +241,8 @@ services:
       LABMITM_PROXY_PORT: ${LABMITM_PROXY_PORT:-18888}
       LABMITM_WEB_PORT: ${LABMITM_WEB_PORT:-18088}
       LABGRAPH_PORT: ${LABGRAPH_PORT:-18091}
+      LABNTP_NTP_PORT: ${LABNTP_NTP_PORT:-10123}
+      LABNTP_REST_PORT: ${LABNTP_REST_PORT:-18123}
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labinfo/services.yaml:/etc/labinfo/services.yaml:ro
       # Staged by `mcplab secrets`: world-readable copies of web tokens,
@@ -306,6 +340,7 @@ services:
       LABMAIL_TOKEN: ${LABMAIL_TOKEN:-}
       LABMITM_TOKEN: ${LABMITM_TOKEN:-}
       LABGRAPH_TOKEN: ${LABGRAPH_TOKEN:-}
+      LABNTP_TOKEN: ${LABNTP_TOKEN:-}
       MCP_CLIENT_TOKEN: ${MCP_CLIENT_TOKEN:-}
       # CLI stores its server config (enterprise admin token) under $HOME.
       HOME: /cli-home

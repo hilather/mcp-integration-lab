@@ -299,3 +299,36 @@ services:
         - name: labgraph-token
           file: /run/lab-secrets/labgraph-token
           usage: "HTTP header 'Authorization: Bearer <token>' for REST and MCP; on the lab host: secrets/labgraph-token"
+
+  - id: labntp
+    name: LabNTP (lab NTP server)
+    description: Laboratory NTPv3/v4 unicast with per-IP virtual clocks. Operator SPA at /, REST under /v1, MCP under /mcp. The NTP data plane is plain NTP.
+    urls:
+      - name: Operator console
+        url: http://${LAB_PUBLIC_HOST}:${LABNTP_REST_PORT}/
+      - name: REST API
+        url: http://${LAB_PUBLIC_HOST}:${LABNTP_REST_PORT}/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${LABNTP_REST_PORT}/mcp
+    note: "NTP data plane: ntpdate/sntp/chrony against ${LAB_PUBLIC_HOST} port ${LABNTP_NTP_PORT} (default 10123; privileged host 123 is opt-in). Per-IP views are first-match CIDR filters. Docker userland-proxy SNATs host-published UDP so testers sharing an egress IP share a view (NAT collision); compose-network + GET /v1/views/preview stay reliable. Remote SPA needs http://${LAB_PUBLIC_HOST}:${LABNTP_REST_PORT} in spec.management.allowedOrigins (exact Origin; loopback is already allowed; no \"*\")."
+    credential:
+      file: /run/lab-secrets/labntp-token
+      usage: "HTTP header 'Authorization: Bearer <token>' for native /v1, MCP, and the operator SPA; on the lab host: secrets/labntp-token"
+    connection:
+      endpoints:
+        - name: NTP (udp)
+          protocol: ntp-udp
+          address: ${LAB_PUBLIC_HOST}:${LABNTP_NTP_PORT}
+        - name: MCP (streamable HTTP)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${LABNTP_REST_PORT}/mcp
+          note: bearer only; gateway interpolates LABNTP_TOKEN
+      parameters:
+        auth: "none on the NTP data plane unless a MAC key file is configured (this profile omits symmetricKeys); the bearer token is only for the REST/MCP management plane"
+        versions: "3 and 4 unicast (SNTP clients included; no broadcast/multicast)"
+        filters: "first-match CIDR list; overlay default is follow-real. Two testers with the same egress IP share a view (NAT collision / userland-proxy SNAT)"
+        dest_port: "host publish default ${LABNTP_NTP_PORT} (10123). Privileged 123 is a profile opt-in when systemd-timesyncd is gone"
+      credentials:
+        - name: labntp-token
+          file: /run/lab-secrets/labntp-token
+          usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labntp-token"

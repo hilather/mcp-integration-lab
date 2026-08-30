@@ -18,12 +18,13 @@ import (
 
 	"github.com/hilather/mcp-integration-lab/internal/labinfo"
 	"github.com/hilather/mcp-integration-lab/internal/mcpout"
+	"github.com/hilather/mcp-integration-lab/internal/ntpquery"
 	"github.com/hilather/mcp-integration-lab/internal/profile"
 	"github.com/hilather/mcp-integration-lab/internal/radius"
 )
 
 // Smoke runs the end-to-end scenario: drives DNS, LDAP, TACACS+/RADIUS,
-// mail, LabMITM, and labgraph state through the MCP gateway the way an agent would,
+// mail, LabMITM, LabNTP, and labgraph state through the MCP gateway the way an agent would,
 // then verifies every result on the real data plane (DNS query, LDAPS bind,
 // kernel NFS mount, RADIUS PAP auth, SMTP delivery into the receive-only
 // mail sink, HTTP intercept via the published proxy port).
@@ -42,6 +43,7 @@ func (r *Runner) Smoke() error {
 	s.taclabTokenEncoding()
 	s.maildevScenario()
 	s.labmitmScenario()
+	s.labntpScenario()
 	s.labinfoScenario()
 	s.labgraphScenario()
 	s.devCatalogScenario()
@@ -519,6 +521,110 @@ func readTrimmed(path string) (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
+func (s *smokeState) labntpScenario() {
+	s.step("labntp scenario: preview, replaceFilters (tester first), reset, UDP SNTP")
+
+	restPort := s.r.Prof.Get("LABNTP_REST_PORT", "18123")
+	s.check(waitHealthy("http://127.0.0.1:"+restPort+"/v1/health/ready", 10*time.Second) == nil,
+		"labntp /v1/health/ready")
+
+	prevOut, err := s.invoke("labntp__ntp_views_preview", `{"ip":"10.99.42.20"}`)
+	var prev ntpPreviewJSON
+	if err == nil {
+		err = json.Unmarshal([]byte(prevOut), &prev)
+	}
+	nearHost := previewNearHost(prev, 5*time.Second)
+	s.check(err == nil && prev.Filter == "default" && nearHost,
+		fmt.Sprintf("preview 10.99.42.20 filter=default servedTime~hostTime (err=%v filter=%q)", err, prev.Filter))
+
+	stateOut, err := s.invoke("labntp__ntp_state_get", "{}")
+	rev := ntpRuntimeRevision(stateOut)
+	if err != nil || rev == "" {
+		s.check(false, fmt.Sprintf("ntp_state_get RuntimeRevision (err=%v out=%s)", err, stateOut))
+		return
+	}
+	s.check(true, "ntp_state_get RuntimeRevision")
+
+	apply := fmt.Sprintf(`{"expectedRevision":%q,"operations":[{"op":"replaceFilters","filters":[{"name":"smoke-offset","enabled":true,"match":{"cidrs":["10.99.42.20/32"]},"view":{"mode":"offset","offset":-360000000000,"leap":"none","stratum":1,"refid":"LOCL"}},{"name":"default","enabled":true,"match":{"cidrs":["0.0.0.0/0","::/0"]},"view":{"mode":"follow-real","offset":0,"leap":"none","stratum":2,"refid":"GPS"}}]}]}`, rev)
+	_, err = s.invoke("labntp__ntp_change_apply", apply)
+	s.check(err == nil, fmt.Sprintf("ntp_change_apply replaceFilters tester-first (err=%v)", err))
+
+	offOut, err := s.invoke("labntp__ntp_views_preview", `{"ip":"10.99.42.20"}`)
+	var off ntpPreviewJSON
+	if err == nil {
+		err = json.Unmarshal([]byte(offOut), &off)
+	}
+	s.check(err == nil && off.Filter == "smoke-offset" && off.Mode == "offset",
+		fmt.Sprintf("preview 10.99.42.20 filter=smoke-offset mode=offset (err=%v filter=%q mode=%q)", err, off.Filter, off.Mode))
+
+	defOut, err := s.invoke("labntp__ntp_views_preview", `{"ip":"10.99.42.21"}`)
+	var def ntpPreviewJSON
+	if err == nil {
+		err = json.Unmarshal([]byte(defOut), &def)
+	}
+	s.check(err == nil && def.Filter == "default" && (def.Mode == "follow-real" || def.Mode == ""),
+		fmt.Sprintf("preview 10.99.42.21 filter=default follow-real (err=%v filter=%q mode=%q)", err, def.Filter, def.Mode))
+
+	_, err = s.invoke("labntp__ntp_state_reset", "{}")
+	s.check(err == nil, fmt.Sprintf("ntp_state_reset (err=%v)", err))
+
+	s.check(s.ntpUDPQueryOK(), "UDP NTPv4 served time (host publish or in-container query)")
+}
+
+type ntpPreviewJSON struct {
+	Filter     string     `json:"filter"`
+	Mode       string     `json:"mode"`
+	ServedTime *time.Time `json:"servedTime"`
+	HostTime   time.Time  `json:"hostTime"`
+}
+
+func previewNearHost(p ntpPreviewJSON, slack time.Duration) bool {
+	if p.ServedTime == nil || p.HostTime.IsZero() {
+		return false
+	}
+	d := p.ServedTime.Sub(p.HostTime)
+	if d < 0 {
+		d = -d
+	}
+	return d <= slack
+}
+
+func ntpRuntimeRevision(stateOut string) string {
+	var pascal struct {
+		RuntimeRevision string `json:"RuntimeRevision"`
+	}
+	if json.Unmarshal([]byte(stateOut), &pascal) == nil && pascal.RuntimeRevision != "" {
+		return pascal.RuntimeRevision
+	}
+	var camel struct {
+		RuntimeRevision string `json:"runtimeRevision"`
+	}
+	if json.Unmarshal([]byte(stateOut), &camel) == nil {
+		return camel.RuntimeRevision
+	}
+	return ""
+}
+
+func (s *smokeState) ntpUDPQueryOK() bool {
+	ntpPort := s.r.Prof.Get("LABNTP_NTP_PORT", "10123")
+	addr := net.JoinHostPort("127.0.0.1", ntpPort)
+	served, err := ntpquery.Query(addr, 3*time.Second)
+	if err == nil {
+		delta := time.Since(served)
+		if delta < 0 {
+			delta = -delta
+		}
+		return delta < 30*time.Second
+	}
+	out, qerr := s.r.capture(".", "docker", "compose", "exec", "-T", "labntp",
+		"/labntp", "query", "--server", "127.0.0.1:123")
+	if qerr != nil {
+		fmt.Printf("   note: host UDP %s: %v; in-container query: %v\n", addr, err, qerr)
+		return false
+	}
+	return strings.Contains(out, "transmit=")
+}
+
 func (s *smokeState) labinfoScenario() {
 	s.step("labinfo scenario: agents can look up user-facing service URLs")
 
@@ -548,9 +654,11 @@ func (s *smokeState) labinfoScenario() {
 	gatewayPort := s.r.Prof.Get("MCP_GATEWAY_PORT", "8080")
 	mitmWebPort := s.r.Prof.Get("LABMITM_WEB_PORT", "18088")
 	graphPort := s.r.Prof.Get("LABGRAPH_PORT", "18091")
+	ntpRestPort := s.r.Prof.Get("LABNTP_REST_PORT", "18123")
 	foundGateway := false
 	foundMITM := false
 	foundGraph := false
+	foundNTP := false
 	credentialsRevealed := false
 	for _, svc := range eps.Services {
 		if svc.ID == "gateway" {
@@ -574,6 +682,13 @@ func (s *smokeState) labinfoScenario() {
 				}
 			}
 		}
+		if svc.ID == "labntp" {
+			for _, u := range svc.URLs {
+				if strings.Contains(u.URL, ":"+ntpRestPort) {
+					foundNTP = true
+				}
+			}
+		}
 		if svc.Credential != nil && svc.Credential.Secret != "" {
 			credentialsRevealed = true
 		}
@@ -581,6 +696,7 @@ func (s *smokeState) labinfoScenario() {
 	s.check(foundGateway, "gateway URL carries the profile's public port")
 	s.check(foundMITM, "labmitm catalog URL carries the profile's web port")
 	s.check(foundGraph, "labgraph catalog URL carries the profile's port")
+	s.check(foundNTP, "labntp catalog URL carries the profile's rest port")
 	s.check(credentialsRevealed == devMode,
 		fmt.Sprintf("credentials revealed only in dev mode (revealed=%v)", credentialsRevealed))
 
@@ -612,10 +728,12 @@ func (s *smokeState) labinfoScenario() {
 	}
 
 	smtpPort := s.r.Prof.Get("MAILDEV_SMTP_PORT", "1025")
+	ntpPort := s.r.Prof.Get("LABNTP_NTP_PORT", "10123")
 	allHaveEndpoints := true
 	foundSMTP := false
 	foundMailMCP := false
 	foundBaseDN := false
+	foundNTPUDP := false
 	connSecretsRevealed := false
 	for _, svc := range conns.Services {
 		if len(svc.Endpoints) == 0 {
@@ -627,6 +745,9 @@ func (s *smokeState) labinfoScenario() {
 			}
 			if svc.ID == "maildev" && e.Protocol == "mcp-streamable-http" && strings.Contains(e.Address, "/mcp") {
 				foundMailMCP = true
+			}
+			if svc.ID == "labntp" && e.Protocol == "ntp-udp" && strings.HasSuffix(e.Address, ":"+ntpPort) {
+				foundNTPUDP = true
 			}
 		}
 		if svc.ID == "labldap" && strings.HasPrefix(svc.Parameters["base_dn"], "dc=") {
@@ -641,6 +762,7 @@ func (s *smokeState) labinfoScenario() {
 	s.check(allHaveEndpoints, "every service documents at least one protocol endpoint")
 	s.check(foundSMTP, "maildev SMTP endpoint carries the profile's port")
 	s.check(foundMailMCP, "maildev MCP endpoint is cataloged")
+	s.check(foundNTPUDP, "labntp ntp-udp endpoint carries the profile dest port")
 	s.check(foundBaseDN, "labldap parameters include the base DN")
 	s.check(connSecretsRevealed == devMode,
 		fmt.Sprintf("connection secrets revealed only in dev mode (revealed=%v)", connSecretsRevealed))
@@ -788,6 +910,7 @@ func catalogFileExpects(doc *DevCredentials) []catalogFileExpect {
 		{"spec.tokens.labmail", "secrets/labmail-token", doc.Spec.Tokens.Labmail, ""},
 		{"spec.tokens.labmitm", "secrets/labmitm-token", doc.Spec.Tokens.LabMITM, ""},
 		{"spec.tokens.labgraph", "secrets/labgraph-token", doc.Spec.Tokens.Labgraph, ""},
+		{"spec.tokens.labntp", "secrets/labntp-token", doc.Spec.Tokens.LabNTP, ""},
 		{"spec.tokens.mcpClient", "secrets/mcp-client-token", doc.Spec.Tokens.MCPClient, ""},
 		{"spec.tokens.labldapAdmin", ll + "token-admin", doc.Spec.Tokens.LabLDAPAdmin, ""},
 		{"spec.tokens.labtacacsAdmin", ts + "api_admin_token", doc.Spec.Tokens.LabTacacsAdmin, ""},

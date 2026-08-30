@@ -44,6 +44,8 @@ var publishedPortSpecs = []struct {
 	{"LABMITM_WEB_PORT", []portProto{portTCP}},
 	{"LABINFO_PORT", []portProto{portTCP}},
 	{"LABGRAPH_PORT", []portProto{portTCP}},
+	{"LABNTP_NTP_PORT", []portProto{portUDP}},
+	{"LABNTP_REST_PORT", []portProto{portTCP}},
 	{"MCP_GATEWAY_PORT", []portProto{portTCP}},
 	{"LABLDAP_LDAP_PORT", []portProto{portTCP}},
 	{"LABLDAP_LDAPS_PORT", []portProto{portTCP}},
@@ -389,6 +391,16 @@ func (r *Runner) preflightPortsAvailable() error {
 		return nil
 	}
 	sort.Strings(conflicts)
-	return fmt.Errorf("preflight failed: required host ports are not available:\n%s\nhint: stop the conflicting service or change the profile port",
-		strings.Join(conflicts, "\n"))
+	return fmt.Errorf("preflight failed: required host ports are not available:\n%s\n%s",
+		strings.Join(conflicts, "\n"), occupiedPortHint(conflicts))
+}
+
+func occupiedPortHint(conflicts []string) string {
+	hint := "hint: stop the conflicting service or change the profile port"
+	for _, c := range conflicts {
+		if strings.Contains(c, "LABNTP_NTP_PORT=123") {
+			return "hint: stop/disable systemd-timesyncd (lab host clock may drift; LabNTP never settimeofday) or extra IP for LAB_PUBLIC_HOST or keep LABNTP_NTP_PORT=10123 (timesyncd/W32Time cannot follow a non-123 dest)"
+		}
+	}
+	return hint
 }

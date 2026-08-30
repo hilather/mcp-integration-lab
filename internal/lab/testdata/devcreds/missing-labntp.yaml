@@ -1,4 +1,3 @@
-# The v0.6.0 catalog token. LabMail serve fail-closes below 32 bytes.
 apiVersion: mcplab.dev/v1alpha1
 kind: DevCredentials
 metadata:
@@ -7,10 +6,9 @@ spec:
   tokens:
     labdns:            "lab-dev-labdns-token"
     labinfo:           "lab-dev-labinfo-token"
-    labmail:           "lab-dev-labmail-token"
+    labmail:           "lab-dev-labmail-token-32b-minimum"
     labmitm:           "lab-dev-labmitm-token-32b-minimum"
     labgraph:          "lab-dev-labgraph-token"
-    labntp:            "lab-dev-labntp-token-32b-minimum"
     mcpClient:         "lab-dev-mcp-client-token"
     labldapAdmin:      "lab-dev-labldap-token-admin"
     labtacacsAdmin:    "lab-dev-labtacacs-token-admin"

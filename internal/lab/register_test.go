@@ -57,7 +57,7 @@ func TestDefaultProfileRegistersLabmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true, "labmitm": true, "labgraph": true}
+	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true, "labmitm": true, "labgraph": true, "labntp": true}
 	for _, name := range got {
 		delete(want, name)
 	}
@@ -77,7 +77,7 @@ func TestDefaultProfileIntegrationGroupIncludesLabmitm(t *testing.T) {
 	if err := json.Unmarshal(b, &group); err != nil {
 		t.Fatal(err)
 	}
-	foundMITM, foundGraph := false, false
+	foundMITM, foundGraph, foundNTP := false, false, false
 	for _, name := range group.IncludedServers {
 		if name == "labmitm" {
 			foundMITM = true
@@ -85,9 +85,12 @@ func TestDefaultProfileIntegrationGroupIncludesLabmitm(t *testing.T) {
 		if name == "labgraph" {
 			foundGraph = true
 		}
+		if name == "labntp" {
+			foundNTP = true
+		}
 	}
-	if !foundMITM || !foundGraph {
-		t.Fatalf("included_servers = %v, want labmitm and labgraph appended", group.IncludedServers)
+	if !foundMITM || !foundGraph || !foundNTP {
+		t.Fatalf("included_servers = %v, want labmitm, labgraph, and labntp", group.IncludedServers)
 	}
 }
 
@@ -101,6 +104,7 @@ func TestLoadTokensAndRegistrarEnvIncludeLabmitm(t *testing.T) {
 		"secrets/labmail-token":                                                     "mail-tok",
 		"secrets/labmitm-token":                                                     "mitm-tok",
 		"secrets/labgraph-token":                                                    "graph-tok",
+		"secrets/labntp-token":                                                      "ntp-tok",
 		"secrets/mcp-client-token":                                                  "client-tok",
 	}
 	for rel, body := range files {
@@ -123,8 +127,11 @@ func TestLoadTokensAndRegistrarEnvIncludeLabmitm(t *testing.T) {
 	if tokens["labgraph"] != "graph-tok" {
 		t.Fatalf("labgraph token = %q, want graph-tok", tokens["labgraph"])
 	}
+	if tokens["labntp"] != "ntp-tok" {
+		t.Fatalf("labntp token = %q, want ntp-tok", tokens["labntp"])
+	}
 	env := r.registrarEnv(tokens)
-	foundMITM, foundGraph := false, false
+	foundMITM, foundGraph, foundNTP := false, false, false
 	for _, kv := range env {
 		if kv == "LABMITM_TOKEN=mitm-tok" {
 			foundMITM = true
@@ -132,9 +139,12 @@ func TestLoadTokensAndRegistrarEnvIncludeLabmitm(t *testing.T) {
 		if kv == "LABGRAPH_TOKEN=graph-tok" {
 			foundGraph = true
 		}
+		if kv == "LABNTP_TOKEN=ntp-tok" {
+			foundNTP = true
+		}
 	}
-	if !foundMITM || !foundGraph {
-		t.Fatalf("registrarEnv missing LABMITM_TOKEN or LABGRAPH_TOKEN: %v", env)
+	if !foundMITM || !foundGraph || !foundNTP {
+		t.Fatalf("registrarEnv missing LABMITM_TOKEN, LABGRAPH_TOKEN, or LABNTP_TOKEN: %v", env)
 	}
 }
 

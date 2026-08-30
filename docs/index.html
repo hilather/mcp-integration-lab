@@ -104,6 +104,7 @@
             <span>SMTP 1025 residual</span>
             <span>NFS 20490 residual</span>
             <span>HTTP proxy 18888</span>
+            <span>NTP 10123</span>
           </div>
           <div class="topo-projects">
             <div class="topo-project">
@@ -114,6 +115,7 @@
                 <li><strong>labgraph</strong> — 18091</li>
                 <li><strong>LabMail</strong> — 1025 residual / 1080</li>
                 <li><strong>LabMITM</strong> — 18888 / 18088</li>
+                <li><strong>LabNTP</strong> — 10123 / 18123</li>
                 <li><strong>ratarmount-rs</strong> — 20490 residual</li>
                 <li><strong>MCPJungle</strong> — 8080 (0.4.6)</li>
               </ul>
@@ -145,7 +147,7 @@
       <div class="wrap">
         <div class="sec-head">
           <div class="eyebrow">The stack</div>
-          <h2>Nine services. One profile. One client URL.</h2>
+          <h2>Ten services. One profile. One client URL.</h2>
           <p>Each appliance is a real protocol on the wire. Agents talk to the gateway. Testers talk to the data planes.</p>
         </div>
         <div class="cards">
@@ -188,6 +190,14 @@
             </header>
             <p>Laboratory HTTP(S) intercepting forward proxy with a flow-inspector UI, native <code>/v1</code>, and MCP. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only.</p>
             <div class="meta"><span>18888 · 18088</span><a href="https://github.com/hilather/go-lab-mitmproxy">go-lab-mitmproxy</a></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>LabNTP</h3>
+              <span class="ver">v1.0.0-rc.2</span>
+            </header>
+            <p>Laboratory NTPv3/v4 unicast with per-IP virtual clocks, an operator console, native <code>/v1</code>, and MCP. Host UDP default is 10123 (ADR 0014); privileged 123 is opt-in. SPA Origins are deny-all.</p>
+            <div class="meta"><span>10123 · 18123</span><a href="https://github.com/hilather/go-lab-ntp">go-lab-ntp</a></div>
           </article>
           <article class="card">
             <header>

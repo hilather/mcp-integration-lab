@@ -23,6 +23,12 @@ changes since the previous one (AGENTS.md rule 13).
   checkout only: do not clone `origin.cursor.com` from a GitHub cloud
   VM; Helm merges; Keystone drift-checks on Thursday. Exclusive product
   repos stay unvendored.
+- **LabNTP** integrator pin (`go-lab-ntp` **v1.0.0-rc.2**, catalog id
+  `labntp`): UDP data plane on host 10123 (FR / ADR 0014 default;
+  privileged 123 is opt-in), management 18123, token 0o644,
+  `allowLegacyClients`. SPA Origins are deny-all. Docker
+  `userland-proxy` SNAT / NAT collision is documented only — there is
+  no Go `userland-proxy` probe. No labgraph NTP fan-out in this change.
 - Always-on **labgraph** scenario orchestrator (catalog id `labgraph`,
   host port 18091): loads `LabScenario` YAML from the profile and fans
   out to native appliance plan/apply/reset (DNS → MITM → mail → LDAP →
@@ -37,9 +43,11 @@ changes since the previous one (AGENTS.md rule 13).
   architecture, configuration, Pages). Protocol data planes use IANA
   dests on the host; today's default-profile numbers (DNS 10053, LDAP
   3389/3636, SMTP 1025, NFS 20490) are residual, not a second policy.
-  Docker/host feature preflights (example: LabNTP + `userland-proxy`)
-  must fail closed with the configuration change in the error. No live
-  port remaps in this change.
+  Docker/host feature preflights fail closed with the configuration
+  change in the error when a lab feature actually depends on a daemon
+  knob. LabNTP NAT collision is documented only (no Go
+  `userland-proxy` probe; appliance ADR 0014). No live port remaps in
+  this change.
 - Default LabMITM overlay now writes every 1.1–1.4 knob the 1.5+
   KnownFields set accepts (`spec.proxy.httpAuth.enabled: false`,
   1.2 nested flags, orig-dest, hop/accept including D22-carve

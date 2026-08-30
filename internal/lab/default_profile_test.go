@@ -211,6 +211,12 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	if !bytes.Contains(env, []byte("LABGRAPH_PORT=18091")) {
 		t.Fatal("default profile must pin LABGRAPH_PORT=18091")
 	}
+	if !bytes.Contains(env, []byte("LABNTP_NTP_PORT=10123")) {
+		t.Fatal("default profile must pin LABNTP_NTP_PORT=10123")
+	}
+	if !bytes.Contains(env, []byte("LABNTP_REST_PORT=18123")) {
+		t.Fatal("default profile must pin LABNTP_REST_PORT=18123")
+	}
 	for _, line := range strings.Split(string(env), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "#") || line == "" {
@@ -234,6 +240,70 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	}
 	if *got != *want {
 		t.Fatalf("profiles/default/dev-credentials.yaml drifted from testdata/devcreds/valid.yaml\ngot  %+v\nwant %+v", got, want)
+	}
+}
+
+func TestDefaultLabNTPBootstrap(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join(defaultProfileDir(t), "labntp", "bootstrap.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := string(b)
+	if !strings.Contains(raw, "lab-owned copy") || !strings.Contains(raw, "do not recopy from the upstream examples tree") {
+		t.Fatal("bootstrap header must say lab-owned copy; do not recopy from the upstream examples tree")
+	}
+	if strings.Contains(raw, `"*"`) || strings.Contains(raw, "- \"*\"") || strings.Contains(raw, "- '*'") {
+		t.Fatal("bootstrap must not allow Origin *")
+	}
+	var doc struct {
+		APIVersion string `yaml:"apiVersion"`
+		Kind       string `yaml:"kind"`
+		Spec       struct {
+			Auth struct {
+				Tokens []struct {
+					SecretFile string `yaml:"secretFile"`
+				} `yaml:"tokens"`
+			} `yaml:"auth"`
+			Management struct {
+				AllowedOrigins []string `yaml:"allowedOrigins"`
+				MCP            struct {
+					AllowLegacyClients bool `yaml:"allowLegacyClients"`
+				} `yaml:"mcp"`
+			} `yaml:"management"`
+			Filters []struct {
+				Name    string `yaml:"name"`
+				Enabled bool   `yaml:"enabled"`
+			} `yaml:"filters"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.APIVersion != "labntp.dev/v1alpha1" || doc.Kind != "LabNTP" {
+		t.Fatalf("apiVersion=%q kind=%q", doc.APIVersion, doc.Kind)
+	}
+	if !doc.Spec.Management.MCP.AllowLegacyClients {
+		t.Fatal("spec.management.mcp.allowLegacyClients must be true")
+	}
+	if len(doc.Spec.Auth.Tokens) != 1 || doc.Spec.Auth.Tokens[0].SecretFile != "/run/secrets/labntp-token" {
+		t.Fatalf("token secretFile = %#v, want /run/secrets/labntp-token", doc.Spec.Auth.Tokens)
+	}
+	if len(doc.Spec.Management.AllowedOrigins) != 0 {
+		t.Fatalf("allowedOrigins = %v, want empty", doc.Spec.Management.AllowedOrigins)
+	}
+	for _, o := range doc.Spec.Management.AllowedOrigins {
+		if o == "*" {
+			t.Fatal("allowedOrigins must not contain *")
+		}
+	}
+	foundDefault := false
+	for _, f := range doc.Spec.Filters {
+		if f.Name == "default" && f.Enabled {
+			foundDefault = true
+		}
+	}
+	if !foundDefault {
+		t.Fatal("overlay must include an enabled default filter")
 	}
 }
 

@@ -22,6 +22,7 @@ func TestLoadDevCredentialsValid(t *testing.T) {
 		{"spec.tokens.labmail", doc.Spec.Tokens.Labmail, "lab-dev-labmail-token-32b-minimum"},
 		{"spec.tokens.labmitm", doc.Spec.Tokens.LabMITM, "lab-dev-labmitm-token-32b-minimum"},
 		{"spec.tokens.labgraph", doc.Spec.Tokens.Labgraph, "lab-dev-labgraph-token"},
+		{"spec.tokens.labntp", doc.Spec.Tokens.LabNTP, "lab-dev-labntp-token-32b-minimum"},
 		{"spec.tokens.mcpClient", doc.Spec.Tokens.MCPClient, "lab-dev-mcp-client-token"},
 		{"spec.tokens.labldapAdmin", doc.Spec.Tokens.LabLDAPAdmin, "lab-dev-labldap-token-admin"},
 		{"spec.tokens.labtacacsAdmin", doc.Spec.Tokens.LabTacacsAdmin, "lab-dev-labtacacs-token-admin"},
@@ -85,6 +86,13 @@ func TestLoadDevCredentialsMissingLabgraph(t *testing.T) {
 	}
 }
 
+func TestLoadDevCredentialsMissingLabntp(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("missing-labntp.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labntp is required") {
+		t.Fatalf("expected missing labntp, got %v", err)
+	}
+}
+
 func TestLoadDevCredentialsEmptyValue(t *testing.T) {
 	_, err := LoadDevCredentials(testdataDevcreds("empty-value.yaml"))
 	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labdns is required") {
@@ -109,6 +117,16 @@ func TestLoadDevCredentialsLabmitmCatalogTokenTooShort(t *testing.T) {
 	}
 }
 
+func TestLoadDevCredentialsLabntpCatalogTokenTooShort(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("labntp-short.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labntp") {
+		t.Fatalf("expected labntp MinTokenBytes failure, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "MinTokenBytes") {
+		t.Fatalf("expected MinTokenBytes in error, got %v", err)
+	}
+}
+
 func TestValidateApplianceTokensExactMinBytes(t *testing.T) {
 	doc, err := LoadDevCredentials(testdataDevcreds("valid.yaml"))
 	if err != nil {
@@ -116,6 +134,7 @@ func TestValidateApplianceTokensExactMinBytes(t *testing.T) {
 	}
 	doc.Spec.Tokens.Labmail = strings.Repeat("m", applianceTokenMinBytes)
 	doc.Spec.Tokens.LabMITM = strings.Repeat("t", applianceTokenMinBytes)
+	doc.Spec.Tokens.LabNTP = strings.Repeat("n", applianceTokenMinBytes)
 	if err := doc.Validate(); err != nil {
 		t.Fatalf("exactly %d-byte tokens must pass: %v", applianceTokenMinBytes, err)
 	}

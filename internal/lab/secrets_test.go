@@ -255,6 +255,13 @@ func TestServiceExistsKnowsLabgraph(t *testing.T) {
 	}
 }
 
+func TestServiceExistsKnowsLabNTP(t *testing.T) {
+	_, err := (&Runner{}).serviceExists("labntp")
+	if err != nil && strings.Contains(err.Error(), `unknown service "labntp"`) {
+		t.Fatal(`serviceExists must inspect main compose labntp`)
+	}
+}
+
 func TestSecretsDevWritesCatalog(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
 	if err := r.Secrets(); err != nil {
@@ -266,6 +273,7 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 		"secrets/labmail-token":                             "lab-dev-labmail-token-32b-minimum",
 		"secrets/labmitm-token":                             "lab-dev-labmitm-token-32b-minimum",
 		"secrets/labgraph-token":                            "lab-dev-labgraph-token",
+		"secrets/labntp-token":                              "lab-dev-labntp-token-32b-minimum",
 		"secrets/mcp-client-token":                          "lab-dev-mcp-client-token",
 		"secrets/maildev-web-password":                      "lab-dev-mail-admin-1",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":   "lab-dev-labldap-token-admin",
@@ -305,6 +313,7 @@ func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 		"secrets/labmail-token",
 		"secrets/labmitm-token",
 		"secrets/labgraph-token",
+		"secrets/labntp-token",
 		"secrets/mcp-client-token",
 		"secrets/maildev-web-password",
 	} {
@@ -1472,6 +1481,7 @@ func writeStageSources(r *Runner, withOptionalCerts bool) error {
 		"secrets/maildev-web-password":                                        "mail-pass\n",
 		"secrets/labmitm-token":                                               "mitm-token\n",
 		"secrets/labgraph-token":                                              "graph-token\n",
+		"secrets/labntp-token":                                                "ntp-token\n",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "ldap-admin\n",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "alice-pw\n",
 		"third_party/go-lab-ldap-mcp/secrets/tls/ca.crt":                      "-----BEGIN CERTIFICATE-----\nLABCA\n-----END CERTIFICATE-----\n",

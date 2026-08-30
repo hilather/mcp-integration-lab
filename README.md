@@ -39,7 +39,7 @@ This is laboratory software. It is not a production identity or mail system.
 git clone https://github.com/hilather/mcp-integration-lab.git
 cd mcp-integration-lab
 make up      # vendor, secrets, images, start, register
-make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail / LabMITM / labgraph through the gateway
+make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail / LabMITM / LabNTP / labgraph through the gateway
 ```
 
 Needs Docker Engine 24+ with Compose v2.24.4+, GNU make, and Go 1.26+. First run vendors the service repos and builds images; later runs reuse them.
@@ -75,8 +75,10 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 | **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 (already native) · HTTP 18049 |
 | **LabMail** | Receive-only SMTP sink + UI / REST / MCP (compose service `maildev`) | 1025 (residual → 25) · 1080 |
 | **LabMITM** | HTTP(S) intercepting forward proxy + inspector / REST / MCP | 18888 (not dest 443) · 18088 |
+| **LabNTP** | NTPv3/v4 unicast with per-IP virtual clocks + operator console / REST / MCP | 10123 (ADR 0014 default; 123 opt-in) · 18123 |
 | **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 (residual → 2049) |
 | **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
+| **labgraph** | LabScenario orchestrator (REST / MCP / SPA) | 18091 |
 | **MCPJungle** | Single MCP gateway, tool groups, optional ACLs. Pinned **0.4.6**. | 8080 |
 
 Every port is published on all interfaces so remote systems can test against the lab. Values live in the active profile, not in compose files. Policy is IANA dests on the host (AGENTS.md rule 15); the residual numbers above are today's default profile, not a second design. LabMITM is a forward proxy (SUT sets `HTTP_PROXY`).
@@ -90,6 +92,7 @@ flowchart LR
     NFS[ratarmount-rs]
     Mail[LabMail]
     MITM[LabMITM]
+    NTP[LabNTP]
     Info[labinfo]
     Graph[labgraph]
   end
@@ -106,9 +109,10 @@ flowchart LR
   Jungle --> Taclab
   Jungle --> Mail
   Jungle --> MITM
+  Jungle --> NTP
   Jungle --> Graph
   Control --> Dir
-  Testers[integration testers] -->|DNS LDAP NFS TACACS+ RADIUS SMTP HTTP-proxy| mcplab
+  Testers[integration testers] -->|DNS LDAP NFS TACACS+ RADIUS SMTP HTTP-proxy NTP| mcplab
   Testers --> labldap
   Testers --> labtacacs
 ```
@@ -126,6 +130,7 @@ profiles/<name>/
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
+  labntp/bootstrap.yaml    LabNTP desired state (allowedOrigins deny-all; no "*")
   labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
   scenarios/*.yaml         LabScenario files (empty default is a no-op;
                            named packs: broken-bind, expired-cert,
@@ -187,7 +192,7 @@ Configuration reference with every variable and a working snippet for each servi
 | `make test` | `go vet` + unit/regression tests for the CLI |
 
 `APP` is one of `labdns`, `maildev`, `nfs`, `labinfo`, `mcpjungle`, `labldap`,
-`labtacacs`, `labmitm`, `labgraph`. Use this after editing that service's YAML or bumping its image.
+`labtacacs`, `labmitm`, `labgraph`, `labntp`. Use this after editing that service's YAML or bumping its image.
 Gateway reload (`APP=mcpjungle`) also re-runs `make register` because
 registration SQLite is tmpfs. `make labldap-up` / `make labtacacs-up` remain
 idempotent bring-up of those compose projects.
@@ -199,8 +204,8 @@ preflight does not treat bind permission denied on privileged ports
 (default TacLab 49/300) as a conflict; it occupancy-checks `/proc/net`
 instead. When a lab feature depends on a Docker daemon or host setting,
 preflight must fail closed with the configuration change in the error
-(LabNTP + `userland-proxy` is the documented example; that check is not
-in Go until LabNTP is in compose). The three compose projects share
+(LabNTP NAT collision is documented only — no Go `userland-proxy`
+probe; appliance ADR 0014). The three compose projects share
 `mcplab-shared` (`LAB_DOCKER_SUBNET`, default `/24`) — not Docker's
 default /16 per network.
 
@@ -215,6 +220,7 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.5.0**. |
 | [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.4**. Compose service name stays `maildev`. |
 | [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.6.0**. Data plane is unauthenticated; intercept is :443 only. |
+| [hilather/go-lab-ntp](https://github.com/hilather/go-lab-ntp) | LabNTP: laboratory NTPv3/v4 unicast with per-IP virtual clocks, operator console, `/v1`, MCP. Pinned **v1.0.0-rc.2**. Host UDP default 10123 (ADR 0014). |
 | [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.28**. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. Pinned **0.4.6**. |
 | [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) | Go SDK for the Model Context Protocol. Used by labinfo and spoken by the gateway client. |

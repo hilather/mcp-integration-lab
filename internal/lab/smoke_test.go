@@ -57,6 +57,7 @@ func TestCatalogFileExpectsCoversEveryRequiredKey(t *testing.T) {
 		{"spec.tokens.labmail", doc.Spec.Tokens.Labmail, ""},
 		{"spec.tokens.labmitm", doc.Spec.Tokens.LabMITM, ""},
 		{"spec.tokens.labgraph", doc.Spec.Tokens.Labgraph, ""},
+		{"spec.tokens.labntp", doc.Spec.Tokens.LabNTP, ""},
 		{"spec.tokens.mcpClient", doc.Spec.Tokens.MCPClient, ""},
 		{"spec.tokens.labldapAdmin", doc.Spec.Tokens.LabLDAPAdmin, ""},
 		{"spec.tokens.labtacacsAdmin", doc.Spec.Tokens.LabTacacsAdmin, ""},
@@ -231,6 +232,7 @@ func TestConnCredIndexDefaultCatalog(t *testing.T) {
 		"labmail-token":         "labmail-token",
 		"labmitm-token":         "labmitm-token",
 		"labgraph-token":        "labgraph-token",
+		"labntp-token":          "labntp-token",
 		"tacacs-client-ca":      "tacacs-client-ca.pem",
 		"tacacs-client-ok-cert": "tacacs-client-ok.pem",
 	}
@@ -310,6 +312,7 @@ func writeCatalogDisk(t *testing.T, root string, doc *DevCredentials) {
 		"secrets/labmail-token":                                               doc.Spec.Tokens.Labmail + "\n",
 		"secrets/labmitm-token":                                               doc.Spec.Tokens.LabMITM + "\n",
 		"secrets/labgraph-token":                                              doc.Spec.Tokens.Labgraph + "\n",
+		"secrets/labntp-token":                                                doc.Spec.Tokens.LabNTP + "\n",
 		"secrets/mcp-client-token":                                            doc.Spec.Tokens.MCPClient + "\n",
 		"secrets/maildev-web-password":                                        doc.Spec.Passwords.MaildevWeb + "\n",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     doc.Spec.Tokens.LabLDAPAdmin + "\n",

@@ -18,6 +18,7 @@ secrets layout, and gateway policy.
 | TacLab (`go-lab-tacacs-mcp` **v1.5.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
 | LabMITM (`go-lab-mitmproxy` **v1.6.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
+| LabNTP (`go-lab-ntp` **v1.0.0-rc.2**) | Laboratory NTPv3/v4 unicast with per-IP virtual clocks, operator console, `/v1`, MCP | `http://labntp:8088/mcp` (bearer; `allowLegacyClients: true`) | NTP 10123 (UDP; ADR 0014 default, not residual), REST/MCP/UI 18123 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490† |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | labgraph (first-party) | LabScenario orchestrator: native plan/apply/reset fan-out, REST + MCP + SPA | `http://labgraph:8080/mcp` (bearer; `allowLegacyClients: true`) | 18091 |
@@ -59,10 +60,12 @@ the port.
 **Docker/host feature knobs.** When a lab feature depends on a Docker
 daemon or host setting, preflight fails closed **with the configuration
 change in the error**. Do not boot a lab that pretends the feature works.
-Example for the LabNTP integrator slice (LabNTP is not in compose yet; do
-not add this Go check until then): per-IP views need published UDP source
-IPs, which requires `userland-proxy: false`. Normative error copy when
-those checks exist:
+LabNTP is in compose; there is **no** Go `userland-proxy` probe
+(appliance ADR 0014: host-published UDP is SNAT'd; compose-network +
+`views.preview` stay reliable). The daemon.json / Desktop-cannot copy
+below is operator documentation only. Occupancy of opt-in host UDP 123
+uses the timesyncd copy. Normative error copy when those occupancy
+checks fire:
 
 - DNS 53 held by systemd-resolved: stop/disable resolved **or** extra IP
   for `LAB_PUBLIC_HOST` **or** escape `LABDNS_DNS_PORT` (SUTs that cannot
@@ -87,6 +90,7 @@ flowchart LR
     NFS["ratarmount-rs --nfs"]
     Mail["LabMail (compose: maildev)"]
     MITM["labmitm"]
+    NTP["labntp"]
     Info["labinfo (service directory)"]
     Graph["labgraph"]
   end
@@ -103,9 +107,10 @@ flowchart LR
   Jungle -->|"HTTP + bearer"| Taclab
   Jungle -->|"HTTP + bearer"| Mail
   Jungle -->|"HTTP + bearer"| MITM
+  Jungle -->|"HTTP + bearer"| NTP
   Jungle -->|"HTTP + bearer"| Graph
   Control --> Dir
-  Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP, HTTP proxy"| mcplab
+  Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP, HTTP proxy, NTP"| mcplab
   Testers --> labldap
   Testers --> labtacacs
 ```
@@ -143,6 +148,8 @@ Per-team configuration lives in profiles (`profiles/<name>/`), selected via
   relay/outbound key). Compose service name stays `maildev`.
 - `labmitm/bootstrap.yaml` — LabMITM desired state (`labmitm.dev/v1alpha1`;
   lab-owned overlay copy, exact Origins, `allowLegacyClients: true`).
+- `labntp/bootstrap.yaml` — LabNTP desired state (`labntp.dev/v1alpha1`;
+  lab-owned overlay copy, `allowedOrigins: []`, `allowLegacyClients: true`).
 - `labgraph/bootstrap.yaml` — LabGraph service bootstrap (`mcplab.dev/v1alpha1`;
   exact Origins, `allowLegacyClients: true`).
 - `scenarios/*.yaml` — LabScenario files (omitted appliances are left alone;
@@ -166,7 +173,7 @@ generated). Catalog-only enter-dev still pins secret files via
 Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
 `profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
 default profile ships `lab-dev-*` values) and is inert unless `LAB_DEV_MODE=true`.
-LabMail and LabMITM tokens must be at least 32 bytes (`auth.MinTokenBytes`);
+LabMail, LabMITM, and LabNTP tokens must be at least 32 bytes (`auth.MinTokenBytes`);
 catalog validate fail-closes so a short value cannot crash-loop those
 containers.
 Container storage is profile-definable (`NFS_ARCHIVE_DIR`, `NFS_DATA_DIR`);
@@ -191,9 +198,10 @@ host-port occupancy, and (when a lab feature depends on a Docker daemon or
 host setting) those feature knobs. Privileged ports (default TacLab 49/300)
 are probed without requiring the operator uid to bind — `EACCES` is not
 "in use"; occupancy is `/proc/net` (TCP LISTEN / UDP bound). Feature-knob
-preflights fail closed with the configuration change in the error (see
-[Host ports and preflight](#host-ports-and-preflight)); LabNTP's
-`userland-proxy` check is not in Go yet because LabNTP is not in compose.
+preflights fail closed with the configuration change in the error when a
+feature actually depends on a daemon knob (see
+[Host ports and preflight](#host-ports-and-preflight)). LabNTP NAT
+collision is documented only — no Go `userland-proxy` probe (ADR 0014).
 `mcplab reload <app>` / `make reload`
 APP=<app>` rebuilds and recreates **one** application so a YAML or image
 tweak does not bounce the rest of the lab:
@@ -209,6 +217,7 @@ tweak does not bounce the rest of the lab:
 | `labtacacs` | `compose up --force-recreate` on the TacLab project | in-process AAA state (labgen files on disk survive) |
 | `labmitm` | same for compose service `labmitm` | captured flows; generate-mode CA rotates (does not re-register) |
 | `labgraph` | same for compose service `labgraph` | in-memory apply/reset journal |
+| `labntp` | same for compose service `labntp` | in-process NTP views / query log (does not re-register) |
 
 `make labldap-up` / `make labtacacs-up` stay idempotent project bring-up
 (used by `make up`). Use full `make up` after a vendor pin bump, a profile
@@ -238,7 +247,7 @@ Internal hops always use static bearer tokens on an isolated docker network.
   (first mint / pin-bump via `labgen -secrets-from`; catalog-only enter-dev
   still pins after labgen; fail-closed if the catalog is missing; no merge with
   `default`). The default profile ships `lab-dev-*` values; they are inert
-  unless this knob is on. LabMail and LabMITM tokens must be at least 32
+  unless this knob is on. LabMail, LabMITM, and LabNTP tokens must be at least 32
   bytes (`auth.MinTokenBytes`). Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
   from reveal. `Secrets()` reloads running containers whose files changed
@@ -368,6 +377,19 @@ per-persona tool groups and OTel metrics scraping.
   is 0o644. Captured flows and a generate-mode CA are wiped on reload;
   `make reload APP=labmitm` does not re-register. v1.6.0 is Status
   live-apply (notes on ffb220b); native `/v1` catalog stays 31.
+- LabNTP is pinned to **v1.0.0-rc.2** (tag; commit `89841a6`). Observed
+  GHCR index digest (informational; the vendor tag is the lock):
+  `ghcr.io/hilather/labntp@sha256:e98fdf0b480ec8faeb6bb0aec5dac405f9b2d088f1b4f94175935a0f257adb97`.
+  MCP pin is relaxed with `spec.management.mcp.allowLegacyClients: true`
+  in the profile bootstrap (no LabNTP patch). Compose must pass
+  `--management-listen=:8088` (binary default is off) and
+  `cap_add: [NET_BIND_SERVICE]` so UID 65532 can bind container `:123`.
+  Host UDP default is **10123** (FR / ADR 0014, not residual-as-design);
+  privileged 123 is opt-in. SPA `allowedOrigins` is deny-all (loopback
+  already allowed; no `"*"`). Bind-mounted `secrets/labntp-token` is
+  0o644. Host-published UDP is SNAT'd (NAT collision); there is no Go
+  `userland-proxy` probe. `make reload APP=labntp` does not re-register.
+  No labgraph NTP fan-out in this pin.
 - ratarmount-rs is pinned to **v0.1.28** (`.deb` in
   `docker/ratarmount/Dockerfile`). NFSv3 has no locking (`nolock` required)
   and AUTH_SYS only; the lab boundary is the docker network / host. The
@@ -382,6 +404,7 @@ per-persona tool groups and OTel metrics scraping.
 - ratarmount image is Ubuntu-based (release .deb). Alpine/musl source build is
   a size optimization for later.
 - LabLDAP and TacLab images build locally from the vendored repos (TacLab's
-  build compiles its embedded React UI too); LabMail and LabMITM build from
-  `third_party/go-lab-maildev` and `third_party/go-lab-mitmproxy` the same
-  way LabDNS does. First `make up` takes several minutes.
+  build compiles its embedded React UI too); LabMail, LabMITM, and LabNTP
+  build from `third_party/go-lab-maildev`, `third_party/go-lab-mitmproxy`,
+  and `third_party/go-lab-ntp` the same way LabDNS does. First `make up`
+  takes several minutes.

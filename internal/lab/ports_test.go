@@ -53,6 +53,41 @@ func TestPublishedPortSpecsIncludesLabgraph(t *testing.T) {
 	}
 }
 
+func TestPublishedPortSpecsIncludesLabNTP(t *testing.T) {
+	want := map[string][]portProto{
+		"LABNTP_NTP_PORT":  {portUDP},
+		"LABNTP_REST_PORT": {portTCP},
+	}
+	seen := map[string][]portProto{}
+	for _, spec := range publishedPortSpecs {
+		if _, ok := want[spec.EnvKey]; ok {
+			seen[spec.EnvKey] = spec.Protos
+		}
+	}
+	for k, protos := range want {
+		got, ok := seen[k]
+		if !ok {
+			t.Fatalf("publishedPortSpecs missing %s", k)
+		}
+		if len(got) != len(protos) || got[0] != protos[0] {
+			t.Fatalf("publishedPortSpecs %s protos = %v, want %v", k, got, protos)
+		}
+	}
+}
+
+func TestOccupiedPortHintTimesyncdOnNTP123(t *testing.T) {
+	got := occupiedPortHint([]string{"LABNTP_NTP_PORT=123 (udp) already in use"})
+	for _, want := range []string{"systemd-timesyncd", "LABNTP_NTP_PORT=10123", "settimeofday"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("hint missing %q: %s", want, got)
+		}
+	}
+	generic := occupiedPortHint([]string{"LABNTP_NTP_PORT=10123 (udp) already in use"})
+	if strings.Contains(generic, "timesyncd") {
+		t.Fatal("10123 occupancy must not use the privileged-123 timesyncd hint")
+	}
+}
+
 func TestPublishedPortSpecsIncludesLabMITM(t *testing.T) {
 	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false}
 	for _, spec := range publishedPortSpecs {

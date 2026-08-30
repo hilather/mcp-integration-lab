@@ -27,6 +27,20 @@ func testProfileDir(root string) string {
 	return filepath.Join(root, "profiles", testProfileName)
 }
 
+func TestPreflightKeysIncludesLabNTP(t *testing.T) {
+	want := map[string]bool{"LABNTP_NTP_PORT": false, "LABNTP_REST_PORT": false}
+	for _, k := range preflightKeys {
+		if _, ok := want[k]; ok {
+			want[k] = true
+		}
+	}
+	for k, seen := range want {
+		if !seen {
+			t.Fatalf("preflightKeys missing %s", k)
+		}
+	}
+}
+
 func TestPreflightKeysIncludesLabMITM(t *testing.T) {
 	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false, "LAB_DOCKER_SUBNET": false}
 	for _, k := range preflightKeys {
@@ -133,6 +147,42 @@ func TestPreflightOKWhenLabmitmOriginAllowlistEmpty(t *testing.T) {
 	}
 	if !strings.Contains(out, "labmitm originAllowlist") {
 		t.Fatalf("warning missing originAllowlist: %q", out)
+	}
+}
+
+func TestPreflightOKWhenLabntpAllowedOriginsEmpty(t *testing.T) {
+	root := t.TempDir()
+	writeProfileEnv(t, root, "LAB_PUBLIC_HOST=10.0.0.9\n")
+	ntpDir := filepath.Join(testProfileDir(root), "labntp")
+	if err := os.MkdirAll(ntpDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("apiVersion: labntp.dev/v1alpha1\nkind: LabNTP\nspec:\n  management:\n    allowedOrigins: []\n    originAllowlist: [\"http://ignore.example\"]\n")
+	if err := os.WriteFile(filepath.Join(ntpDir, "bootstrap.yaml"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := &Runner{
+		Prof: &profile.Profile{
+			Name: testProfileName,
+			Dir:  testProfileDir(root),
+			Values: map[string]string{
+				"LAB_PUBLIC_HOST": "10.0.0.9",
+			},
+		},
+	}
+	out := captureStdout(t, func() {
+		if err := r.Preflight(); err != nil {
+			t.Errorf("Preflight() unexpected error: %v", err)
+		}
+	})
+	if !strings.Contains(out, "warning: LAB_PUBLIC_HOST=10.0.0.9 is not loopback; add http://10.0.0.9:18123 to") {
+		t.Fatalf("missing origin warning: %q", out)
+	}
+	if !strings.Contains(out, "labntp allowedOrigins") {
+		t.Fatalf("warning missing allowedOrigins: %q", out)
+	}
+	if strings.Contains(out, "labntp originAllowlist") {
+		t.Fatalf("LabNTP warn must parse allowedOrigins, not originAllowlist: %q", out)
 	}
 }
 

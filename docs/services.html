@@ -98,6 +98,17 @@
           </article>
           <article class="card">
             <header>
+              <h3>LabNTP</h3>
+              <span class="ver">v1.0.0-rc.2</span>
+            </header>
+            <p>Laboratory NTPv3/v4 unicast with per-IP virtual clocks. Data plane is plain NTP (no MAC in this profile). First-match CIDR filters. Host-published UDP is SNAT'd (NAT collision); compose-network + <code>ntp_views_preview</code> stay reliable. No Go <code>userland-proxy</code> probe.</p>
+            <p><strong>Connect.</strong> NTP UDP <code>&lt;lab-host&gt;:10123</code> (ADR 0014 default; privileged 123 is opt-in). Operator console / <code>/v1</code> / MCP at <code>&lt;lab-host&gt;:18123</code>.</p>
+            <p><strong>Configure.</strong> <code>profiles/&lt;name&gt;/labntp/bootstrap.yaml</code>. <code>allowedOrigins</code> deny-all (no <code>"*"</code>). Reload: <code>make reload APP=labntp</code> (does not re-register).</p>
+            <p><strong>Auth.</strong> Management bearer in <code>secrets/labntp-token</code> (0o644). NTP data plane has no secret.</p>
+            <div class="meta"><span>10123 · 18123</span><a href="https://github.com/hilather/go-lab-ntp">go-lab-ntp</a></div>
+          </article>
+          <article class="card">
+            <header>
               <h3>ratarmount-rs</h3>
               <span class="ver">v0.1.28</span>
             </header>

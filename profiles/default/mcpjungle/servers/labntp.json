@@ -1,0 +1,7 @@
+{
+  "name": "labntp",
+  "transport": "streamable_http",
+  "description": "Laboratory NTPv3/v4 server (LabNTP): per-IP virtual clocks, plan/apply/reset, filters, views.preview, query ring over REST /v1 and MCP /mcp.",
+  "url": "http://labntp:8088/mcp",
+  "bearer_token": "${LABNTP_TOKEN}"
+}
