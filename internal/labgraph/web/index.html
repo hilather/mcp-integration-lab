@@ -233,6 +233,7 @@
       setBadge("b-csrf", hasCSRF());
       $("token-label").hidden = cookieSession;
       $("signin").hidden = cookieSession;
+      $("signout").hidden = !cookieSession;
       $("signed-out-hint").hidden = cookieSession;
       $("inspector").hidden = !cookieSession;
       gateMutate();
