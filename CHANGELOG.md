@@ -7,6 +7,15 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Added
+
+- Cloud-agent review skills from Origin `matt-brewer/agent-skills` @
+  `77c4644` live under `.cursor/skills/` (four skills plus
+  `.cursor/skills/knowledge/`). `AGENTS.md` has a Cloud section for this
+  checkout only: do not clone `origin.cursor.com` from a GitHub cloud
+  VM; Helm merges; Keystone drift-checks on Thursday. Exclusive product
+  repos stay unvendored.
+
 ### Changed
 
 - Native host-port policy is written down (AGENTS.md rule 15,

@@ -196,6 +196,28 @@ we work by.
 - `docs/index.html` and siblings — GitHub Pages site
 - `CHANGELOG.md` — high-level change summaries; releases promote
   `[Unreleased]` (rule 13)
+- `.cursor/skills/` — Cloud-agent review skills and related knowledge
+  (see Cloud). Not a lab service pin; do not flatten into product docs.
+
+
+## Cloud
+
+This section belongs only in this repo. It is not product logic and does
+not belong in `README.md` or `docs/architecture.md`.
+
+Cloud agents on this checkout load `.cursor/skills/` (those four skills:
+`review-plan`, `skeptic-plan-review`, `review-pr`,
+`skeptic-code-review`). Related knowledge is `.cursor/skills/knowledge/`
+(`plan-skepticism`, `code-review-skepticism`, `dependencies`,
+`documentation-and-tests`). Do not vendor the TypeScript hints
+machinery.
+
+Do not git clone `origin.cursor.com` from a GitHub cloud VM (401
+git-keeper).
+
+Canonical source remains Origin `matt-brewer/agent-skills` @ `77c4644`
+(`77c4644a616a86a74219adb5bc31976a5636f6cb`). Helm merges this vendor
+PR. Keystone runs a Thursday drift check.
 
 
 ## Known quirks (learned the hard way)
