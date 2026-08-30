@@ -15,6 +15,12 @@ changes since the previous one (AGENTS.md rule 13).
   checkout only: do not clone `origin.cursor.com` from a GitHub cloud
   VM; Helm merges; Keystone drift-checks on Thursday. Exclusive product
   repos stay unvendored.
+- Always-on **labgraph** scenario orchestrator (catalog id `labgraph`,
+  host port 18091): loads `LabScenario` YAML from the profile and fans
+  out to native appliance plan/apply/reset (DNS → MITM → mail → LDAP →
+  TacLab). Empty default scenario is a no-op so smoke stays green.
+  Partial failure is honest (stop, no rollback). LabLDAP and TacLab
+  have no file-level apply. Jenkins stays out of the integrator.
 
 ### Changed
 

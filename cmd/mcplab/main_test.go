@@ -59,6 +59,21 @@ func TestCLIUsageDocumentsCreds(t *testing.T) {
 	}
 }
 
+func TestCLIUsageDocumentsScenario(t *testing.T) {
+	out, err := runMcplab(t)
+	if err == nil {
+		t.Fatal("expected non-zero exit for usage")
+	}
+	if !strings.Contains(out, "scenario") {
+		t.Fatalf("usage missing scenario:\n%s", out)
+	}
+	for _, op := range []string{"validate", "plan", "apply", "reset"} {
+		if !strings.Contains(out, op) {
+			t.Errorf("usage missing scenario op %s:\n%s", op, out)
+		}
+	}
+}
+
 func TestCLIReloadRequiresApp(t *testing.T) {
 	out, err := runMcplab(t, "reload")
 	if err == nil {

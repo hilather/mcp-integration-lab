@@ -208,6 +208,9 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	if !bytes.Contains(env, []byte("LAB_DOCKER_SUBNET=10.99.42.0/24")) {
 		t.Fatal("default profile must pin LAB_DOCKER_SUBNET to a /24")
 	}
+	if !bytes.Contains(env, []byte("LABGRAPH_PORT=18091")) {
+		t.Fatal("default profile must pin LABGRAPH_PORT=18091")
+	}
 	for _, line := range strings.Split(string(env), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "#") || line == "" {
@@ -231,5 +234,46 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	}
 	if *got != *want {
 		t.Fatalf("profiles/default/dev-credentials.yaml drifted from testdata/devcreds/valid.yaml\ngot  %+v\nwant %+v", got, want)
+	}
+}
+
+func TestDefaultLabGraphBootstrapAndEmptyScenario(t *testing.T) {
+	dir := defaultProfileDir(t)
+	b, err := os.ReadFile(filepath.Join(dir, "labgraph", "bootstrap.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		APIVersion string `yaml:"apiVersion"`
+		Kind       string `yaml:"kind"`
+		Spec       struct {
+			UI struct {
+				Enabled bool `yaml:"enabled"`
+			} `yaml:"ui"`
+			Management struct {
+				MCP struct {
+					AllowLegacyClients bool `yaml:"allowLegacyClients"`
+				} `yaml:"mcp"`
+			} `yaml:"management"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.APIVersion != "mcplab.dev/v1alpha1" || doc.Kind != "LabGraph" {
+		t.Fatalf("apiVersion=%q kind=%q", doc.APIVersion, doc.Kind)
+	}
+	if !doc.Spec.UI.Enabled {
+		t.Fatal("spec.ui.enabled must be true")
+	}
+	if !doc.Spec.Management.MCP.AllowLegacyClients {
+		t.Fatal("spec.management.mcp.allowLegacyClients must be true")
+	}
+	sc, err := os.ReadFile(filepath.Join(dir, "scenarios", "default.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(sc, []byte("kind: LabScenario")) || !bytes.Contains(sc, []byte("spec: {}")) {
+		t.Fatalf("default scenario must be empty no-op, got:\n%s", sc)
 	}
 }

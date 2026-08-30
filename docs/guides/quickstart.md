@@ -107,10 +107,11 @@ make reload APP=mcpjungle   # gateway container; also re-registers (tmpfs)
 make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
 make reload APP=labtacacs   # TacLab compose project
 make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register
+make reload APP=labgraph    # labgraph/bootstrap.yaml + scenarios/*.yaml; drops the journal
 ```
 
 Same commands as `mcplab reload <app>`. Aliases: `dns`, `labmail`/`mail`,
-`ldap`, `taclab`/`tacacs`, `gateway`, `mitm`. Sibling services stay up. Use full
+`ldap`, `taclab`/`tacacs`, `gateway`, `mitm`, `graph`/`scenario`. Sibling services stay up. Use full
 `make up` after a vendor pin bump, a profile switch, or first bring-up.
 
 ## Stop and reset

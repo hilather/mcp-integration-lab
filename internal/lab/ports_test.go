@@ -41,6 +41,18 @@ func TestPublishedPortBindingsDedupesDNS(t *testing.T) {
 	}
 }
 
+func TestPublishedPortSpecsIncludesLabgraph(t *testing.T) {
+	found := false
+	for _, spec := range publishedPortSpecs {
+		if spec.EnvKey == "LABGRAPH_PORT" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("publishedPortSpecs missing LABGRAPH_PORT")
+	}
+}
+
 func TestPublishedPortSpecsIncludesLabMITM(t *testing.T) {
 	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false}
 	for _, spec := range publishedPortSpecs {

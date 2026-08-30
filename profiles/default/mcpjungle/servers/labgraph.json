@@ -1,0 +1,7 @@
+{
+  "name": "labgraph",
+  "transport": "streamable_http",
+  "description": "LabScenario orchestrator: list/get/validate/plan/apply/reset/status across LabDNS, LabMITM, LabMail, LabLDAP control, and TacLab. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP and TacLab have no native file-level apply.",
+  "url": "http://labgraph:8080/mcp",
+  "bearer_token": "${LABGRAPH_TOKEN}"
+}

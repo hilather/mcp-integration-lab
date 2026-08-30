@@ -208,6 +208,7 @@ services:
       MAILDEV_WEB_PORT: ${MAILDEV_WEB_PORT:-1080}
       LABMITM_PROXY_PORT: ${LABMITM_PROXY_PORT:-18888}
       LABMITM_WEB_PORT: ${LABMITM_WEB_PORT:-18088}
+      LABGRAPH_PORT: ${LABGRAPH_PORT:-18091}
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labinfo/services.yaml:/etc/labinfo/services.yaml:ro
       # Staged by `mcplab secrets`: world-readable copies of web tokens,
@@ -222,6 +223,47 @@ services:
     # Reload: `make reload APP=labinfo`
     healthcheck:
       test: ["CMD", "/labinfo", "healthcheck", "--url=http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 2s
+
+  # ------------------------------------------ labgraph scenario orchestrator
+  # First-party REST + MCP + SPA. Fans out LabScenario YAML to native
+  # appliance plan/apply/reset. Catalog id labgraph. Reload: `make reload APP=labgraph`.
+  labgraph:
+    build:
+      context: .
+      dockerfile: docker/labgraph/Dockerfile
+    image: labgraph:local
+    command:
+      - "serve"
+      - "--config=/etc/labgraph/config.yaml"
+      - "--scenarios=/etc/labgraph/scenarios"
+      - "--listen=:8080"
+      - "--token-file=/run/lab-secrets/labgraph-token"
+    networks: [default]
+    ports:
+      - "${LABGRAPH_PORT:-18091}:8080/tcp"
+    environment:
+      LABGRAPH_LABDNS_URL: http://labdns:8080
+      LABGRAPH_LABMITM_URL: http://labmitm:8088
+      LABGRAPH_MAILDEV_URL: http://maildev:1080
+      LABGRAPH_LABLDAP_URL: https://control:8443
+      LABGRAPH_LABTACACS_URL: http://taclab:8080
+      LABGRAPH_LABLDAP_SCENARIO_NAME: ${LABGRAPH_LABLDAP_SCENARIO_NAME:-mcp-integration-lab}
+    volumes:
+      - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labgraph/bootstrap.yaml:/etc/labgraph/config.yaml:ro
+      - ${MCPLAB_PROFILE_DIR:-./profiles/default}/scenarios:/etc/labgraph/scenarios:ro
+      - ./secrets/labgraph-creds:/run/lab-secrets:ro
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    user: "65532:65532"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/labgraph", "healthcheck", "--url=http://127.0.0.1:8080/v1/health/ready"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -263,6 +305,7 @@ services:
       LABINFO_TOKEN: ${LABINFO_TOKEN:-}
       LABMAIL_TOKEN: ${LABMAIL_TOKEN:-}
       LABMITM_TOKEN: ${LABMITM_TOKEN:-}
+      LABGRAPH_TOKEN: ${LABGRAPH_TOKEN:-}
       MCP_CLIENT_TOKEN: ${MCP_CLIENT_TOKEN:-}
       # CLI stores its server config (enterprise admin token) under $HOME.
       HOME: /cli-home

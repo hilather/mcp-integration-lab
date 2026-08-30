@@ -23,7 +23,7 @@ import (
 )
 
 // Smoke runs the end-to-end scenario: drives DNS, LDAP, TACACS+/RADIUS,
-// mail, and LabMITM state through the MCP gateway the way an agent would,
+// mail, LabMITM, and labgraph state through the MCP gateway the way an agent would,
 // then verifies every result on the real data plane (DNS query, LDAPS bind,
 // kernel NFS mount, RADIUS PAP auth, SMTP delivery into the receive-only
 // mail sink, HTTP intercept via the published proxy port).
@@ -43,6 +43,7 @@ func (r *Runner) Smoke() error {
 	s.maildevScenario()
 	s.labmitmScenario()
 	s.labinfoScenario()
+	s.labgraphScenario()
 	s.devCatalogScenario()
 
 	fmt.Printf("\n== smoke summary: %d passed, %d failed\n", s.pass, s.fail)
@@ -546,8 +547,10 @@ func (s *smokeState) labinfoScenario() {
 
 	gatewayPort := s.r.Prof.Get("MCP_GATEWAY_PORT", "8080")
 	mitmWebPort := s.r.Prof.Get("LABMITM_WEB_PORT", "18088")
+	graphPort := s.r.Prof.Get("LABGRAPH_PORT", "18091")
 	foundGateway := false
 	foundMITM := false
+	foundGraph := false
 	credentialsRevealed := false
 	for _, svc := range eps.Services {
 		if svc.ID == "gateway" {
@@ -564,12 +567,20 @@ func (s *smokeState) labinfoScenario() {
 				}
 			}
 		}
+		if svc.ID == "labgraph" {
+			for _, u := range svc.URLs {
+				if strings.Contains(u.URL, ":"+graphPort) {
+					foundGraph = true
+				}
+			}
+		}
 		if svc.Credential != nil && svc.Credential.Secret != "" {
 			credentialsRevealed = true
 		}
 	}
 	s.check(foundGateway, "gateway URL carries the profile's public port")
 	s.check(foundMITM, "labmitm catalog URL carries the profile's web port")
+	s.check(foundGraph, "labgraph catalog URL carries the profile's port")
 	s.check(credentialsRevealed == devMode,
 		fmt.Sprintf("credentials revealed only in dev mode (revealed=%v)", credentialsRevealed))
 
@@ -633,6 +644,60 @@ func (s *smokeState) labinfoScenario() {
 	s.check(foundBaseDN, "labldap parameters include the base DN")
 	s.check(connSecretsRevealed == devMode,
 		fmt.Sprintf("connection secrets revealed only in dev mode (revealed=%v)", connSecretsRevealed))
+}
+
+func (s *smokeState) labgraphScenario() {
+	s.step("labgraph scenario: empty default is a no-op (no reset-all)")
+
+	graphPort := s.r.Prof.Get("LABGRAPH_PORT", "18091")
+	s.check(waitHealthy("http://127.0.0.1:"+graphPort+"/v1/health/ready", 10*time.Second) == nil,
+		"labgraph /v1/health/ready")
+
+	listOut, err := s.invoke("labgraph__scenario_list", "{}")
+	var names []string
+	if err == nil {
+		err = json.Unmarshal([]byte(listOut), &names)
+	}
+	s.check(err == nil && containsString(names, "default"), "scenario_list includes default")
+
+	getOut, err := s.invoke("labgraph__scenario_get", `{"name":"default"}`)
+	var got struct {
+		Name string `json:"name"`
+	}
+	if err == nil {
+		err = json.Unmarshal([]byte(getOut), &got)
+	}
+	s.check(err == nil && got.Name == "default", "scenario_get default")
+
+	for _, tool := range []string{"labgraph__scenario_validate", "labgraph__scenario_plan", "labgraph__scenario_apply"} {
+		out, err := s.invoke(tool, `{"name":"default"}`)
+		var res struct {
+			OK   bool   `json:"ok"`
+			Name string `json:"name"`
+		}
+		if err == nil {
+			err = json.Unmarshal([]byte(out), &res)
+		}
+		s.check(err == nil && res.OK && res.Name == "default", tool+" empty default is a no-op")
+	}
+
+	stOut, err := s.invoke("labgraph__scenario_status", `{"name":"default"}`)
+	var st struct {
+		Name string `json:"name"`
+	}
+	if err == nil {
+		err = json.Unmarshal([]byte(stOut), &st)
+	}
+	s.check(err == nil && st.Name == "default", "scenario_status default")
+}
+
+func containsString(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }
 
 // devCatalogScenario runs only when LAB_DEV_MODE is on so default-profile
@@ -722,6 +787,7 @@ func catalogFileExpects(doc *DevCredentials) []catalogFileExpect {
 		{"spec.tokens.labinfo", "secrets/labinfo-token", doc.Spec.Tokens.Labinfo, ""},
 		{"spec.tokens.labmail", "secrets/labmail-token", doc.Spec.Tokens.Labmail, ""},
 		{"spec.tokens.labmitm", "secrets/labmitm-token", doc.Spec.Tokens.LabMITM, ""},
+		{"spec.tokens.labgraph", "secrets/labgraph-token", doc.Spec.Tokens.Labgraph, ""},
 		{"spec.tokens.mcpClient", "secrets/mcp-client-token", doc.Spec.Tokens.MCPClient, ""},
 		{"spec.tokens.labldapAdmin", ll + "token-admin", doc.Spec.Tokens.LabLDAPAdmin, ""},
 		{"spec.tokens.labtacacsAdmin", ts + "api_admin_token", doc.Spec.Tokens.LabTacacsAdmin, ""},

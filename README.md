@@ -39,7 +39,7 @@ This is laboratory software. It is not a production identity or mail system.
 git clone https://github.com/hilather/mcp-integration-lab.git
 cd mcp-integration-lab
 make up      # vendor, secrets, images, start, register
-make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail / LabMITM through the gateway
+make smoke   # DNS / LDAP / NFS / TACACS+ / RADIUS / mail / LabMITM / labgraph through the gateway
 ```
 
 Needs Docker Engine 24+ with Compose v2.24.4+, GNU make, and Go 1.26+. First run vendors the service repos and builds images; later runs reuse them.
@@ -91,6 +91,7 @@ flowchart LR
     Mail[LabMail]
     MITM[LabMITM]
     Info[labinfo]
+    Graph[labgraph]
   end
   subgraph labldap [compose project labldap]
     Control[control plane :8443]
@@ -105,6 +106,7 @@ flowchart LR
   Jungle --> Taclab
   Jungle --> Mail
   Jungle --> MITM
+  Jungle --> Graph
   Control --> Dir
   Testers[integration testers] -->|DNS LDAP NFS TACACS+ RADIUS SMTP HTTP-proxy| mcplab
   Testers --> labldap
@@ -124,6 +126,8 @@ profiles/<name>/
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
+  labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
+  scenarios/*.yaml         LabScenario files (empty default is a no-op)
   mcpjungle/servers/*.json gateway registrations
   mcpjungle/groups/        curated tool groups
 ```
@@ -181,7 +185,7 @@ Configuration reference with every variable and a working snippet for each servi
 | `make test` | `go vet` + unit/regression tests for the CLI |
 
 `APP` is one of `labdns`, `maildev`, `nfs`, `labinfo`, `mcpjungle`, `labldap`,
-`labtacacs`, `labmitm`. Use this after editing that service's YAML or bumping its image.
+`labtacacs`, `labmitm`, `labgraph`. Use this after editing that service's YAML or bumping its image.
 Gateway reload (`APP=mcpjungle`) also re-runs `make register` because
 registration SQLite is tmpfs. `make labldap-up` / `make labtacacs-up` remain
 idempotent bring-up of those compose projects.

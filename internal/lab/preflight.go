@@ -23,6 +23,7 @@ var preflightKeys = []string{
 	"LABMITM_PROXY_PORT",
 	"LABMITM_WEB_PORT",
 	"LABINFO_PORT",
+	"LABGRAPH_PORT",
 	"LAB_DEV_MODE",
 	"MCPJUNGLE_MODE",
 	"LAB_DOCKER_SUBNET",
@@ -38,6 +39,7 @@ func (r *Runner) Preflight() error {
 		return fmt.Errorf("preflight failed: %w", err)
 	}
 	r.warnLabmitmOrigin()
+	r.warnLabgraphOrigin()
 	return r.preflightPortsAvailable()
 }
 
@@ -79,6 +81,36 @@ func (r *Runner) warnLabmitmOrigin() {
 	}
 	webPort := r.Prof.Get("LABMITM_WEB_PORT", "18088")
 	fmt.Printf("warning: LAB_PUBLIC_HOST=%s is not loopback; add http://%s:%s to\nlabmitm originAllowlist or the inspector SPA will 403 /v1\n",
+		host, host, webPort)
+}
+
+// warnLabgraphOrigin is the same class as warnLabmitmOrigin: warn, never error.
+func (r *Runner) warnLabgraphOrigin() {
+	host := strings.TrimSpace(r.Prof.Get("LAB_PUBLIC_HOST", "localhost"))
+	if isLoopbackPublicHost(host) {
+		return
+	}
+	path := filepath.Join(r.Prof.Dir, "labgraph", "bootstrap.yaml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var doc struct {
+		Spec struct {
+			Management struct {
+				OriginAllowlist []string `yaml:"originAllowlist"`
+			} `yaml:"management"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		fmt.Printf("warning: labgraph/bootstrap.yaml: %v\n", err)
+		return
+	}
+	if len(doc.Spec.Management.OriginAllowlist) > 0 {
+		return
+	}
+	webPort := r.Prof.Get("LABGRAPH_PORT", "18091")
+	fmt.Printf("warning: LAB_PUBLIC_HOST=%s is not loopback; add http://%s:%s to\nlabgraph originAllowlist or the operator SPA will 403 /v1\n",
 		host, host, webPort)
 }
 

@@ -1,0 +1,7 @@
+# Empty/no-op LabScenario so labgraph is always-on and make smoke stays green.
+# Omitted appliance keys leave those appliances alone.
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: default
+spec: {}

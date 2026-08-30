@@ -84,7 +84,7 @@
                                       │
                  ┌────────────────────┼────────────────────┐
                  │  compose mcplab    │                    │
-                 │   labdns  labinfo  LabMail  labmitm  ratarmount  │
+                 │   labdns  labinfo  LabMail  labmitm  labgraph  ratarmount  │
                  └──────────┬─────────┴─────────┬──────────┘
                             │                   │
                  compose labldap         compose labtacacs
@@ -110,6 +110,7 @@
           <li>TacLab <code>v1.5.0</code> — MCP pin relaxed with the upstream <code>allow_legacy_clients</code> knob. In <code>LAB_DEV_MODE=true</code>, first mint and pin-bump pass <code>labgen -secrets-from</code> so Argon2id is labgen-minted; catalog-only enter-dev still post-processes after <code>labgen</code> (<code>ApplyDevSecrets</code>; no PKI wipe). Leave-dev is <code>labgen -force</code> without the flag. The flag does not replace <code>EnableLegacyClientsDir</code>. Dev mode does not patch the vendor.</li>
           <li>LabMail <code>v1.0.0-rc.4</code> — MCP pin relaxed with <code>allowLegacyClients: true</code> in <code>labmail/bootstrap.yaml</code>. Default <code>originAllowlist: ["*"]</code> for remote inbox JS. Compose service name stays <code>maildev</code>.</li>
           <li>LabMITM <code>v1.6.0</code> — MCP <code>http://labmitm:8088/mcp</code>. Compose must pass <code>--management-listen=:8088</code>. Unauthenticated data plane; intercept <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Overlay writes <code>httpAuth.enabled: false</code> and 1.2 nested flags present-and-off. Native <code>/v1</code> catalog 31 (includes <code>features.get</code>); <code>GET /v1/features</code> / MCP <code>mitm_features_list</code> is the 11-row hop/accept catalog. Exact Origins (no <code>"*"</code>). Token 0o644. No local patch. <code>make reload APP=labmitm</code> does not re-register.</li>
+          <li>labgraph (first-party) — LabScenario orchestrator on <code>LABGRAPH_PORT</code> 18091. REST + MCP + SPA. Native fan-out DNS → MITM → mail → LDAP → TacLab. Empty default scenario is a no-op. Jenkins is not in the integrator. <code>make reload APP=labgraph</code> drops the in-memory journal.</li>
           <li>ratarmount-rs <code>v0.1.28</code> — NFSv3 export; NFSv4.1 is packaged but not enabled. Persist still copies the compressed prefix; remount uses the patched sidecar and does not rescan prefix frames.</li>
         </ul>
         <p class="note">Full write-up, mermaid topology, and the OAuth plan: <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/architecture.md">docs/architecture.md</a>. Configure a profile: <a href="configure.html">Configure</a>.</p>

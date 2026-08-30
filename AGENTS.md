@@ -1,7 +1,7 @@
 # Agent guide — MCP Integration Lab
 
 This repo orchestrates AI-ready lab services (DNS, LDAP, TACACS+/RADIUS,
-mail, NFS, HTTP intercept) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
+mail, NFS, HTTP intercept, LabScenario orchestration) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
 and gateway policy; the services themselves are vendored. These are the rules
 we work by.
 
@@ -170,7 +170,7 @@ we work by.
       PR): DNS 10053 → native 53; LDAP 3389/3636 → 389/636; SMTP 1025 →
       25; NFS 20490 → 2049. TacLab 49/300/1812/1813 already native.
       Management ports stay high (18080, 18088, 18049, 8080, 8443, 1080,
-      18090). Port remaps are follow-on PRs per service, with preflight
+      18090, 18091). Port remaps are follow-on PRs per service, with preflight
       errors, tests, labinfo dest-port, Pages. Do not invent
       10053-as-design.
 
@@ -180,8 +180,10 @@ we work by.
 - `cmd/mcplab`, `internal/` — orchestration CLI + tests
 - `cmd/labinfo`, `internal/labinfo` — first-party service-directory MCP
   service (rule 9); built by `docker/labinfo/`
+- `cmd/labgraph`, `internal/labgraph` — first-party LabScenario orchestrator
+  (REST + MCP + SPA); built by `docker/labgraph/`
 - `docker-compose.yaml` — main project (gateway, LabDNS, LabMail as compose
-  service `maildev`, LabMITM, NFS, labinfo); MCPJungle image is
+  service `maildev`, LabMITM, NFS, labinfo, labgraph); MCPJungle image is
   `ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}` (gateway +
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
@@ -377,8 +379,23 @@ PR. Keystone runs a Thursday drift check.
   `make up` / `make register` refresh the tool list). Preflight warns
   (never errors) when `LAB_PUBLIC_HOST` is not loopback and
   `originAllowlist` is empty.
+- labgraph is first-party orchestration (catalog id `labgraph`, host
+  `LABGRAPH_PORT` 18091). It fans out LabScenario YAML to native
+  appliance APIs; it does not invent LDAP/TacLab file-level apply.
+  Apply order is DNS → MITM → mail → LDAP → TacLab. Partial failure
+  stops with no auto-rollback. Empty `profiles/<name>/scenarios/default.yaml`
+  is a no-op so smoke stays green. Do **not** smoke reset-all (omit
+  appliances = all five). CLI `mcplab scenario` is an HTTP client of
+  labgraph (`secrets/labgraph-token`), not a second fan-out. Scratch
+  has no CA: the LDAP client loads `/run/lab-secrets/labldap-ca.crt`
+  into `RootCAs`. Token file is 0o644. Journal is process memory;
+  `make reload APP=labgraph` drops it. Origin allowlist is exact
+  Origins (loopback implicit; no `"*"`). Preflight warns when
+  `LAB_PUBLIC_HOST` is not loopback and the list is empty. Jenkins
+  is not in the integrator. Mira review of the SPA is scheduled via
+  Keystone after merge.
 - Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
-  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm). It is
+  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph). It is
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,

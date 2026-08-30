@@ -248,6 +248,13 @@ func TestServiceExistsKnowsLabMITM(t *testing.T) {
 	}
 }
 
+func TestServiceExistsKnowsLabgraph(t *testing.T) {
+	_, err := (&Runner{}).serviceExists("labgraph")
+	if err != nil && strings.Contains(err.Error(), `unknown service "labgraph"`) {
+		t.Fatal(`serviceExists must inspect main compose labgraph`)
+	}
+}
+
 func TestSecretsDevWritesCatalog(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
 	if err := r.Secrets(); err != nil {
@@ -258,6 +265,7 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 		"secrets/labinfo-token":                             "lab-dev-labinfo-token",
 		"secrets/labmail-token":                             "lab-dev-labmail-token-32b-minimum",
 		"secrets/labmitm-token":                             "lab-dev-labmitm-token-32b-minimum",
+		"secrets/labgraph-token":                            "lab-dev-labgraph-token",
 		"secrets/mcp-client-token":                          "lab-dev-mcp-client-token",
 		"secrets/maildev-web-password":                      "lab-dev-mail-admin-1",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":   "lab-dev-labldap-token-admin",
@@ -296,6 +304,7 @@ func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 		"secrets/labinfo-token",
 		"secrets/labmail-token",
 		"secrets/labmitm-token",
+		"secrets/labgraph-token",
 		"secrets/mcp-client-token",
 		"secrets/maildev-web-password",
 	} {
@@ -437,7 +446,7 @@ func TestSecretsTokenAdminChangeFlagsRegister(t *testing.T) {
 	if err := os.WriteFile(admin, []byte("stale-admin-token\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	exists := map[string]bool{"labldap": true, "mcpjungle": true, "labdns": true}
+	exists := map[string]bool{"labldap": true, "mcpjungle": true, "labdns": true, "labgraph": true}
 	installTestSecretsDeps(r, exists)
 	var registered, labldap, gateway bool
 	var mains []string
@@ -470,8 +479,16 @@ func TestSecretsTokenAdminChangeFlagsRegister(t *testing.T) {
 	if !labldap {
 		t.Fatal("expected reloadLabLDAP")
 	}
+	foundGraph := false
 	for _, s := range mains {
+		if s == "labgraph" {
+			foundGraph = true
+			continue
+		}
 		t.Errorf("unexpected main reload %s", s)
+	}
+	if !foundGraph {
+		t.Fatal("token-admin change must reload labgraph (appliance token copy)")
 	}
 }
 
@@ -616,6 +633,47 @@ func TestSecretsLeaveDevKeepsMarkerIfComposePsFails(t *testing.T) {
 	}
 	if _, statErr := os.Stat(r.path(devModeMarkerRel)); statErr != nil {
 		t.Fatalf("marker must remain when inspect fails: %v", statErr)
+	}
+}
+
+func TestApplySecretReloadsLabgraphOnLeaveDev(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	installTestSecretsDeps(r, map[string]bool{"labgraph": true})
+	var mains []string
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+	if err := r.applySecretReloads(secretChanges{}, true); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, s := range mains {
+		if s == "labgraph" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("leave-dev must reload labgraph; mains=%v", mains)
+	}
+}
+
+func TestApplySecretReloadsLabgraphOnLabdnsTokenOnly(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	installTestSecretsDeps(r, map[string]bool{"labgraph": true, "labdns": true})
+	var mains []string
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+	if err := r.applySecretReloads(secretChanges{labdnsToken: true}, false); err != nil {
+		t.Fatal(err)
+	}
+	foundDNS, foundGraph := false, false
+	for _, s := range mains {
+		switch s {
+		case "labdns":
+			foundDNS = true
+		case "labgraph":
+			foundGraph = true
+		}
+	}
+	if !foundDNS || !foundGraph {
+		t.Fatalf("labdns-token-only must bounce labdns and labgraph; mains=%v", mains)
 	}
 }
 
@@ -778,14 +836,20 @@ func TestSecretsTaclabTokenChangeFlagsRegister(t *testing.T) {
 	if err := os.WriteFile(token, []byte("stale-taclab-token"), 0o444); err != nil {
 		t.Fatal(err)
 	}
-	exists := map[string]bool{"labtacacs": true, "mcpjungle": true}
+	exists := map[string]bool{"labtacacs": true, "mcpjungle": true, "labgraph": true}
 	installTestSecretsDeps(r, exists)
-	var registered, gateway, labtacacs bool
+	var registered, gateway, labtacacs, graph bool
 	r.deps.register = func() error { registered = true; return nil }
 	r.deps.reloadGateway = func() error { gateway = true; return nil }
 	r.deps.reloadLabTacacs = func() error { labtacacs = true; return nil }
 	r.deps.reloadLabLDAP = func() error { t.Fatal("unexpected labldap reload"); return nil }
-	r.deps.reloadMain = func(string) error { t.Fatal("unexpected main reload"); return nil }
+	r.deps.reloadMain = func(s string) error {
+		if s != "labgraph" {
+			t.Fatalf("unexpected main reload %s", s)
+		}
+		graph = true
+		return nil
+	}
 
 	if err := r.Secrets(); err != nil {
 		t.Fatal(err)
@@ -801,6 +865,9 @@ func TestSecretsTaclabTokenChangeFlagsRegister(t *testing.T) {
 	}
 	if !r.alreadyReloaded("register") || !registered {
 		t.Fatal("api_admin_token change must Register() (LABTACACS_TOKEN)")
+	}
+	if !graph {
+		t.Fatal("api_admin_token change must reload labgraph")
 	}
 }
 
@@ -1404,6 +1471,7 @@ func writeStageSources(r *Runner, withOptionalCerts bool) error {
 		"secrets/labmail-token":                                               "mail-token\n",
 		"secrets/maildev-web-password":                                        "mail-pass\n",
 		"secrets/labmitm-token":                                               "mitm-token\n",
+		"secrets/labgraph-token":                                              "graph-token\n",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "ldap-admin\n",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "alice-pw\n",
 		"third_party/go-lab-ldap-mcp/secrets/tls/ca.crt":                      "-----BEGIN CERTIFICATE-----\nLABCA\n-----END CERTIFICATE-----\n",

@@ -82,6 +82,7 @@ func TestCredsPrintsStagedFilesAndHost(t *testing.T) {
 		"bind-password-alice=lab-dev-alice-12",
 		"labdns-token=lab-dev-labdns-token",
 		"labmitm-token=lab-dev-labmitm-token-32b-minimum",
+		"labgraph-token=lab-dev-labgraph-token",
 		"mcp-client-token=lab-dev-mcp-client-token",
 		"maildev-web-password=lab-dev-mail-admin-1",
 		"labmail-token=lab-dev-labmail-token-32b-minimum",

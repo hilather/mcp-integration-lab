@@ -21,10 +21,12 @@ Usage: mcplab <command> [args]
   reset          down -v for all compose projects: wipe all runtime state
   register       (re)apply gateway config from the active profile
   preflight      fail fast on profile drift and unavailable host ports
-  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM scenario through the gateway
+  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM/labgraph scenario through the gateway
                  (dev mode also asserts catalog values on the wire)
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
-                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm
+                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph
+  scenario       validate|plan|apply|reset [name] [--appliances=a,b]
+                 HTTP client of labgraph (secrets/labgraph-token). Default name: default.
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
   secrets        generate or reconcile tokens/passwords (mode-aware); ensure LabLDAP TLS SANs; reload running apps
@@ -61,6 +63,14 @@ func main() {
 		}
 		if err := r.Reload(os.Args[2]); err != nil {
 			fmt.Fprintf(os.Stderr, "mcplab reload: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if cmd == "scenario" {
+		if err := r.Scenario(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "mcplab scenario: %v\n", err)
 			os.Exit(1)
 		}
 		return

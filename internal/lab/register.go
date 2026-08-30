@@ -106,6 +106,9 @@ func (r *Runner) loadTokens() (map[string]string, error) {
 	if out["labmitm"], err = read("secrets/labmitm-token"); err != nil {
 		return nil, err
 	}
+	if out["labgraph"], err = read("secrets/labgraph-token"); err != nil {
+		return nil, err
+	}
 	if out["client"], err = read("secrets/mcp-client-token"); err != nil {
 		return nil, err
 	}
@@ -122,6 +125,7 @@ func (r *Runner) registrarEnv(tokens map[string]string) []string {
 		"LABINFO_TOKEN="+tokens["labinfo"],
 		"LABMAIL_TOKEN="+tokens["labmail"],
 		"LABMITM_TOKEN="+tokens["labmitm"],
+		"LABGRAPH_TOKEN="+tokens["labgraph"],
 		"MCP_CLIENT_TOKEN="+tokens["client"],
 	)
 }

@@ -266,3 +266,33 @@ services:
         - name: labmitm-token
           file: /run/lab-secrets/labmitm-token
           usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labmitm-token"
+
+  - id: labgraph
+    name: LabScenario orchestrator (labgraph)
+    description: Applies LabScenario YAML across appliances via native plan/apply/reset. Operator console at /, REST under /v1, MCP under /mcp. Omitted appliances are left alone. LabLDAP and TacLab have no native file-level apply.
+    urls:
+      - name: Operator console
+        url: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/
+      - name: REST API
+        url: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/mcp
+    credential:
+      file: /run/lab-secrets/labgraph-token
+      usage: "HTTP header 'Authorization: Bearer <token>' for native /v1, MCP, and the operator console; on the lab host: secrets/labgraph-token"
+    connection:
+      endpoints:
+        - name: MCP (streamable HTTP)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/mcp
+          note: bearer; gateway interpolates LABGRAPH_TOKEN; allowLegacyClients for MCPJungle
+        - name: REST
+          protocol: http
+          address: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/v1
+      parameters:
+        auth: "bearer on /v1 and /mcp; SPA uses cookie + CSRF after POST /v1/session"
+        applyOrder: "labdns → labmitm → maildev → labldap → labtacacs"
+      credentials:
+        - name: labgraph-token
+          file: /run/lab-secrets/labgraph-token
+          usage: "HTTP header 'Authorization: Bearer <token>' for REST and MCP; on the lab host: secrets/labgraph-token"
