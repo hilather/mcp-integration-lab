@@ -32,9 +32,10 @@ changes since the previous one (AGENTS.md rule 13).
   created on first `make up` instead of fail-closing (GH-hosted
   `smoke-dev` inspect text).
 - Port preflight treats vendored TacLab `container_name: taclab` as a
-  lab holder and finds UDP publishes by parsing `docker ps` Ports
-  (`:N->`). `Register` after `LabTacacsUp` no longer fail-closes on
-  TacLab 49/300/18049/2083 or RADIUS 1812/1813/3799.
+  lab holder and attributes publishes from `HostConfig.PortBindings`
+  (TCP and UDP). `docker ps` Ports / `--filter publish=` omit RADIUS
+  UDP on GH-hosted Engine, so `Register` after `LabTacacsUp` no longer
+  fail-closes on 1812/1813 (or 49/300/18049/2083).
 - Dev-mode `mcplab secrets` now marks enter-dev reloads pending before
   writing the catalog or running setupsecrets/labgen. A crash after
   files land no longer leaves `reloads=done`; retry still reloads

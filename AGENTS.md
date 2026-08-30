@@ -220,9 +220,10 @@ we work by.
   them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight
   unless the holder is a lab container (`mcplab-` / `labldap-` /
   `labtacacs-` prefixes, or exact vendored `container_name` `taclab`).
-  Find UDP publishes by parsing `docker ps` Ports (`:N->`); `--filter
-  publish=` misses RADIUS 1812/1813/3799, and `Register` re-runs this
-  check after `LabTacacsUp`.
+  Attribute publishes from `docker inspect` `HostConfig.PortBindings`
+  (UDP included). `docker ps` Ports and `--filter publish=` omit RADIUS
+  1812/1813 on GH-hosted Engine; `Register` re-runs this check after
+  `LabTacacsUp`.
   Docker/host feature knobs are the same class of preflight (rule 15): fail
   closed with the configuration change in the error. LabNTP is not in
   compose yet — do not add a `userland-proxy` probe in Go until that
