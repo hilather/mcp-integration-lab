@@ -63,6 +63,16 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 	if !strings.Contains(raw, "lab-owned copy") || !strings.Contains(raw, "do not recopy from the upstream examples tree") {
 		t.Fatal("bootstrap header must say lab-owned copy; do not recopy from the upstream examples tree")
 	}
+	for _, stale := range []string{
+		"KnownFields on a v1.1.1",
+		"omit spec.proxy.httpAuth",
+		"must stay omitted",
+		"httpAuth must stay omitted",
+	} {
+		if strings.Contains(raw, stale) {
+			t.Fatalf("bootstrap must not keep stale omit wording %q", stale)
+		}
+	}
 	var doc struct {
 		APIVersion string `yaml:"apiVersion"`
 		Kind       string `yaml:"kind"`
@@ -139,60 +149,8 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 		t.Fatalf("originAllowlist = %v, want empty", doc.Spec.Management.OriginAllowlist)
 	}
 
-	// KnownFields on a v1.1.1 image reject 1.2/1.4 keys — even enabled:false.
-	// Decode the mapping so omit is distinguishable from a zero-value bool.
-	var root map[string]any
-	if err := yaml.Unmarshal(b, &root); err != nil {
+	if err := requireLabMITM15Knobs(b); err != nil {
 		t.Fatal(err)
-	}
-	spec, _ := root["spec"].(map[string]any)
-	if spec == nil {
-		t.Fatal("spec missing")
-	}
-	proxy, _ := spec["proxy"].(map[string]any)
-	if proxy == nil {
-		t.Fatal("spec.proxy missing")
-	}
-	if _, ok := proxy["httpAuth"]; ok {
-		t.Fatal("spec.proxy.httpAuth must stay omitted (not enabled: false)")
-	}
-	unknownKeys := []string{
-		"httpAuth", "inspectFrames", "acceptBind", "acceptUDPAssociate",
-		"acceptUserPass", "userPass", "clientCleartext",
-		"acceptSOCKS5", "acceptSOCKS4", "originalDestination", "flowREST",
-	}
-	visitYAMLMapping(spec, func(key string, val any) {
-		for _, k := range unknownKeys {
-			if key == k {
-				t.Errorf("1.2/1.4 key %q must stay omitted, got %#v", key, val)
-			}
-		}
-	})
-	rules, _ := spec["rules"].(map[string]any)
-	if rules == nil {
-		t.Fatal("spec.rules missing")
-	}
-	enabled, ok := rules["enabled"].(bool)
-	if !ok || enabled {
-		t.Fatalf("spec.rules.enabled = %#v, want false", rules["enabled"])
-	}
-	items, _ := rules["items"].([]any)
-	if len(items) != 0 {
-		t.Fatalf("rules.items = %#v, want empty", items)
-	}
-}
-
-func visitYAMLMapping(v any, visit func(key string, val any)) {
-	switch t := v.(type) {
-	case map[string]any:
-		for k, child := range t {
-			visit(k, child)
-			visitYAMLMapping(child, visit)
-		}
-	case []any:
-		for _, child := range t {
-			visitYAMLMapping(child, visit)
-		}
 	}
 }
 
@@ -248,6 +206,9 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	}
 	if !bytes.Contains(env, []byte("LAB_DEV_MODE=false")) {
 		t.Fatal("default profile must keep LAB_DEV_MODE=false")
+	}
+	if !bytes.Contains(env, []byte("LAB_DOCKER_SUBNET=10.99.42.0/24")) {
+		t.Fatal("default profile must pin LAB_DOCKER_SUBNET to a /24")
 	}
 	for _, line := range strings.Split(string(env), "\n") {
 		line = strings.TrimSpace(line)

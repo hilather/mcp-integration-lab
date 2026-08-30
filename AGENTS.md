@@ -54,9 +54,10 @@ residual. Prove with `jenkins-mcp login --oidc` (see
    smoke` is the end-to-end acceptance gate — all checks green.
 5. **Every service is externally exposed on purpose.** Data planes and
    REST/management planes publish on all interfaces so remote systems can
-   test against the lab; host ports are profile-defined, container-internal
-   ports are irrelevant. Don't bind new services to loopback; do give them
-   bearer/TLS auth like the existing ones.
+   test against the lab; host ports are profile-defined (IANA/native dests
+   for protocol data planes — rule 15), and container listen ports are
+   unprivileged and irrelevant to consumers. Don't bind new services to
+   loopback; do give them bearer/TLS auth like the existing ones.
 6. **Never commit generated/runtime secrets.** `secrets/` and
    `third_party/*/secrets/` are produced by `mcplab secrets` and gitignored.
    Documented lab-only values in `profiles/<name>/dev-credentials.yaml` are
@@ -99,7 +100,9 @@ residual. Prove with `jenkins-mcp login --oidc` (see
  including the LabLDAP CA PEM, TacLab lab-user passwords, and the TACACS+
  shared secret), and reconciles secret files from that profile's
  `dev-credentials.yaml` (no merge with `default`; fail-closed if the
- catalog is missing). `mcplab creds` / `make creds` prints the same sheet
+ catalog is missing). LabMail and LabMITM tokens must be ≥32 bytes
+ (`auth.MinTokenBytes`); Validate fail-closes so a short catalog cannot
+ crash-loop `maildev`/`labmitm`. `mcplab creds` / `make creds` prints the same sheet
  from files on disk (fails closed outside dev; never prints TLS private
  keys). `false` (default) hardens the gateway (enterprise: client tokens +
  ACLs), labinfo only describes how auth works, and minting stays
@@ -111,7 +114,7 @@ residual. Prove with `jenkins-mcp login --oidc` (see
 11. **The mail sink never sends mail.** Compose service name and labinfo
     catalog id stay `maildev` for the swap release (rename later, not in
     the image-pin change). The image is LabMail (`go-lab-maildev`, pinned
-    `v1.0.0-rc.3`). Desired state is
+    `v1.0.0-rc.4`). Desired state is
     `profiles/<name>/labmail/bootstrap.yaml` (`labmail.dev/v1alpha1`).
     Receive-only is structural in LabMail: no outbound SMTP, reserved-key
     reject, `POST /email/:id/relay` is 403. `internal/maildev` fail-closes
@@ -147,6 +150,52 @@ residual. Prove with `jenkins-mcp login --oidc` (see
     otherwise. The fix must include hardening: a regression test, a
     fail-closed guard, a health/wait condition, or a doc'd quirk here, so the
     same class of failure is caught earlier or can't recur silently.
+15. **Native host ports.** Protocol data planes SUTs already speak use the
+    IANA/standard dest on the **host**: DNS 53, NTP 123, LDAP 389 / LDAPS
+    636, SMTP 25, TACACS+ 49 / 300, RADIUS 1812/1813, NFS 2049. Container
+    listen ports are unprivileged and irrelevant to consumers (compose maps
+    host:container). Management/control planes stay high ports (collision
+    with the gateway and with each other is fine).
+    - LabMITM is a **forward proxy** (SUT sets `HTTP_PROXY`), not an IANA
+      dest-443 service. Do not move `LABMITM_PROXY_PORT` to 443. HTTPS
+      intercept of CONNECT `:443` stays inside the proxy. NFS userspace
+      2049 is native when remapped; 20490 today is residual.
+    - Operator escape (non-native host port) is allowed in `profile.env`
+      when preflight cannot free the IANA port; it is an escape, not the
+      default policy.
+    - **Preflight host occupancy** (already in `internal/lab/ports.go`):
+      every published host port. `EACCES` / `EPERM` is NOT occupied
+      (TacLab 49; dockerd can publish). Occupancy is `/proc/net` TCP
+      LISTEN / UDP bound. Fail closed if a non-lab process holds the port.
+    - **Preflight Docker/host feature knobs.** When a lab feature depends
+      on a Docker daemon or host setting (example: LabNTP per-IP views
+      need published UDP source IPs → `userland-proxy: false`), add a
+      preflight that fails closed **with the configuration change in the
+      error**. Do not boot a lab that pretends the feature works. Do
+      **not** enable a LabNTP userland-proxy check in Go until LabNTP is
+      in compose — document the rule so that integrator slice implements
+      it.
+    - **Error messages must name the fix.** Normative copy for when those
+      checks exist:
+      - DNS 53 held by systemd-resolved: stop/disable resolved **or**
+        extra IP for `LAB_PUBLIC_HOST` **or** escape `LABDNS_DNS_PORT`
+        (SUTs that cannot set dest port cannot follow the escape).
+      - NTP 123 held by systemd-timesyncd: stop/disable timesyncd (lab
+        host clock may drift; LabNTP never settimeofday) **or** extra IP
+        **or** escape `LABNTP_NTP_PORT=10123` (timesyncd/W32Time cannot).
+      - `userland-proxy` true: `/etc/docker/daemon.json`
+        `{"userland-proxy": false}` then `systemctl restart docker`.
+      - Docker Desktop / VM NAT cannot preserve UDP source: Linux dockerd
+        + `userland-proxy` false, or macvlan/ipvlan. Do not start that
+        feature there.
+    - **Today's default profile is residual**, not a second policy.
+      Residuals (do not change these numbers until the per-service remap
+      PR): DNS 10053 → native 53; LDAP 3389/3636 → 389/636; SMTP 1025 →
+      25; NFS 20490 → 2049. TacLab 49/300/1812/1813 already native.
+      Management ports stay high (18080, 18088, 18049, 8080, 8443, 1080,
+      18090). Port remaps are follow-on PRs per service, with preflight
+      errors, tests, labinfo dest-port, Pages. Do not invent
+      10053-as-design.
 
 ## Layout
 
@@ -161,8 +210,8 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   LabLDAP, TacLab, and opt-in LabJenkins compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags (and the go-jenkins-mcp commit pin) are in
-  `internal/lab/vendor.go` (LabDNS `v1.2.0`, LabLDAP `v0.4.1`, TacLab
-  `v1.4.0`, LabMail `v1.0.0-rc.3`, LabMITM `v1.4.0`, go-jenkins-mcp
+  `internal/lab/vendor.go` (LabDNS `v1.3.0`, LabLDAP `v0.5.0`, TacLab
+  `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.5.0`, go-jenkins-mcp
   `a225ef47013f034432e45403499e7b016fe647a7`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
@@ -176,8 +225,12 @@ residual. Prove with `jenkins-mcp login --oidc` (see
 
 ## Known quirks (learned the hard way)
 
-- Host ports 53 and 5353 collide with systemd-resolved/avahi; that's why DNS
-  defaults to 10053.
+- Host ports 53 and 5353 collide with systemd-resolved/avahi on typical
+  Linux hosts. The default profile's `LABDNS_DNS_PORT=10053` is residual,
+  not the design (rule 15). Native dest is 53; remap is a follow-on PR
+  with preflight errors that name the fix (stop/disable resolved, extra
+  IP for `LAB_PUBLIC_HOST`, or operator escape). Do not invent
+  10053-as-design.
 - MCPJungle is pinned to **0.4.6** (`MCPJUNGLE_IMAGE_TAG`; compose default
   `:-0.4.6` if omitted). This lab’s default is 0.4.6, not upstream Compose
   `latest` / `latest-stdio`. Do not set `MCPJUNGLE_BIND_HOST` (unset = all
@@ -187,8 +240,22 @@ residual. Prove with `jenkins-mcp login --oidc` (see
 - Host-port preflight (`probePort`) must not treat `EACCES` / permission-denied
   as occupied. Default TacLab ports 49/300 are privileged; the GH-hosted
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.
-  `EADDRINUSE` still fails preflight.
-- LabDNS is pinned to **v1.2.0**. MCP is wired into `serve` upstream. Do
+  Occupancy is `/proc/net/tcp{,6}` LISTEN and `udp{,6}` bound (TCP dial
+  fallback if proc is missing) — do not skip those ports, and do not remap
+  them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight.
+  Docker/host feature knobs are the same class of preflight (rule 15): fail
+  closed with the configuration change in the error. LabNTP is not in
+  compose yet — do not add a `userland-proxy` probe in Go until that
+  integrator slice.
+- Docker user-defined networks without `--subnet` take a /16 from the daemon
+  default pool (~15 slots of 172.17–31). This lab used two (`mcplab-shared`
+  plus compose `mcplab_default`) and exhausted the pool on a busy host.
+  `EnsureNetwork` creates one `mcplab-shared` with `LAB_DOCKER_SUBNET`
+  (default `10.99.42.0/24`); the main compose `default` is that external
+  network. `make down` removes it when empty. A leftover /16 with endpoints
+  fail-closes (`make down` then `make up`). Do not leave compose `default:`
+  unconfigured.
+- LabDNS is pinned to **v1.3.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
   register (default pin is still `2026-07-28`). Operator console is
@@ -198,7 +265,7 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   names answer on management `resolve` / `explain` only — do not add them
   to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.
-- TacLab (pinned `v1.4.0`) still pins `2026-07-28` by default. Do **not**
+- TacLab (pinned `v1.5.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
@@ -210,7 +277,7 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   when `VerifyArgon2id` fails). PKI and YAML stay labgen's. Leave-dev is
   `labgen -force` without the flag (unlinks leftover YAML). Always
   EnableLegacyClientsDir.
-- LabMail (pinned `v1.0.0-rc.3`) also pins `2026-07-28`. Do **not** patch
+- LabMail (pinned `v1.0.0-rc.4`) also pins `2026-07-28`. Do **not** patch
   it: `profiles/<name>/labmail/bootstrap.yaml` sets
   `spec.management.mcp.allowLegacyClients: true`. Compose service name and
   labinfo catalog id stay `maildev`. Bind-mounted secrets
@@ -218,7 +285,7 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   so UID 65532 can read them — 0o600 was only safe while `MAILDEV_WEB_PASS`
   was env-injected. Healthcheck is HTTP `GET /v1/health/ready` (scratch has
   no `node`; ready still requires SMTP bound). Leftover
-  `maildev/maildev.yaml` is rejected by `internal/maildev`. rc.3 hashed
+  `maildev/maildev.yaml` is rejected by `internal/maildev`. rc.4 hashed
   inbox JS sends `Origin`; the default profile sets
   `originAllowlist: ["*"]` so remote browsers can load the SPA (bearer +
   Basic still required; CORS stays off). `"private"` is RFC1918+ULA only.
@@ -240,7 +307,7 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   committed. A failed directory recreate after a leaf rewrite leaves
   `.reload-pending` in that tls dir so the next `mcplab secrets` still
   reloads LabLDAP (SANs already matching is not enough).
-- LabLDAP is pinned to **v0.4.1**. Upstream `compose.yaml` is already
+- LabLDAP is pinned to **v0.5.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2
   `compose.native.yaml` alias. The overlay uses compose `!override` for
@@ -275,7 +342,7 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.4.0**. Desired state is
+- LabMITM is pinned to **v1.5.0**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
   **lab-owned overlay copy** — do not recopy from the upstream examples
   tree without reviewing `allowHosts`/Origins. Do **not** patch it:
@@ -285,10 +352,12 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   unbound. Bind-mounted `secrets/labmitm-token` must be **0o644** (UID
   65532). Management is bearer-only (no HTTP Basic); the HTTP/1.1 data
   plane is unauthenticated — do not publish without a network boundary.
-  Omit `spec.proxy.httpAuth` entirely (`enabled: false` still fails
-  KnownFields on a v1.1.1 image). 1.2 nested flags (inspectFrames, h2c,
-  BIND/UDP/user-pass, orig-dest) stay omitted (Reset-only). 1.4 rule
-  actions stay off (`rules.enabled: false`, no items). Native `/v1`
+  Write `spec.proxy.httpAuth.enabled: false` (legal on v1.5.0; do not
+  omit the key for a stale v1.1.1 KnownFields rule). 1.2 nested flags
+  (inspectFrames, h2c, BIND/UDP/user-pass, orig-dest) are present and
+  false (Reset-only). D22-carve hop gates `websocket` / `connect` /
+  `absoluteForm` stay on. 1.4 rule actions stay off (`rules.enabled:
+  false`, `items: []`). Native `/v1`
   catalog is 31 (includes `features.get`); `GET /v1/features` / MCP
   `mitm_features_list` is the frozen 11-row hop/accept catalog. Do not
   write “catalog 11” as the `/v1` surface. `allowHosts` is HTTP-useful
@@ -310,8 +379,10 @@ residual. Prove with `jenkins-mcp login --oidc` (see
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,
   profile switch, or first bring-up. After a catalog or `LAB_DEV_MODE`
   change, `mcplab secrets` is enough: it reloads running apps whose files
-  changed (and `Register()` if any registrarEnv token changed). `make up`
-  skips those names so they are not bounced twice.
+  changed (and `Register()` if any registrarEnv token changed). Enter-dev
+  arms `secrets/.lab-dev-mode` `reloads=pending` before catalog writes or
+  setupsecrets/labgen so a crash after files land still retries those
+  reloads. `make up` skips those names so they are not bounced twice.
 - Dev-mode smoke (`LAB_DEV_MODE=true` in the active `profile.env`) asserts
   catalog values on the wire: Alice's bind password, RADIUS Accept for
   catalog `taclabAdmin`, and `connections_list` secrets equal disk files.

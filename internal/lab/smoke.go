@@ -219,7 +219,7 @@ func (s *smokeState) nfsScenario() {
 		s.check(false, "build nfs client image: "+err.Error())
 		return
 	}
-	out, err := s.r.capture(".", "docker", "run", "--rm", "--privileged", "--network", "mcplab_default",
+	out, err := s.r.capture(".", "docker", "run", "--rm", "--privileged", "--network", sharedNetworkName,
 		"mcplab-nfs-client", "bash", "-c",
 		`mkdir -p /m && mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 nfs:/ /m >/dev/null 2>&1 && echo nfs-write-ok > /m/smoke-write.txt && cat /m/smoke-write.txt && umount /m`)
 	wrote := strings.TrimSpace(out)

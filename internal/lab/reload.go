@@ -93,6 +93,9 @@ func reloadMainArgs(service string) []string {
 }
 
 func (r *Runner) reloadMain(service string) error {
+	if err := r.EnsureNetwork(); err != nil {
+		return err
+	}
 	if service == "labinfo" && r.LabJenkinsEnabled() {
 		if err := r.applyLabJenkinsEnv(); err != nil {
 			return err

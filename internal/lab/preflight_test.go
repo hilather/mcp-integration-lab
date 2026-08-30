@@ -37,7 +37,7 @@ func TestPreflightKeysIncludesLabJenkins(t *testing.T) {
 }
 
 func TestPreflightKeysIncludesLabMITM(t *testing.T) {
-	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false}
+	want := map[string]bool{"LABMITM_PROXY_PORT": false, "LABMITM_WEB_PORT": false, "LAB_DOCKER_SUBNET": false}
 	for _, k := range preflightKeys {
 		if _, ok := want[k]; ok {
 			want[k] = true
@@ -142,6 +142,27 @@ func TestPreflightOKWhenLabmitmOriginAllowlistEmpty(t *testing.T) {
 	}
 	if !strings.Contains(out, "labmitm originAllowlist") {
 		t.Fatalf("warning missing originAllowlist: %q", out)
+	}
+}
+
+func TestPreflightFailsOnInvalidDockerSubnet(t *testing.T) {
+	root := t.TempDir()
+	writeProfileEnv(t, root, "LAB_DOCKER_SUBNET=10.99.42.0/16\n")
+	r := &Runner{
+		Prof: &profile.Profile{
+			Name: testProfileName,
+			Dir:  testProfileDir(root),
+			Values: map[string]string{
+				"LAB_DOCKER_SUBNET": "10.99.42.0/16",
+			},
+		},
+	}
+	err := r.Preflight()
+	if err == nil {
+		t.Fatal("Preflight() expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "LAB_DOCKER_SUBNET") {
+		t.Fatalf("Preflight() missing subnet in error: %v", err)
 	}
 }
 

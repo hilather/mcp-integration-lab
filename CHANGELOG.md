@@ -30,6 +30,57 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- Native host-port policy is written down (AGENTS.md rule 15,
+  architecture, configuration, Pages). Protocol data planes use IANA
+  dests on the host; today's default-profile numbers (DNS 10053, LDAP
+  3389/3636, SMTP 1025, NFS 20490) are residual, not a second policy.
+  Docker/host feature preflights (example: LabNTP + `userland-proxy`)
+  must fail closed with the configuration change in the error. No live
+  port remaps in this change.
+- Default LabMITM overlay now writes every 1.1–1.4 knob the pinned
+  v1.5.0 appliance understands (`spec.proxy.httpAuth.enabled: false`,
+  1.2 nested flags, orig-dest, hop/accept including D22-carve
+  websocket/connect/absoluteForm on). The stale v1.1.1 “omit these
+  keys or KnownFields fails” rule is gone. Pin stays v1.5.0.
+
+### Fixed
+
+- Dev-mode `mcplab secrets` now marks enter-dev reloads pending before
+  writing the catalog or running setupsecrets/labgen. A crash after
+  files land no longer leaves `reloads=done`; retry still reloads
+  running consumers so LDAP `/data` and gateway tokens cannot stay on
+  the previous catalog.
+- Dev-mode LabMail and LabMITM catalog tokens must be at least 32 bytes
+  (appliance `auth.MinTokenBytes`). The previous `lab-dev-labmail-token` /
+  `lab-dev-labmitm-token` values made those containers exit on serve, so
+  `make up --wait` reported them unhealthy. Catalog validate now
+  fail-closes on a short token the same way it does for a short Alice
+  password.
+
+## [0.11.0] - 2026-08-29
+
+### Fixed
+
+- Host-port preflight occupancy-checks privileged ports after `EACCES`
+  (`/proc/net` TCP LISTEN / UDP bound, TCP dial fallback) instead of
+  treating TacLab `49`/`300` as always free.
+- Lab docker networks no longer consume a /16 each from the daemon
+  default pool. `mcplab-shared` is created as `LAB_DOCKER_SUBNET`
+  (default `10.99.42.0/24`), and the main compose project joins that
+  network instead of allocating a second `mcplab_default` /16. `make
+  down` removes it when empty. A leftover /16 with endpoints needs
+  `make down` then `make up`.
+
+## [0.10.0] - 2026-08-29
+
+### Changed
+
+- Vendor pins: LabDNS **v1.3.0**, LabLDAP **v0.5.0**, TacLab **v1.5.0**,
+  LabMail **v1.0.0-rc.4**, LabMITM **v1.5.0**. Operator-console chrome;
+  TacLab also rehydrates cookie sessions via `GET /api/v1/session`;
+  LabMail adds `mail_message_read`. Stay on LabMail rc (not 1.0.0 GA).
+  MCPJungle **0.4.6** and ratarmount-rs **0.1.28** are unchanged. A pin
+  bump re-gens the TacLab labgen bundle; overlay ports stay the same.
 - Docs landing matches the approved mock: one topology, eight service
   cards in a four-column grid, client JSON in the hero
   (`http://<lab-host>:8080/mcp`) instead of the logo, primary CTA
@@ -42,13 +93,6 @@ changes since the previous one (AGENTS.md rule 13).
   architecture) share that chrome: landing footer line, current-page
   underline, catalog cards use the landing name/meta row (versions
   where a pin exists), no leftover inline type.
-
-### Fixed
-
-- GitHub Pages is still off (`has_pages: false`). The cloud token cannot
-  write Pages (`gh api` POST/PUT returned 403). Enable once with
-  **Settings → Pages → Deploy from a branch → `main` / `docs`** so
-  `https://hilather.github.io/mcp-integration-lab/` stops 404ing.
 
 ## [0.9.0] - 2026-08-29
 

@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hilather/mcp-integration-lab/internal/profile"
 )
@@ -118,29 +120,138 @@ func isPermissionDenied(err error) bool {
 }
 
 func probePort(proto portProto, port int) error {
-	addr := fmt.Sprintf("0.0.0.0:%d", port)
+	err := bindProbe(proto, port)
+	if err == nil {
+		return nil
+	}
+	if !isPermissionDenied(err) {
+		return err
+	}
+	// Unprivileged Listen on ports below ip_unprivileged_port_start
+	// (1024 on GitHub-hosted runners) returns EACCES even when nothing is
+	// bound. Dockerd still publishes those ports. Classify occupancy
+	// without requiring the current uid to bind — do not skip TacLab 49/300.
+	occupied, oerr := portOccupiedWithoutBind(proto, port)
+	if oerr != nil {
+		return oerr
+	}
+	if occupied {
+		return fmt.Errorf("%s port %d is in use", proto, port)
+	}
+	return nil
+}
+
+func bindProbe(proto portProto, port int) error {
+	addr := net.JoinHostPort("0.0.0.0", strconv.Itoa(port))
 	switch proto {
 	case portTCP:
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			if isPermissionDenied(err) {
-				return nil
-			}
 			return err
 		}
 		return ln.Close()
 	case portUDP:
 		conn, err := net.ListenPacket("udp", addr)
 		if err != nil {
-			if isPermissionDenied(err) {
-				return nil
-			}
 			return err
 		}
 		return conn.Close()
 	default:
 		return fmt.Errorf("unsupported protocol %q", proto)
 	}
+}
+
+var errNoProcNet = errors.New("no /proc/net tables")
+
+func portOccupiedWithoutBind(proto portProto, port int) (bool, error) {
+	occupied, err := linuxProcPortOccupied(proto, port)
+	if err == nil {
+		return occupied, nil
+	}
+	if !errors.Is(err, errNoProcNet) {
+		return false, err
+	}
+	if proto == portTCP {
+		return tcpDialOccupied(port)
+	}
+	// UDP and no /proc: cannot distinguish. Assume free so dockerd can bind.
+	return false, nil
+}
+
+func linuxProcPortOccupied(proto portProto, port int) (bool, error) {
+	var files []string
+	listenOnly := false
+	switch proto {
+	case portTCP:
+		files = []string{"/proc/net/tcp", "/proc/net/tcp6"}
+		listenOnly = true
+	case portUDP:
+		files = []string{"/proc/net/udp", "/proc/net/udp6"}
+	default:
+		return false, fmt.Errorf("unsupported protocol %q", proto)
+	}
+	sawTable := false
+	for _, path := range files {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return false, err
+		}
+		sawTable = true
+		if procNetHasBoundPort(string(b), port, listenOnly) {
+			return true, nil
+		}
+	}
+	if !sawTable {
+		return false, errNoProcNet
+	}
+	return false, nil
+}
+
+// tcpListenState is /proc/net/tcp st=0A (LISTEN). UDP sockets use 07
+// (CLOSE) when bound; occupancy is "any row with this local port".
+const tcpListenState = "0A"
+
+func procNetHasBoundPort(table string, port int, listenOnly bool) bool {
+	want := fmt.Sprintf("%04X", port)
+	for i, line := range strings.Split(table, "\n") {
+		if i == 0 {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 4 {
+			continue
+		}
+		local := fields[1]
+		colon := strings.LastIndex(local, ":")
+		if colon < 0 {
+			continue
+		}
+		if !strings.EqualFold(local[colon+1:], want) {
+			continue
+		}
+		if listenOnly && !strings.EqualFold(fields[3], tcpListenState) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+func tcpDialOccupied(port int) (bool, error) {
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), 250*time.Millisecond)
+	if err == nil {
+		_ = conn.Close()
+		return true, nil
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return false, nil
+	}
+	// Timeout or unexpected: fail closed so compose does not race a
+	// maybe-listener. Listen already told us this uid cannot bind.
+	return true, nil
 }
 
 var labContainerPrefixes = []string{"mcplab-", "labldap-", "labtacacs-", "labjenkins-"}

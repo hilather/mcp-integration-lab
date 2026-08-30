@@ -39,6 +39,8 @@ jobs:
         run: |
           set -euo pipefail
           cp -a profiles/default profiles/ci-dev
+          # Same host ports as default, including privileged TacLab 49/300.
+          # Preflight occupancy-checks /proc/net after EACCES; do not remap those ports.
           # Knob lives in that profile.env. Process env on default fails preflight.
           sed -i 's/^LAB_DEV_MODE=false$/LAB_DEV_MODE=true/' profiles/ci-dev/profile.env
           grep -qx 'LAB_DEV_MODE=true' profiles/ci-dev/profile.env

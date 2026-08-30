@@ -72,17 +72,17 @@ Full walkthrough: [Quick start](https://hilather.github.io/mcp-integration-lab/s
 
 | Service | Role | Default host ports |
 | --- | --- | --- |
-| **LabDNS** | Authoritative lab DNS: overrides, wildcards, forwarding, bounded chaos, operator console | 10053 udp/tcp · REST/MCP/UI 18080 |
-| **LabLDAP** | Native Go directory (`labldapd`) + control plane | 3389 / 3636 · HTTPS 8443 |
-| **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 · HTTP 18049 |
-| **LabMail** | Receive-only SMTP sink + UI / REST / MCP (compose service `maildev`) | 1025 · 1080 |
-| **LabMITM** | HTTP(S) intercepting forward proxy + inspector / REST / MCP | 18888 · 18088 |
-| **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 |
+| **LabDNS** | Authoritative lab DNS: overrides, wildcards, forwarding, bounded chaos, operator console | 10053 udp/tcp (residual → 53) · REST/MCP/UI 18080 |
+| **LabLDAP** | Native Go directory (`labldapd`) + control plane | 3389 / 3636 (residual → 389 / 636) · HTTPS 8443 |
+| **TacLab** | TACACS+ (legacy + TLS 1.3) and RADIUS | 49 / 300 · 1812 / 1813 (already native) · HTTP 18049 |
+| **LabMail** | Receive-only SMTP sink + UI / REST / MCP (compose service `maildev`) | 1025 (residual → 25) · 1080 |
+| **LabMITM** | HTTP(S) intercepting forward proxy + inspector / REST / MCP | 18888 (not dest 443) · 18088 |
+| **ratarmount-rs** | Archive-backed userspace NFSv3 with a write overlay | 20490 (residual → 2049) |
 | **labinfo** | Service directory MCP (`endpoints_list`, `connections_list`) | 18090 |
 | **LabJenkins** | Opt-in Jenkins LTS + jwt-auth-filter (Keycloak or Entra JWKS). Off by default. | 18092 · Keycloak 18091 |
 | **MCPJungle** | Single MCP gateway, tool groups, optional ACLs. Pinned **0.4.6**. | 8080 |
 
-Every port is published on all interfaces so remote systems can test against the lab. Values live in the active profile, not in compose files.
+Every port is published on all interfaces so remote systems can test against the lab. Values live in the active profile, not in compose files. Policy is IANA dests on the host (AGENTS.md rule 15); the residual numbers above are today's default profile, not a second design. LabMITM is a forward proxy (SUT sets `HTTP_PROXY`).
 
 ```mermaid
 flowchart LR
@@ -197,7 +197,15 @@ idempotent bring-up of those compose projects. `make labjenkins-up` requires
 
 `make up` and `make register` run the same preflight check automatically. To
 bypass intentionally, set `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`. Use `make up`
-for first bring-up, a vendor pin bump, or a profile switch.
+for first bring-up, a vendor pin bump, or a profile switch. Host-port
+preflight does not treat bind permission denied on privileged ports
+(default TacLab 49/300) as a conflict; it occupancy-checks `/proc/net`
+instead. When a lab feature depends on a Docker daemon or host setting,
+preflight must fail closed with the configuration change in the error
+(LabNTP + `userland-proxy` is the documented example; that check is not
+in Go until LabNTP is in compose). The three compose projects share
+`mcplab-shared` (`LAB_DOCKER_SUBNET`, default `/24`) — not Docker's
+default /16 per network.
 
 ## Projects in this lab
 
@@ -205,11 +213,11 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 
 | Project | What it is |
 | --- | --- |
-| [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state, REST + MCP. Pinned **v1.2.0**. |
-| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned **v0.4.1**. |
-| [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.4.0**. |
-| [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.3**. Compose service name stays `maildev`. |
-| [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.4.0**. Data plane is unauthenticated; intercept is :443 only. |
+| [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state, REST + MCP. Pinned **v1.3.0**. |
+| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned **v0.5.0**. |
+| [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.5.0**. |
+| [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.4**. Compose service name stays `maildev`. |
+| [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.5.0**. Data plane is unauthenticated; intercept is :443 only. |
 | [hilather/ratarmount-rs](https://github.com/hilather/ratarmount-rs) | Native Rust rewrite of ratarmount. Here, a writable archive-backed userspace NFSv3 export. Pinned **v0.1.28**. |
 | [hilather/go-jenkins-mcp](https://github.com/hilather/go-jenkins-mcp) | Jenkins MCP CLI + jwt-rs lab (Jenkins LTS + jwt-auth-filter + Keycloak). Vendored for the opt-in LabJenkins project. Pinned commit **a225ef47** (Entra walkthrough). Not registered with MCPJungle. |
 | [mcpjungle/MCPJungle](https://github.com/mcpjungle/MCPJungle) ([docs](https://docs.mcpjungle.com)) | Self-hosted MCP gateway — the single client endpoint for this lab. Pinned **0.4.6**. |
@@ -219,13 +227,16 @@ Vendored checkouts live in `third_party/` (cloned by `mcplab vendor`). Do not ed
 
 ## Architecture and security
 
-Always-on compose projects (`mcplab`, `labldap`, `labtacacs`) plus opt-in `labjenkins` meet on the external docker network `mcplab-shared`. Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
+Always-on compose projects (`mcplab`, `labldap`, `labtacacs`) plus opt-in `labjenkins` meet on the external docker network `mcplab-shared` (`LAB_DOCKER_SUBNET`, default `10.99.42.0/24`). Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
 
 Design, topology, and the phase-1 OAuth plan: [docs/architecture.md](docs/architecture.md).
 
 How to contribute: [CONTRIBUTING.md](CONTRIBUTING.md). Agent working rules: [AGENTS.md](AGENTS.md). Change summaries: [CHANGELOG.md](CHANGELOG.md).
 
 ## Data-plane examples
+
+Today's default profile still publishes residual dests (10053, 3636, 1025,
+20490). Native policy is 53 / 636 / 25 / 2049; remaps are follow-on PRs.
 
 ```bash
 dig @<lab-host> -p 10053 ns1.lab.test

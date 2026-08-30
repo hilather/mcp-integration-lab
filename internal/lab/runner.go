@@ -142,12 +142,3 @@ func (r *Runner) labldapComposeArgs(args ...string) []string {
 func (r *Runner) labldapCompose(args ...string) error {
 	return r.run(".", "docker", r.labldapComposeArgs(args...)...)
 }
-
-// EnsureNetwork creates the shared external network both projects join.
-func (r *Runner) EnsureNetwork() error {
-	out, err := r.capture(".", "docker", "network", "inspect", "mcplab-shared")
-	if err == nil && strings.Contains(out, "mcplab-shared") {
-		return nil
-	}
-	return r.run(".", "docker", "network", "create", "mcplab-shared")
-}

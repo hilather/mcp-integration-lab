@@ -8,14 +8,15 @@ import (
 )
 
 // Vendored service repos live in third_party/ (not vendor/: that name is
-// reserved by the Go toolchain for module vendoring). Ref is a release tag
-// checked out on every `mcplab vendor`.
+// reserved by the Go toolchain for module vendoring). Appliance Ref
+// values are release tags (`clone --branch` / `fetch … tag`). The
+// go-jenkins-mcp pin is a commit SHA (vendorCheckoutSHA).
 var vendorRepos = []struct{ URL, Dest, Ref string }{
-	{"https://github.com/hilather/go-lab-dns", "third_party/go-lab-dns", "v1.2.0"},
-	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.4.1"},
-	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.4.0"},
-	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.3"},
-	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.4.0"},
+	{"https://github.com/hilather/go-lab-dns", "third_party/go-lab-dns", "v1.3.0"},
+	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.5.0"},
+	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.5.0"},
+	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.4"},
+	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.5.0"},
 	{"https://github.com/hilather/go-jenkins-mcp", "third_party/go-jenkins-mcp", "a225ef47013f034432e45403499e7b016fe647a7"},
 }
 

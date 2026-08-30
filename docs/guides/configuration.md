@@ -27,7 +27,7 @@ are gitignored so local profiles survive `git pull`; see
 
 ```
 profiles/<name>/
-  profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  profile.env              ports, LAB_PUBLIC_HOST, LAB_DOCKER_SUBNET, LAB_DEV_MODE, storage
   dev-credentials.yaml     lab-only catalog (used iff LAB_DEV_MODE=true)
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
@@ -60,9 +60,10 @@ Never hardcode a port in `docker-compose.yaml` — add a variable to
 
 `dev-credentials.yaml` is a `DevCredentials` document
 (`apiVersion: mcplab.dev/v1alpha1`). Every token, password, and shared-secret
-key is required. LabLDAP passwords must be at least 12 characters; TacLab
-shared secrets must pass the appliance policy (length ≥16, ≥3 character
-classes, exact-match known-weak list). The active profile's file is the only
+key is required. LabMail and LabMITM tokens must be at least 32 bytes
+(appliance `auth.MinTokenBytes`). LabLDAP passwords must be at least 12
+characters; TacLab shared secrets must pass the appliance policy (length ≥16,
+≥3 character classes, exact-match known-weak list). The active profile's file is the only
 source — there is no merge with `profiles/default`. `mcplab secrets` consumes
 it only when `LAB_DEV_MODE=true`.
 
@@ -87,6 +88,17 @@ in `.env` while the profile sets `53`).
 
 ## Preflight
 
+Protocol data planes SUTs already speak use the IANA dest on the **host**
+(DNS 53, NTP 123, LDAP 389 / LDAPS 636, SMTP 25, TACACS+ 49 / 300, RADIUS
+1812/1813, NFS 2049). Container listen ports are unprivileged and
+irrelevant to consumers. Management planes stay high. LabMITM is a forward
+proxy (SUT sets `HTTP_PROXY`), not dest 443. Today's default-profile
+numbers that are not native (DNS 10053, LDAP 3389/3636, SMTP 1025, NFS
+20490) are residual, not a second policy — remaps are follow-on PRs.
+Operator escape (a non-native `profile.env` port) is allowed when
+preflight cannot free the IANA port; it is an escape, not the default
+(AGENTS.md rule 15).
+
 `make preflight` (also run automatically by `make up` and `make register`) checks:
 
 1. **Profile drift** — critical endpoint/mode values in `.env` or process env
@@ -96,35 +108,52 @@ in `.env` while the profile sets `53`).
    or already held only by this lab's Docker containers (idempotent restarts).
    `EACCES` / permission-denied on privileged ports (default TacLab `49` /
    `300` when the orchestrator is not root) is not treated as occupied:
-   dockerd can still publish them.
+   dockerd can still publish them. Preflight then checks `/proc/net` for a
+   real listener (TCP LISTEN / UDP bound) instead of skipping those ports.
+   Fail closed if a non-lab process holds the port.
+3. **Docker/host feature knobs** — when a lab feature depends on a Docker
+   daemon or host setting, preflight must fail closed **with the
+   configuration change in the error**. Do not boot a lab that pretends
+   the feature works. LabNTP is not in compose yet; do not add a
+   `userland-proxy` probe in Go until that integrator slice. The
+   normative error for that check, when it exists: write
+   `/etc/docker/daemon.json` `{"userland-proxy": false}` then
+   `systemctl restart docker`. Docker Desktop / VM NAT cannot preserve
+   UDP source — Linux dockerd + `userland-proxy` false, or
+   macvlan/ipvlan; do not start that feature there.
 
-If a profile uses IANA port 53 for DNS and systemd-resolved already holds it,
-preflight fails before compose starts. Stop the conflicting service or pick a
-different `LABDNS_DNS_PORT` in your team profile.
+Error messages must name the fix. If a profile uses IANA port 53 for DNS
+and systemd-resolved already holds it, preflight fails before compose
+starts: stop/disable resolved **or** extra IP for `LAB_PUBLIC_HOST` **or**
+escape `LABDNS_DNS_PORT` (SUTs that cannot set dest port cannot follow
+the escape). Same shape for NTP 123 vs systemd-timesyncd when LabNTP
+lands (stop/disable timesyncd — lab host clock may drift; LabNTP never
+settimeofday — **or** extra IP **or** escape `LABNTP_NTP_PORT=10123`,
+which timesyncd/W32Time cannot follow).
 
 ## profile.env — every knob
 
 | Variable | Default | What it is |
 | --- | --- | --- |
-| `LABDNS_DNS_PORT` | `10053` | DNS data plane (udp+tcp). `53` usually collides with systemd-resolved. |
+| `LABDNS_DNS_PORT` | `10053` | Residual. Native dest is **53**. DNS data plane (udp+tcp). |
 | `LABDNS_REST_PORT` | `18080` | LabDNS REST `/v1` + MCP `/mcp` + operator console `GET /`. |
-| `LABLDAP_LDAP_PORT` | `3389` | LDAP (StartTLS). Cleartext simple bind is disabled. |
-| `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS or IP). |
+| `LABLDAP_LDAP_PORT` | `3389` | Residual. Native dest is **389**. LDAP (StartTLS). Cleartext simple bind is disabled. |
+| `LABLDAP_LDAPS_PORT` | `3636` | Residual. Native dest is **636**. LDAPS. Cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS or IP). |
 | `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
 | `MCP_GATEWAY_PORT` | `8080` | MCPJungle streamable HTTP. |
 | `MCPJUNGLE_IMAGE_TAG` | `0.4.6` | MCPJungle GHCR tag for gateway + registrar. Omit to keep compose `:-0.4.6`. Do not copy upstream `latest` / `latest-stdio`. |
-| `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3 (writable overlay). |
-| `TACLAB_LEGACY_PORT` | `49` | TACACS+ (RFC 8907). |
-| `TACLAB_TLS_PORT` | `300` | TACACS+ TLS 1.3 (RFC 9887). |
-| `TACLAB_RADIUS_ACCESS_PORT` | `1812` | RADIUS access (udp). Message-Authenticator required. |
-| `TACLAB_RADIUS_ACCT_PORT` | `1813` | RADIUS accounting (udp). |
+| `NFS_PORT` | `20490` | Residual. Native dest is **2049**. ratarmount-rs userspace NFSv3 (writable overlay). |
+| `TACLAB_LEGACY_PORT` | `49` | Already native. TACACS+ (RFC 8907). |
+| `TACLAB_TLS_PORT` | `300` | Already native. TACACS+ TLS 1.3 (RFC 9887). |
+| `TACLAB_RADIUS_ACCESS_PORT` | `1812` | Already native. RADIUS access (udp). Message-Authenticator required. |
+| `TACLAB_RADIUS_ACCT_PORT` | `1813` | Already native. RADIUS accounting (udp). |
 | `TACLAB_RADIUS_RADSEC_PORT` | `2083` | RadSec. Published; listener default off. |
 | `TACLAB_RADIUS_DYNAUTH_PORT` | `3799` | RADIUS DAS. Published; listener default off. |
 | `TACLAB_HTTP_PORT` | `18049` | TacLab UI + REST + MCP. |
-| `MAILDEV_SMTP_PORT` | `1025` | Receive-only SMTP ingest. |
+| `MAILDEV_SMTP_PORT` | `1025` | Residual. Native dest is **25**. Receive-only SMTP ingest. |
 | `MAILDEV_WEB_PORT` | `1080` | LabMail UI + `/email` + `/v1` + MCP. |
 | `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Frozen at `admin` (YAML does not interpolate this). Password is minted, or the catalog `maildevWeb` value in dev mode. |
-| `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
+| `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). Not an IANA dest-443 service; do not move this to 443. |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LABJENKINS_ENABLED` | `false` | Opt-in jwt-rs Jenkins + Keycloak. Set `true` only in a gitignored team profile (process env on `default` fails preflight). |
@@ -133,6 +162,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `JWT_RS_JWKS_URL` / `JWT_RS_AUDIENCE` | Keycloak defaults | Overwritten to Entra when all three `ENTRA_*` GUIDs are set. Audience is the API **app GUID**, not `api://`. |
 | `ENTRA_TENANT_ID` / `ENTRA_API_APP_ID` / `ENTRA_GATEWAY_APP_ID` | empty | Fill all three UUIDs for Entra. Never commit real IDs or `{tenant-id}` literals as values. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
+| `LAB_DOCKER_SUBNET` | `10.99.42.0/24` | IPv4 CIDR for `mcplab-shared` (`/24`–`/27`). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: `make down` then `make up`. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
 | `NFS_ARCHIVE_DIR` | `.data/nfs` | Empty-root `fixtures.tar.zst` (writable; live commit replaces it). |
@@ -182,7 +212,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|l
 `make reload APP=labdns` recreates only LabDNS. Non-loopback peers
 present the bearer in `secrets/labdns-token`.
 
-LabDNS **v1.2.0** serves an operator console at `GET /` on
+LabDNS **v1.3.0** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
 the login screen. Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
@@ -237,7 +267,7 @@ records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.4.1** defaults to
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.5.0** defaults to
 the native engine (omitted `engine` compiles as `native`); this lab still
 sets `directory.engine: native` explicitly. Management TLS comes from
 lab-CA files, and `registerMutations` / `registerPassword` keep
@@ -347,7 +377,7 @@ Host ports and web Basic/bearer files are lab-managed. `allowLegacyClients:
 true` is required for MCPJungle. After editing, `make reload APP=maildev`
 (wipes the inbox).
 
-LabMail **v1.0.0-rc.3** hashed inbox JS sends `Origin`. An empty
+LabMail **v1.0.0-rc.4** hashed inbox JS sends `Origin`. An empty
 `originAllowlist` 403s those GETs from a non-loopback browser (HTML `GET /`
 is often 200). This profile sets `"*"` because the UI is published on all
 interfaces; bearer + Basic still required; CORS/`OPTIONS` stay disabled.
@@ -382,7 +412,8 @@ spec:
     originAllowlist: ["*"]
 ```
 
-Point the system under test at `<lab-host>:1025`. Read captured mail at
+Point the system under test at `<lab-host>:1025` (residual; native dest
+is 25). Read captured mail at
 `:1080` (Basic user `admin`). Native REST is `/v1`; MCP is `/mcp` (bearer
 in `secrets/labmail-token`). Nothing is relayed. Captured mail is wiped on
 restart.
@@ -391,21 +422,22 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.4.0**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.5.0**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
 (`make up` / `make register` / mcpjungle reload).
 
 The HTTP/1.1 data plane is **unauthenticated**. Do not publish without a
-network boundary. Omit `spec.proxy.httpAuth` (do not write `enabled:
-false`). 1.2 nested flags (SOCKS BIND/UDP/user-pass, inspectFrames,
-orig-dest) stay off. Native `/v1` catalog is 31 (includes
-`features.get`); `GET /v1/features` / MCP `mitm_features_list` is the
-frozen 11-row hop/accept catalog. HTTPS intercept is **:443 only**;
-CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt.
-`allowHosts` is HTTP-useful compose DNS (`*.lab`, labdns, labinfo,
-maildev, mcpjungle, control, taclab).
+network boundary. The overlay writes `spec.proxy.httpAuth.enabled:
+false` (legal on v1.5.0). 1.2 nested flags (SOCKS BIND/UDP/user-pass,
+inspectFrames, orig-dest) are present and off. D22-carve hop gates
+(`websocket` / `connect` / `absoluteForm`) stay on. Native `/v1`
+catalog is 31 (includes `features.get`); `GET /v1/features` / MCP
+`mitm_features_list` is the frozen 11-row hop/accept catalog. HTTPS
+intercept is **:443 only**; CONNECT to LabLDAP LDAPS or TacLab TLS is
+tunnel-not-decrypt. `allowHosts` is HTTP-useful compose DNS (`*.lab`,
+labdns, labinfo, maildev, mcpjungle, control, taclab).
 
 Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
 `"private"`). When `LAB_PUBLIC_HOST` is not loopback, add
@@ -413,31 +445,9 @@ Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
 or the inspector SPA 403s `/v1`. Preflight warns (never fails) if the
 allowlist is empty.
 
-```yaml
-apiVersion: labmitm.dev/v1alpha1
-kind: LabMITM
-metadata:
-  name: lab-proxy
-spec:
-  listeners:
-    proxy: { address: ":8888" }
-    management: { address: ":8088", restPath: /v1, mcpPath: /mcp }
-  proxy:
-    hostname: labmitm.lab
-    targets:
-      allowHosts: ["*.lab", labdns, labinfo, maildev, mcpjungle, control, taclab]
-  tls:
-    intercept: true
-    ports: [443]
-  management:
-    auth:
-      mode: bearer
-      tokens:
-        - { id: admin, secretFile: /run/secrets/labmitm-token, role: administrator }
-    mcp:
-      allowLegacyClients: true
-    originAllowlist: []
-```
+Desired-state shape (1.1–1.4 knobs included, default off except D22-carve
+hop gates) lives in `profiles/default/labmitm/bootstrap.yaml`. Do not
+recopy from the upstream examples tree.
 
 Point systems under test at `<lab-host>:18888` as `HTTP_PROXY` /
 `HTTPS_PROXY`. Inspector / REST / MCP is `:18088` (bearer in
@@ -461,6 +471,8 @@ NFS_DATA_DIR=.data/nfs-work
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
 ```
+
+`20490` is residual; native dest is 2049.
 
 AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.28**
 also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After a zstd
@@ -584,7 +596,8 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   no merge with `default`), including TacLab lab-user passwords and AAA
   shared secrets (first mint / pin-bump via `labgen -secrets-from`;
   catalog-only enter-dev still pins after `labgen`). The default profile ships `lab-dev-*`
-  values; they are inert unless this knob is on. `make creds` prints the
+  values; they are inert unless this knob is on. LabMail and LabMITM tokens
+  must be at least 32 bytes (appliance `auth.MinTokenBytes`). `make creds` prints the
   shareable sheet from files on disk (never TLS private keys). Never
   default a shared team profile to dev mode. Set the knob in **that
   profile's** `profile.env` (process env on `default` fails preflight).

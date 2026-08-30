@@ -25,6 +25,7 @@ var preflightKeys = []string{
 	"LABINFO_PORT",
 	"LAB_DEV_MODE",
 	"MCPJUNGLE_MODE",
+	"LAB_DOCKER_SUBNET",
 	"LABJENKINS_ENABLED",
 }
 
@@ -33,6 +34,9 @@ var preflightKeys = []string{
 func (r *Runner) Preflight() error {
 	if err := r.preflightEnvDrift(); err != nil {
 		return err
+	}
+	if _, err := sharedSubnet(r.Prof); err != nil {
+		return fmt.Errorf("preflight failed: %w", err)
 	}
 	if r.LabJenkinsEnabled() {
 		if err := r.applyLabJenkinsEnv(); err != nil {

@@ -12,17 +12,19 @@
 # (driven by `mcplab labldap-up` / `mcplab labtacacs-up` /
 # `mcplab labjenkins-up` from the vendored repos) and meet the gateway on
 # the shared external network `mcplab-shared`.
+# That network is created by `mcplab` with LAB_DOCKER_SUBNET (default /24).
+# Do not leave compose `default:` unconfigured: Docker would allocate a
+# second /16 from the daemon pool (~15 slots of 172.17–31).
 name: mcplab
 
 networks:
   default:
-  shared:
-    external: true
     name: mcplab-shared
+    external: true
 
 services:
   # ------------------------------------------------------------------ LabDNS
-  # Pinned go-lab-dns v1.2.0 (operator console on GET /; allowLegacyClients in profile YAML). YAML edits:
+  # Pinned go-lab-dns v1.3.0 (operator console on GET /; allowLegacyClients in profile YAML). YAML edits:
   # `make reload APP=labdns` — not a full `make up`.
   labdns:
     build:
@@ -135,7 +137,7 @@ services:
       start_period: 3s
 
   # LabMITM intercepting HTTP(S) forward proxy.
-  # Pinned go-lab-mitmproxy v1.4.0 (1.2–1.4 knobs off in the lab-owned overlay).
+  # Pinned go-lab-mitmproxy v1.5.0 (1.2–1.4 knobs present and off in the lab-owned overlay).
   # Binary --management-listen defaults to off (unlike LabDNS, whose YAML
   # bind is enough). Do not copy LabDNS command: ["serve", "--config=..."]
   # or HEALTHCHECK fails closed.
@@ -146,7 +148,7 @@ services:
       context: ./third_party/go-lab-mitmproxy
     image: labmitm:local
     command: ["serve", "--config=/etc/labmitm/config.yaml", "--management-listen=:8088"]
-    networks: [default, shared]
+    networks: [default]
     ports:
       - "${LABMITM_PROXY_PORT:-18888}:8888/tcp"
       - "${LABMITM_WEB_PORT:-18088}:8088/tcp"
@@ -238,7 +240,7 @@ services:
   # (all interfaces). Never latest-stdio.
   mcpjungle:
     image: ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}
-    networks: [default, shared]
+    networks: [default]
     ports:
       - "${MCP_GATEWAY_PORT:-8080}:8080"
     environment:

@@ -12,20 +12,20 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	for _, repo := range vendorRepos {
 		got[repo.Dest] = repo.Ref
 	}
-	if got["third_party/go-lab-ldap-mcp"] != "v0.4.1" {
-		t.Fatalf("labldap pin = %q, want v0.4.1", got["third_party/go-lab-ldap-mcp"])
+	if got["third_party/go-lab-ldap-mcp"] != "v0.5.0" {
+		t.Fatalf("labldap pin = %q, want v0.5.0", got["third_party/go-lab-ldap-mcp"])
 	}
-	if got["third_party/go-lab-tacacs-mcp"] != "v1.4.0" {
-		t.Fatalf("taclab pin = %q, want v1.4.0", got["third_party/go-lab-tacacs-mcp"])
+	if got["third_party/go-lab-tacacs-mcp"] != "v1.5.0" {
+		t.Fatalf("taclab pin = %q, want v1.5.0", got["third_party/go-lab-tacacs-mcp"])
 	}
-	if got["third_party/go-lab-dns"] != "v1.2.0" {
-		t.Fatalf("labdns pin = %q, want v1.2.0", got["third_party/go-lab-dns"])
+	if got["third_party/go-lab-dns"] != "v1.3.0" {
+		t.Fatalf("labdns pin = %q, want v1.3.0", got["third_party/go-lab-dns"])
 	}
-	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.3" {
-		t.Fatalf("labmail pin = %q, want v1.0.0-rc.3", got["third_party/go-lab-maildev"])
+	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.4" {
+		t.Fatalf("labmail pin = %q, want v1.0.0-rc.4", got["third_party/go-lab-maildev"])
 	}
-	if got["third_party/go-lab-mitmproxy"] != "v1.4.0" {
-		t.Fatalf("labmitm pin = %q, want v1.4.0", got["third_party/go-lab-mitmproxy"])
+	if got["third_party/go-lab-mitmproxy"] != "v1.5.0" {
+		t.Fatalf("labmitm pin = %q, want v1.5.0", got["third_party/go-lab-mitmproxy"])
 	}
 	const jenkinsSHA = "a225ef47013f034432e45403499e7b016fe647a7"
 	if got["third_party/go-jenkins-mcp"] != jenkinsSHA {

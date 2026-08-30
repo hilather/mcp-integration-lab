@@ -148,6 +148,19 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	if prevErr != nil && !os.IsNotExist(prevErr) {
 		return prevErr
 	}
+	if err := os.MkdirAll(filepath.Dir(marker), 0o755); err != nil {
+		return err
+	}
+	newHash := sha256Hex(raw)
+	// Sample before flipping the marker to pending so a finished enter-dev
+	// stays a no-op when plaintext already matches.
+	forceConsumers := os.IsNotExist(prevErr) || prev.reloads != reloadsDone
+	// Arm pending before catalog writes or setupsecrets/labgen. A crash
+	// after applyDevCatalog lands new files must not leave reloads=done —
+	// retry would see a match and skip consumer reloads (stale LDAP /data).
+	if err := writeDevModeMarker(marker, r.Prof.Name, newHash, reloadsPending); err != nil {
+		return err
+	}
 	ch, err := r.applyDevCatalog(doc)
 	if err != nil {
 		return err
@@ -173,15 +186,8 @@ func (r *Runner) secretsEnterDev(marker string) error {
 	ch.labtacacs = tac.Changed
 	ch.labtacacsAdmin = tac.APIAdminChanged
 
-	newHash := sha256Hex(raw)
 	if prev.catalogSHA != "" && prev.catalogSHA != newHash {
 		fmt.Printf("dev-credentials.yaml changed; reconciled %d files\n", ch.count())
-	}
-	// Sample before flipping the marker to pending so a finished enter-dev
-	// stays a no-op when plaintext already matches.
-	forceConsumers := os.IsNotExist(prevErr) || prev.reloads != reloadsDone
-	if err := writeDevModeMarker(marker, r.Prof.Name, newHash, reloadsPending); err != nil {
-		return err
 	}
 
 	tls, err := r.ensureLabLDAPTLS()

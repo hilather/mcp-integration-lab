@@ -60,7 +60,11 @@ func (r *Runner) Down() error {
 	if err := r.LabTacacsDown(false); err != nil {
 		return err
 	}
-	return r.LabJenkinsDown(false)
+	if err := r.LabJenkinsDown(false); err != nil {
+		return err
+	}
+	r.releaseUnusedNetworks()
+	return nil
 }
 
 // Reset stops everything and wipes all runtime state (volumes included).
@@ -74,5 +78,9 @@ func (r *Runner) Reset() error {
 	if err := r.LabTacacsDown(true); err != nil {
 		return err
 	}
-	return r.LabJenkinsDown(true)
+	if err := r.LabJenkinsDown(true); err != nil {
+		return err
+	}
+	r.releaseUnusedNetworks()
+	return nil
 }
