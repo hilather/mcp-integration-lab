@@ -1,6 +1,6 @@
 # LabMITM desired state. Mounted read-only at /etc/labmitm/config.yaml.
 # lab-owned copy; do not recopy from the upstream examples tree without
-# reviewing allowHosts/Origins. Pin is vendor tag v1.5.0. allowLegacyClients
+# reviewing allowHosts/Origins. Pin is vendor tag v1.6.0. allowLegacyClients
 # is on so MCPJungle can register without a LabMITM patch. Bind-mounted
 # secret files must be 0o644 (UID 65532). Reload: `make reload APP=labmitm`
 # (wipes captured flows; generate-mode CA rotates). Reload does not

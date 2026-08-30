@@ -16,11 +16,14 @@ changes since the previous one (AGENTS.md rule 13).
   Docker/host feature preflights (example: LabNTP + `userland-proxy`)
   must fail closed with the configuration change in the error. No live
   port remaps in this change.
-- Default LabMITM overlay now writes every 1.1–1.4 knob the pinned
-  v1.5.0 appliance understands (`spec.proxy.httpAuth.enabled: false`,
+- Default LabMITM overlay now writes every 1.1–1.4 knob the 1.5+
+  KnownFields set accepts (`spec.proxy.httpAuth.enabled: false`,
   1.2 nested flags, orig-dest, hop/accept including D22-carve
   websocket/connect/absoluteForm on). The stale v1.1.1 “omit these
-  keys or KnownFields fails” rule is gone. Pin stays v1.5.0.
+  keys or KnownFields fails” rule is gone.
+- Vendor pin: LabMITM **v1.6.0** (tag; commit ffb220b; Status
+  live-apply + notes). Overlay knobs already landed in #16.
+  Checkout is the release tag, not a SHA.
 
 ### Fixed
 

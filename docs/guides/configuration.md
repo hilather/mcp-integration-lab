@@ -415,7 +415,7 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.5.0**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.6.0**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
