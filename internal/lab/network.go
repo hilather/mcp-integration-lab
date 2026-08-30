@@ -106,7 +106,12 @@ func isNoSuchNetwork(out string, err error) bool {
 		return false
 	}
 	s := strings.ToLower(out + " " + err.Error())
-	return strings.Contains(s, "no such network")
+	// Classic CLI: "Error: No such network: NAME"
+	// Docker Engine (GH-hosted runners): "Error response from daemon: network NAME not found"
+	if strings.Contains(s, "no such network") {
+		return true
+	}
+	return strings.Contains(s, "network ") && strings.Contains(s, " not found")
 }
 
 func (r *Runner) inspectSharedNetwork() (exists bool, subnet string, containers int, err error) {

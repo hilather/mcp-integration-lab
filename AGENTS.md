@@ -228,8 +228,10 @@ we work by.
   `EnsureNetwork` creates one `mcplab-shared` with `LAB_DOCKER_SUBNET`
   (default `10.99.42.0/24`); the main compose `default` is that external
   network. `make down` removes it when empty. A leftover /16 with endpoints
-  fail-closes (`make down` then `make up`). Do not leave compose `default:`
-  unconfigured.
+  fail-closes (`make down` then `make up`). A missing-network inspect is
+  classic `No such network` or Engine `network NAME not found` — both
+  mean create; do not fail-close on the latter. Do not leave compose
+  `default:` unconfigured.
 - LabDNS is pinned to **v1.3.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can

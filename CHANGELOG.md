@@ -27,6 +27,10 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Fixed
 
+- `EnsureNetwork` treats Docker Engine's `network NAME not found` the
+  same as classic `No such network`, so a missing `mcplab-shared` is
+  created on first `make up` instead of fail-closing (GH-hosted
+  `smoke-dev` inspect text).
 - Dev-mode `mcplab secrets` now marks enter-dev reloads pending before
   writing the catalog or running setupsecrets/labgen. A crash after
   files land no longer leaves `reloads=done`; retry still reloads
