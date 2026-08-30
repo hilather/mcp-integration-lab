@@ -394,14 +394,15 @@ rotates). Reload does **not** re-register the gateway tool list
 (`make up` / `make register` / mcpjungle reload).
 
 The HTTP/1.1 data plane is **unauthenticated**. Do not publish without a
-network boundary. Omit `spec.proxy.httpAuth` (do not write `enabled:
-false`). 1.2 nested flags (SOCKS BIND/UDP/user-pass, inspectFrames,
-orig-dest) stay off. Native `/v1` catalog is 31 (includes
-`features.get`); `GET /v1/features` / MCP `mitm_features_list` is the
-frozen 11-row hop/accept catalog. HTTPS intercept is **:443 only**;
-CONNECT to LabLDAP LDAPS or TacLab TLS is tunnel-not-decrypt.
-`allowHosts` is HTTP-useful compose DNS (`*.lab`, labdns, labinfo,
-maildev, mcpjungle, control, taclab).
+network boundary. The overlay writes `spec.proxy.httpAuth.enabled:
+false` (legal on v1.5.0). 1.2 nested flags (SOCKS BIND/UDP/user-pass,
+inspectFrames, orig-dest) are present and off. D22-carve hop gates
+(`websocket` / `connect` / `absoluteForm`) stay on. Native `/v1`
+catalog is 31 (includes `features.get`); `GET /v1/features` / MCP
+`mitm_features_list` is the frozen 11-row hop/accept catalog. HTTPS
+intercept is **:443 only**; CONNECT to LabLDAP LDAPS or TacLab TLS is
+tunnel-not-decrypt. `allowHosts` is HTTP-useful compose DNS (`*.lab`,
+labdns, labinfo, maildev, mcpjungle, control, taclab).
 
 Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
 `"private"`). When `LAB_PUBLIC_HOST` is not loopback, add
@@ -409,31 +410,9 @@ Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
 or the inspector SPA 403s `/v1`. Preflight warns (never fails) if the
 allowlist is empty.
 
-```yaml
-apiVersion: labmitm.dev/v1alpha1
-kind: LabMITM
-metadata:
-  name: lab-proxy
-spec:
-  listeners:
-    proxy: { address: ":8888" }
-    management: { address: ":8088", restPath: /v1, mcpPath: /mcp }
-  proxy:
-    hostname: labmitm.lab
-    targets:
-      allowHosts: ["*.lab", labdns, labinfo, maildev, mcpjungle, control, taclab]
-  tls:
-    intercept: true
-    ports: [443]
-  management:
-    auth:
-      mode: bearer
-      tokens:
-        - { id: admin, secretFile: /run/secrets/labmitm-token, role: administrator }
-    mcp:
-      allowLegacyClients: true
-    originAllowlist: []
-```
+Desired-state shape (1.1–1.4 knobs included, default off except D22-carve
+hop gates) lives in `profiles/default/labmitm/bootstrap.yaml`. Do not
+recopy from the upstream examples tree.
 
 Point systems under test at `<lab-host>:18888` as `HTTP_PROXY` /
 `HTTPS_PROXY`. Inspector / REST / MCP is `:18088` (bearer in

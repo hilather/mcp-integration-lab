@@ -90,7 +90,7 @@
               <h3>LabMITM</h3>
               <span class="ver">v1.5.0</span>
             </header>
-            <p>Laboratory HTTP(S) intercepting forward proxy. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Native <code>/v1</code> catalog 31 (includes <code>features.get</code>); <code>GET /v1/features</code> is the 11-row hop/accept catalog. SOCKS / inspectFrames / httpAuth stay off.</p>
+            <p>Laboratory HTTP(S) intercepting forward proxy. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Native <code>/v1</code> catalog 31 (includes <code>features.get</code>); <code>GET /v1/features</code> is the 11-row hop/accept catalog. SOCKS / inspectFrames / httpAuth are present in the overlay and stay off.</p>
             <p><strong>Connect.</strong> HTTP proxy <code>&lt;lab-host&gt;:18888</code>. Inspector / <code>/v1</code> / MCP at <code>&lt;lab-host&gt;:18088</code>.</p>
             <p><strong>Configure.</strong> <code>profiles/&lt;name&gt;/labmitm/bootstrap.yaml</code>. Exact Origins (no <code>"*"</code>). Reload: <code>make reload APP=labmitm</code> (wipes captured flows; generate-mode CA rotates; does not re-register).</p>
             <p><strong>Auth.</strong> Management bearer in <code>secrets/labmitm-token</code> (0o644). Proxy data plane has no Proxy-Authorization (HTTP 407 is opt-in YAML, off here).</p>
