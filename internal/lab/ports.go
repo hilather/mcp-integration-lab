@@ -43,6 +43,7 @@ var publishedPortSpecs = []struct {
 	{"LABMITM_PROXY_PORT", []portProto{portTCP}},
 	{"LABMITM_WEB_PORT", []portProto{portTCP}},
 	{"LABINFO_PORT", []portProto{portTCP}},
+	{"LABGRAPH_PORT", []portProto{portTCP}},
 	{"MCP_GATEWAY_PORT", []portProto{portTCP}},
 	{"LABLDAP_LDAP_PORT", []portProto{portTCP}},
 	{"LABLDAP_LDAPS_PORT", []portProto{portTCP}},

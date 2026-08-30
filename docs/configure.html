@@ -45,6 +45,7 @@
         <a href="#taclab">TacLab</a>
         <a href="#mail">LabMail</a>
         <a href="#labmitm">LabMITM</a>
+        <a href="#labgraph">LabGraph</a>
         <a href="#nfs">NFS</a>
         <a href="#labinfo">labinfo catalog</a>
         <a href="#gateway">MCPJungle</a>
@@ -71,6 +72,8 @@
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
+  labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
+  scenarios/*.yaml         LabScenario files (empty default is a no-op)
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group</code></pre>
@@ -125,6 +128,8 @@ PROFILE=default
             <tr><td><code>LABMITM_PROXY_PORT</code></td><td>18888</td><td>Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). Not an IANA dest-443 service; do not move this to 443.</td></tr>
             <tr><td><code>LABMITM_WEB_PORT</code></td><td>18088</td><td>LabMITM inspector UI + /v1 + MCP.</td></tr>
             <tr><td><code>LABINFO_PORT</code></td><td>18090</td><td>Service-directory MCP.</td></tr>
+            <tr><td><code>LABGRAPH_PORT</code></td><td>18091</td><td>LabScenario orchestrator REST / MCP / SPA.</td></tr>
+            <tr><td><code>LABGRAPH_LABLDAP_SCENARIO_NAME</code></td><td>mcp-integration-lab</td><td>Compiled LabLDAP scenario name for reset.</td></tr>
             <tr><td><code>LAB_PUBLIC_HOST</code></td><td>localhost</td><td>Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>). Changing it needs <code>mcplab secrets</code> plus <code>make reload APP=labldap</code>.</td></tr>
             <tr><td><code>LAB_DOCKER_SUBNET</code></td><td>10.99.42.0/24</td><td>IPv4 CIDR for <code>mcplab-shared</code> (<code>/24</code>–<code>/27</code>). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: <code>make down</code> then <code>make up</code>.</td></tr>
             <tr><td><code>LAB_DEV_MODE</code></td><td>false</td><td>Single security knob. Also consumes <code>dev-credentials.yaml</code>.</td></tr>
@@ -136,7 +141,7 @@ PROFILE=default
 
         <h2 id="reload">Reload one app (not a full redeploy)</h2>
         <p><code>make up</code> vendors, mints or reconciles secrets, builds every image, starts all three compose projects, and registers the gateway. Use it for first bring-up, a vendor pin bump, or a profile switch. After a <code>dev-credentials.yaml</code> or <code>LAB_DEV_MODE</code> edit, or a <code>LAB_PUBLIC_HOST</code> SAN change, <code>mcplab secrets</code> reloads running apps whose files changed; <code>make up</code> skips those names. Changing <code>LAB_PUBLIC_HOST</code> also needs <code>make reload APP=labldap</code> so the control container picks up <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>. After that, recreate one application:</p>
-        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm</code></pre>
+        <pre><code>make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph</code></pre>
         <p>YAML edits for LabDNS, LabMail, LabMITM, labinfo, or LabLDAP do not need a full stack bounce. Gateway JSON is <code>make register</code> (no container restart). Gateway <em>container</em> reload also re-registers because SQLite is tmpfs. LabLDAP reload re-seeds ephemeral <code>/data</code>. Mail reload wipes the inbox. LabMITM reload wipes captured flows and does not re-register.</p>
 
         <h2 id="labdns">LabDNS</h2>
@@ -257,6 +262,9 @@ spec:
         <p>Desired-state shape (1.1–1.4 knobs included, default off except D22-carve hop gates) lives in <code>profiles/default/labmitm/bootstrap.yaml</code>. Do not recopy from the upstream examples tree.</p>
         <p>Point systems under test at <code>&lt;lab-host&gt;:18888</code> as <code>HTTP_PROXY</code> (forward proxy — not dest 443). Inspector / REST / MCP is <code>:18088</code> (bearer in <code>secrets/labmitm-token</code>).</p>
 
+        <h2 id="labgraph">LabGraph</h2>
+        <p>First-party LabScenario orchestrator (catalog id <code>labgraph</code>, host port <code>LABGRAPH_PORT</code> 18091). Desired state is <code>labgraph/bootstrap.yaml</code> plus <code>scenarios/*.yaml</code>. The default scenario has <code>spec: {}</code> so list/get/validate/plan/apply/status are no-ops. Apply order is DNS → MITM → mail → LDAP → TacLab. Present <code>spec.labldap</code> / <code>spec.labtacacs</code> fail closed on validate/plan/apply. <code>mcplab scenario</code> is an HTTP client of labgraph (<code>secrets/labgraph-token</code>). <code>make reload APP=labgraph</code> drops the in-memory journal. Origin allowlist is exact Origins (no <code>"*"</code>). Jenkins is not in the integrator.</p>
+
         <h2 id="nfs">NFS</h2>
         <p><code>NFS_ARCHIVE_DIR</code> holds the empty-root fixture <code>.tar.zst</code> (<code>fixtures.tar.zst</code> contains only <code>./</code>) after <code>make fixtures</code>. The export is writable: <code>-w</code> overlay plus live commit (<code>NFS_COMMIT_OVERLAY_INTERVAL</code>, default 15m, and on process exit). <code>NFS_DATA_DIR</code> is indexes plus the durable overlay. Plan ~2× compressed size on the archive dir during a commit.</p>
         <pre><code>NFS_PORT=20490
@@ -305,7 +313,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <pre><code>{
   "name": "integration",
   "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm"]
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph"]
 }</code></pre>
         <p>Gateway SQLite sits on tmpfs; <code>make register</code> reapplies the JSON. Mode follows <code>LAB_DEV_MODE</code> unless you pin <code>MCPJUNGLE_MODE</code>.</p>
 

@@ -57,7 +57,7 @@ func TestDefaultProfileRegistersLabmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true, "labmitm": true}
+	want := map[string]bool{"labdns": true, "labldap": true, "labtacacs": true, "labinfo": true, "labmail": true, "labmitm": true, "labgraph": true}
 	for _, name := range got {
 		delete(want, name)
 	}
@@ -77,15 +77,17 @@ func TestDefaultProfileIntegrationGroupIncludesLabmitm(t *testing.T) {
 	if err := json.Unmarshal(b, &group); err != nil {
 		t.Fatal(err)
 	}
-	found := false
+	foundMITM, foundGraph := false, false
 	for _, name := range group.IncludedServers {
 		if name == "labmitm" {
-			found = true
-			break
+			foundMITM = true
+		}
+		if name == "labgraph" {
+			foundGraph = true
 		}
 	}
-	if !found {
-		t.Fatalf("included_servers = %v, want labmitm appended", group.IncludedServers)
+	if !foundMITM || !foundGraph {
+		t.Fatalf("included_servers = %v, want labmitm and labgraph appended", group.IncludedServers)
 	}
 }
 
@@ -98,6 +100,7 @@ func TestLoadTokensAndRegistrarEnvIncludeLabmitm(t *testing.T) {
 		"secrets/labinfo-token":                                                     "info-tok",
 		"secrets/labmail-token":                                                     "mail-tok",
 		"secrets/labmitm-token":                                                     "mitm-tok",
+		"secrets/labgraph-token":                                                    "graph-tok",
 		"secrets/mcp-client-token":                                                  "client-tok",
 	}
 	for rel, body := range files {
@@ -117,16 +120,21 @@ func TestLoadTokensAndRegistrarEnvIncludeLabmitm(t *testing.T) {
 	if tokens["labmitm"] != "mitm-tok" {
 		t.Fatalf("labmitm token = %q, want mitm-tok", tokens["labmitm"])
 	}
+	if tokens["labgraph"] != "graph-tok" {
+		t.Fatalf("labgraph token = %q, want graph-tok", tokens["labgraph"])
+	}
 	env := r.registrarEnv(tokens)
-	found := false
+	foundMITM, foundGraph := false, false
 	for _, kv := range env {
 		if kv == "LABMITM_TOKEN=mitm-tok" {
-			found = true
-			break
+			foundMITM = true
+		}
+		if kv == "LABGRAPH_TOKEN=graph-tok" {
+			foundGraph = true
 		}
 	}
-	if !found {
-		t.Fatalf("registrarEnv missing LABMITM_TOKEN: %v", env)
+	if !foundMITM || !foundGraph {
+		t.Fatalf("registrarEnv missing LABMITM_TOKEN or LABGRAPH_TOKEN: %v", env)
 	}
 }
 

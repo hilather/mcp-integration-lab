@@ -34,6 +34,8 @@ profiles/<name>/
   labinfo/services.yaml    endpoint + connection catalog
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
+  labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
+  scenarios/*.yaml         LabScenario files (empty default is a no-op)
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group
@@ -156,6 +158,8 @@ which timesyncd/W32Time cannot follow).
 | `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). Not an IANA dest-443 service; do not move this to 443. |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
+| `LABGRAPH_PORT` | `18091` | LabScenario orchestrator REST / MCP / SPA. |
+| `LABGRAPH_LABLDAP_SCENARIO_NAME` | `mcp-integration-lab` | Compiled LabLDAP scenario `metadata.name` for `POST /api/v1/reset`. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
 | `LAB_DOCKER_SUBNET` | `10.99.42.0/24` | IPv4 CIDR for `mcplab-shared` (`/24`–`/27`). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: `make down` then `make up`. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
@@ -178,7 +182,7 @@ reload recreates directory + control).
 After that, recreate **one** application:
 
 ```bash
-make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
+make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph
 # equivalent: mcplab reload <app>
 ```
 
@@ -194,6 +198,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm
 | `LAB_PUBLIC_HOST` | `mcplab secrets` then `make reload APP=labldap` | leaf SAN rewrite; control Host allow-list env |
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
 | `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates; does not re-register |
+| `labgraph/bootstrap.yaml` or `scenarios/*.yaml` | `make reload APP=labgraph` | in-memory apply/reset journal gone |
 
 `make labldap-up` / `make labtacacs-up` are idempotent project bring-up
 (the path `make up` uses). They do not force-recreate a running directory.
@@ -442,6 +447,27 @@ Desired-state shape (1.1–1.4 knobs included, default off except D22-carve
 hop gates) lives in `profiles/default/labmitm/bootstrap.yaml`. Do not
 recopy from the upstream examples tree.
 
+## LabGraph
+
+First-party LabScenario orchestrator (catalog id `labgraph`). Desired
+state is `labgraph/bootstrap.yaml` (`mcplab.dev/v1alpha1` `LabGraph`)
+plus `scenarios/*.yaml` (`LabScenario`). The default scenario has
+`spec: {}` so list/get/validate/plan/apply/status are no-ops.
+
+labgraph fans out to native appliance APIs in order DNS → MITM → mail →
+LDAP → TacLab. Family sections use native validate/plan/apply envelopes
+(`expectedRevision` from `GET /v1/state` when omitted). Present
+`spec.labldap` / `spec.labtacacs` fail closed on validate/plan/apply
+(no file-level apply). Reset calls native reset only (LabLDAP OCC is
+`baseline.expectedRevision`). Partial apply stops; no auto-rollback.
+
+`mcplab scenario validate|plan|apply|reset [name]` is an HTTP client of
+labgraph (`LAB_PUBLIC_HOST`:`LABGRAPH_PORT`, `secrets/labgraph-token`).
+`make reload APP=labgraph` drops the in-memory journal. Origin
+allowlist is exact Origins (loopback implicit; no `"*"`). Preflight
+warns when `LAB_PUBLIC_HOST` is not loopback and the list is empty.
+Jenkins is not in the integrator.
+
 Point systems under test at `<lab-host>:18888` as `HTTP_PROXY` /
 `HTTPS_PROXY`. Inspector / REST / MCP is `:18088` (bearer in
 `secrets/labmitm-token`). Install `GET /v1/ca` into the SUT trust store
@@ -541,7 +567,7 @@ The curated tool group — this is what most agents should attach to:
 {
   "name": "integration",
   "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm"]
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph"]
 }
 ```
 

@@ -21,6 +21,7 @@ func TestLoadDevCredentialsValid(t *testing.T) {
 		{"spec.tokens.labinfo", doc.Spec.Tokens.Labinfo, "lab-dev-labinfo-token"},
 		{"spec.tokens.labmail", doc.Spec.Tokens.Labmail, "lab-dev-labmail-token-32b-minimum"},
 		{"spec.tokens.labmitm", doc.Spec.Tokens.LabMITM, "lab-dev-labmitm-token-32b-minimum"},
+		{"spec.tokens.labgraph", doc.Spec.Tokens.Labgraph, "lab-dev-labgraph-token"},
 		{"spec.tokens.mcpClient", doc.Spec.Tokens.MCPClient, "lab-dev-mcp-client-token"},
 		{"spec.tokens.labldapAdmin", doc.Spec.Tokens.LabLDAPAdmin, "lab-dev-labldap-token-admin"},
 		{"spec.tokens.labtacacsAdmin", doc.Spec.Tokens.LabTacacsAdmin, "lab-dev-labtacacs-token-admin"},
@@ -74,6 +75,13 @@ func TestLoadDevCredentialsMissingLabmitm(t *testing.T) {
 	_, err := LoadDevCredentials(testdataDevcreds("missing-labmitm.yaml"))
 	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labmitm is required") {
 		t.Fatalf("expected missing labmitm, got %v", err)
+	}
+}
+
+func TestLoadDevCredentialsMissingLabgraph(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("missing-labgraph.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labgraph is required") {
+		t.Fatalf("expected missing labgraph, got %v", err)
 	}
 }
 

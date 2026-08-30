@@ -1,0 +1,17 @@
+# labgraph service bootstrap (not a LabScenario). KnownFields fail-closed.
+apiVersion: mcplab.dev/v1alpha1
+kind: LabGraph
+metadata:
+  name: default
+spec:
+  ui:
+    enabled: true
+  management:
+    auth:
+      profile: bearer
+      secretRef: /run/lab-secrets/labgraph-token
+    mcp:
+      # MCPJungle (older SDK) needs this. Protocol pin is 2026-07-28.
+      allowLegacyClients: true
+    # Exact Origins for remote browsers. Loopback is already allowed. No "*".
+    originAllowlist: []

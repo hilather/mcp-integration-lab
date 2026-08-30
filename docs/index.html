@@ -111,6 +111,7 @@
               <ul>
                 <li><strong>LabDNS</strong> — 10053 residual / 18080</li>
                 <li><strong>labinfo</strong> — 18090</li>
+                <li><strong>labgraph</strong> — 18091</li>
                 <li><strong>LabMail</strong> — 1025 residual / 1080</li>
                 <li><strong>LabMITM</strong> — 18888 / 18088</li>
                 <li><strong>ratarmount-rs</strong> — 20490 residual</li>
@@ -144,7 +145,7 @@
       <div class="wrap">
         <div class="sec-head">
           <div class="eyebrow">The stack</div>
-          <h2>Eight services. One profile. One client URL.</h2>
+          <h2>Nine services. One profile. One client URL.</h2>
           <p>Each appliance is a real protocol on the wire. Agents talk to the gateway. Testers talk to the data planes.</p>
         </div>
         <div class="cards">
@@ -202,6 +203,13 @@
             </header>
             <p>First-party service directory. Agents ask <code>endpoints_list</code> for web/REST URLs and <code>connections_list</code> for protocol client config before they spelunk.</p>
             <div class="meta"><span>18090</span><a href="https://github.com/hilather/mcp-integration-lab">mcp-integration-lab</a></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>labgraph</h3>
+            </header>
+            <p>First-party LabScenario orchestrator. Applies profile YAML across appliances via native plan/apply/reset. REST, MCP, and an operator console. Empty default scenario is a no-op.</p>
+            <div class="meta"><span>18091</span><a href="https://github.com/hilather/mcp-integration-lab">mcp-integration-lab</a></div>
           </article>
           <article class="card">
             <header>

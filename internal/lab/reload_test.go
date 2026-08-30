@@ -25,6 +25,9 @@ func TestResolveReloadAliases(t *testing.T) {
 		"tacacs":    "labtacacs",
 		"labmitm":   "labmitm",
 		"mitm":      "labmitm",
+		"labgraph":  "labgraph",
+		"graph":     "labgraph",
+		"scenario":  "labgraph",
 	}
 	for in, want := range cases {
 		got, err := ResolveReload(in)
@@ -96,6 +99,16 @@ func TestCanonicalReloadAppsAllResolve(t *testing.T) {
 		if got.canonical != name {
 			t.Errorf("ResolveReload(%q).canonical = %q", name, got.canonical)
 		}
+	}
+}
+
+func TestMakefileReloadUsageMentionsLabgraph(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("..", "..", "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "labgraph") {
+		t.Fatal("Makefile reload usage missing labgraph")
 	}
 }
 

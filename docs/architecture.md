@@ -20,6 +20,7 @@ secrets layout, and gateway policy.
 | LabMITM (`go-lab-mitmproxy` **v1.6.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490† |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
+| labgraph (first-party) | LabScenario orchestrator: native plan/apply/reset fan-out, REST + MCP + SPA | `http://labgraph:8080/mcp` (bearer; `allowLegacyClients: true`) | 18091 |
 | MCPJungle (**0.4.6**) | MCP gateway: aggregation, tool groups, ACLs; operator dashboard `GET /` in development mode only | `http://<host>:8080/mcp` | gateway 8080 |
 
 † Residual default-profile dest, not the designed IANA dest (DNS 53, LDAP
@@ -87,6 +88,7 @@ flowchart LR
     Mail["LabMail (compose: maildev)"]
     MITM["labmitm"]
     Info["labinfo (service directory)"]
+    Graph["labgraph"]
   end
   subgraph labldap [compose project labldap]
     Control["control plane :8443"]
@@ -101,6 +103,7 @@ flowchart LR
   Jungle -->|"HTTP + bearer"| Taclab
   Jungle -->|"HTTP + bearer"| Mail
   Jungle -->|"HTTP + bearer"| MITM
+  Jungle -->|"HTTP + bearer"| Graph
   Control --> Dir
   Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP, HTTP proxy"| mcplab
   Testers --> labldap
@@ -140,6 +143,10 @@ Per-team configuration lives in profiles (`profiles/<name>/`), selected via
   relay/outbound key). Compose service name stays `maildev`.
 - `labmitm/bootstrap.yaml` — LabMITM desired state (`labmitm.dev/v1alpha1`;
   lab-owned overlay copy, exact Origins, `allowLegacyClients: true`).
+- `labgraph/bootstrap.yaml` — LabGraph service bootstrap (`mcplab.dev/v1alpha1`;
+  exact Origins, `allowLegacyClients: true`).
+- `scenarios/*.yaml` — LabScenario files (omitted appliances are left alone;
+  empty default is a no-op).
 - `mcpjungle/servers/*.json` — upstream registrations with
   `${ENV}` token injection.
 - `mcpjungle/groups/integration.json` — curated tool-group endpoint.
@@ -199,6 +206,7 @@ tweak does not bounce the rest of the lab:
 | `labldap` | rebuild images, force-recreate directory + control, re-run bootstrap | ephemeral `/data` (re-seeded from scenario.yaml) |
 | `labtacacs` | `compose up --force-recreate` on the TacLab project | in-process AAA state (labgen files on disk survive) |
 | `labmitm` | same for compose service `labmitm` | captured flows; generate-mode CA rotates (does not re-register) |
+| `labgraph` | same for compose service `labgraph` | in-memory apply/reset journal |
 
 `make labldap-up` / `make labtacacs-up` stay idempotent project bring-up
 (used by `make up`). Use full `make up` after a vendor pin bump, a profile
