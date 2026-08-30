@@ -247,6 +247,9 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	if !bytes.Contains(env, []byte("LAB_DEV_MODE=false")) {
 		t.Fatal("default profile must keep LAB_DEV_MODE=false")
 	}
+	if !bytes.Contains(env, []byte("LAB_DOCKER_SUBNET=10.99.42.0/24")) {
+		t.Fatal("default profile must pin LAB_DOCKER_SUBNET to a /24")
+	}
 	for _, line := range strings.Split(string(env), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "#") || line == "" {

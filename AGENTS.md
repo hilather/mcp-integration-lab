@@ -162,7 +162,17 @@ we work by.
 - Host-port preflight (`probePort`) must not treat `EACCES` / permission-denied
   as occupied. Default TacLab ports 49/300 are privileged; the GH-hosted
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.
-  `EADDRINUSE` still fails preflight.
+  Occupancy is `/proc/net/tcp{,6}` LISTEN and `udp{,6}` bound (TCP dial
+  fallback if proc is missing) — do not skip those ports, and do not remap
+  them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight.
+- Docker user-defined networks without `--subnet` take a /16 from the daemon
+  default pool (~15 slots of 172.17–31). This lab used two (`mcplab-shared`
+  plus compose `mcplab_default`) and exhausted the pool on a busy host.
+  `EnsureNetwork` creates one `mcplab-shared` with `LAB_DOCKER_SUBNET`
+  (default `10.99.42.0/24`); the main compose `default` is that external
+  network. `make down` removes it when empty. A leftover /16 with endpoints
+  fail-closes (`make down` then `make up`). Do not leave compose `default:`
+  unconfigured.
 - LabDNS is pinned to **v1.3.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can

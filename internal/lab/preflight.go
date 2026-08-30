@@ -25,6 +25,7 @@ var preflightKeys = []string{
 	"LABINFO_PORT",
 	"LAB_DEV_MODE",
 	"MCPJUNGLE_MODE",
+	"LAB_DOCKER_SUBNET",
 }
 
 // Preflight fails fast when effective env values drift from profile.env for
@@ -32,6 +33,9 @@ var preflightKeys = []string{
 func (r *Runner) Preflight() error {
 	if err := r.preflightEnvDrift(); err != nil {
 		return err
+	}
+	if _, err := sharedSubnet(r.Prof); err != nil {
+		return fmt.Errorf("preflight failed: %w", err)
 	}
 	r.warnLabmitmOrigin()
 	return r.preflightPortsAvailable()

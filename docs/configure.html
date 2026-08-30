@@ -64,7 +64,7 @@
 
         <h2 id="profile">A profile directory</h2>
         <pre><code>profiles/&lt;name&gt;/
-  profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  profile.env              ports, LAB_PUBLIC_HOST, LAB_DOCKER_SUBNET, LAB_DEV_MODE, storage
   dev-credentials.yaml     lab-only catalog (used iff LAB_DEV_MODE=true)
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
@@ -95,7 +95,7 @@ PROFILE=default
 # PROFILE=teamx</code></pre>
 
         <h2 id="preflight">Preflight</h2>
-        <p><code>make preflight</code> (also run by <code>make up</code> and <code>make register</code>) checks profile drift and that every published host port is free or already held only by this lab's containers. Permission-denied on privileged ports (TacLab <code>49</code>/<code>300</code> as a non-root user) is not treated as occupied — dockerd can still publish them. Failures stop bring-up before compose dies mid-deploy.</p>
+        <p><code>make preflight</code> (also run by <code>make up</code> and <code>make register</code>) checks profile drift and that every published host port is free or already held only by this lab's containers. Permission-denied on privileged ports (TacLab <code>49</code>/<code>300</code> as a non-root user) is not treated as occupied — dockerd can still publish them. Preflight then checks <code>/proc/net</code> for a real listener instead of skipping those ports. Failures stop bring-up before compose dies mid-deploy.</p>
 
         <h2 id="knobs">profile.env — every knob</h2>
         <table>
@@ -123,6 +123,7 @@ PROFILE=default
             <tr><td><code>LABMITM_WEB_PORT</code></td><td>18088</td><td>LabMITM inspector UI + /v1 + MCP.</td></tr>
             <tr><td><code>LABINFO_PORT</code></td><td>18090</td><td>Service-directory MCP.</td></tr>
             <tr><td><code>LAB_PUBLIC_HOST</code></td><td>localhost</td><td>Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay <code>LABLDAP_MANAGEMENT_ALLOWED_HOSTS</code>). Changing it needs <code>mcplab secrets</code> plus <code>make reload APP=labldap</code>.</td></tr>
+            <tr><td><code>LAB_DOCKER_SUBNET</code></td><td>10.99.42.0/24</td><td>IPv4 CIDR for <code>mcplab-shared</code> (<code>/24</code>–<code>/27</code>). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: <code>make down</code> then <code>make up</code>.</td></tr>
             <tr><td><code>LAB_DEV_MODE</code></td><td>false</td><td>Single security knob. Also consumes <code>dev-credentials.yaml</code>.</td></tr>
             <tr><td><code>NFS_ARCHIVE_DIR</code></td><td>.data/nfs</td><td>Empty-root fixtures.tar.zst (writable; live commit replaces it).</td></tr>
             <tr><td><code>NFS_DATA_DIR</code></td><td>.data/nfs-work</td><td>Indexes plus the durable write overlay. Give it real disk.</td></tr>

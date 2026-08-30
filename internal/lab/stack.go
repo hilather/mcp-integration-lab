@@ -46,7 +46,11 @@ func (r *Runner) Down() error {
 	if err := r.LabLDAPDown(false); err != nil {
 		return err
 	}
-	return r.LabTacacsDown(false)
+	if err := r.LabTacacsDown(false); err != nil {
+		return err
+	}
+	r.releaseUnusedNetworks()
+	return nil
 }
 
 // Reset stops everything and wipes all runtime state (volumes included).
@@ -57,5 +61,9 @@ func (r *Runner) Reset() error {
 	if err := r.LabLDAPDown(true); err != nil {
 		return err
 	}
-	return r.LabTacacsDown(true)
+	if err := r.LabTacacsDown(true); err != nil {
+		return err
+	}
+	r.releaseUnusedNetworks()
+	return nil
 }

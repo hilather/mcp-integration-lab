@@ -37,7 +37,7 @@
       <article class="prose">
         <div class="eyebrow">Design</div>
         <h1>Three compose projects. One shared network.</h1>
-        <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, NFS, and the HTTP intercept proxy at the published host ports. The appliances meet on <code>mcplab-shared</code>.</p>
+        <p>Agents speak streamable HTTP to MCPJungle. Testers speak DNS, LDAP, TACACS+, RADIUS, SMTP, NFS, and the HTTP intercept proxy at the published host ports. The appliances meet on <code>mcplab-shared</code> (<code>LAB_DOCKER_SUBNET</code>, default <code>10.99.42.0/24</code> — not Docker's default /16 per network).</p>
         <div class="topo inset">
           <div class="topo-flow">
             <div class="topo-node"><span>Clients</span><strong>MCP agents</strong></div>

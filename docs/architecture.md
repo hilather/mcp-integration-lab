@@ -59,9 +59,12 @@ flowchart LR
 ```
 
 - The compose projects meet on the shared external docker network
-  `mcplab-shared`. REST/management planes are published externally too (they
-  are part of what teams integration-test), authenticated by bearer tokens or
-  TLS.
+  `mcplab-shared` (`LAB_DOCKER_SUBNET`, default `10.99.42.0/24`). Docker's
+  default for an unspecified user-defined network is a /16 from a ~15-slot
+  pool; this lab used two of those and ran out. Main compose `default` is
+  that same external network (no `mcplab_default`). REST/management planes
+  are published externally too (they are part of what teams
+  integration-test), authenticated by bearer tokens or TLS.
 - Gateway registration state (SQLite) sits on tmpfs: ephemeral by design.
   `make register` reapplies the JSON configs in the active profile's
   `mcpjungle/` directory, which are the source of truth.
@@ -122,7 +125,10 @@ separated from the exec layer and covered by unit/regression tests
 logic is testable without docker.
 
 `make up` is the full bring-up (vendor, secrets, fixtures, all three compose
-projects, gateway registration). `mcplab reload <app>` / `make reload
+projects, gateway registration). It runs preflight first: profile drift and
+host-port occupancy. Privileged ports (default TacLab 49/300) are probed
+without requiring the operator uid to bind — `EACCES` is not "in use";
+occupancy is `/proc/net` (TCP LISTEN / UDP bound). `mcplab reload <app>` / `make reload
 APP=<app>` rebuilds and recreates **one** application so a YAML or image
 tweak does not bounce the rest of the lab:
 

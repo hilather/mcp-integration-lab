@@ -7,6 +7,20 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-29
+
+### Fixed
+
+- Host-port preflight occupancy-checks privileged ports after `EACCES`
+  (`/proc/net` TCP LISTEN / UDP bound, TCP dial fallback) instead of
+  treating TacLab `49`/`300` as always free.
+- Lab docker networks no longer consume a /16 each from the daemon
+  default pool. `mcplab-shared` is created as `LAB_DOCKER_SUBNET`
+  (default `10.99.42.0/24`), and the main compose project joins that
+  network instead of allocating a second `mcplab_default` /16. `make
+  down` removes it when empty. A leftover /16 with endpoints needs
+  `make down` then `make up`.
+
 ## [0.10.0] - 2026-08-29
 
 ### Changed

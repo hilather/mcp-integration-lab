@@ -88,6 +88,9 @@ func reloadMainArgs(service string) []string {
 }
 
 func (r *Runner) reloadMain(service string) error {
+	if err := r.EnsureNetwork(); err != nil {
+		return err
+	}
 	return r.compose(reloadMainArgs(service)...)
 }
 

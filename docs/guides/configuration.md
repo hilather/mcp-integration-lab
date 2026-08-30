@@ -27,7 +27,7 @@ are gitignored so local profiles survive `git pull`; see
 
 ```
 profiles/<name>/
-  profile.env              ports, LAB_PUBLIC_HOST, LAB_DEV_MODE, storage
+  profile.env              ports, LAB_PUBLIC_HOST, LAB_DOCKER_SUBNET, LAB_DEV_MODE, storage
   dev-credentials.yaml     lab-only catalog (used iff LAB_DEV_MODE=true)
   labdns/bootstrap.yaml    permanent DNS zones and records
   labldap/scenario.yaml    directory users, ACLs, TLS, MCP features
@@ -96,7 +96,8 @@ in `.env` while the profile sets `53`).
    or already held only by this lab's Docker containers (idempotent restarts).
    `EACCES` / permission-denied on privileged ports (default TacLab `49` /
    `300` when the orchestrator is not root) is not treated as occupied:
-   dockerd can still publish them.
+   dockerd can still publish them. Preflight then checks `/proc/net` for a
+   real listener (TCP LISTEN / UDP bound) instead of skipping those ports.
 
 If a profile uses IANA port 53 for DNS and systemd-resolved already holds it,
 preflight fails before compose starts. Stop the conflicting service or pick a
@@ -128,6 +129,7 @@ different `LABDNS_DNS_PORT` in your team profile.
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
+| `LAB_DOCKER_SUBNET` | `10.99.42.0/24` | IPv4 CIDR for `mcplab-shared` (`/24`–`/27`). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: `make down` then `make up`. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
 | `NFS_ARCHIVE_DIR` | `.data/nfs` | Empty-root `fixtures.tar.zst` (writable; live commit replaces it). |

@@ -188,7 +188,11 @@ idempotent bring-up of those compose projects.
 
 `make up` and `make register` run the same preflight check automatically. To
 bypass intentionally, set `MCPLAB_ALLOW_PROFILE_OVERRIDES=true`. Use `make up`
-for first bring-up, a vendor pin bump, or a profile switch.
+for first bring-up, a vendor pin bump, or a profile switch. Host-port
+preflight does not treat bind permission denied on privileged ports
+(default TacLab 49/300) as a conflict; it occupancy-checks `/proc/net`
+instead. The three compose projects share `mcplab-shared` (`LAB_DOCKER_SUBNET`,
+default `/24`) — not Docker's default /16 per network.
 
 ## Projects in this lab
 
@@ -209,7 +213,7 @@ Vendored checkouts live in `third_party/` (cloned by `mcplab vendor`). Do not ed
 
 ## Architecture and security
 
-Three compose projects (`mcplab`, `labldap`, `labtacacs`) meet on the external docker network `mcplab-shared`. Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
+Three compose projects (`mcplab`, `labldap`, `labtacacs`) meet on the external docker network `mcplab-shared` (`LAB_DOCKER_SUBNET`, default `10.99.42.0/24`). Internal hops use static bearer tokens. Gateway registration state sits on tmpfs; `make register` reapplies the profile JSON.
 
 Design, topology, and the phase-1 OAuth plan: [docs/architecture.md](docs/architecture.md).
 
