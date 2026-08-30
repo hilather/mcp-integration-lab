@@ -9,6 +9,13 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- Native host-port policy is written down (AGENTS.md rule 15,
+  architecture, configuration, Pages). Protocol data planes use IANA
+  dests on the host; today's default-profile numbers (DNS 10053, LDAP
+  3389/3636, SMTP 1025, NFS 20490) are residual, not a second policy.
+  Docker/host feature preflights (example: LabNTP + `userland-proxy`)
+  must fail closed with the configuration change in the error. No live
+  port remaps in this change.
 - Default LabMITM overlay now writes every 1.1–1.4 knob the pinned
   v1.5.0 appliance understands (`spec.proxy.httpAuth.enabled: false`,
   1.2 nested flags, orig-dest, hop/accept including D22-carve

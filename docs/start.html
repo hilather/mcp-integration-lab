@@ -80,6 +80,7 @@ make smoke</code></pre>
         <p>The curated tool group lives at <code>http://&lt;lab-host&gt;:8080/v0/groups/integration/mcp</code>. Ask labinfo for <code>endpoints_list</code> and <code>connections_list</code> before you spelunk.</p>
 
         <h2 id="planes">Hit a data plane</h2>
+        <p>Today's default profile still publishes residual dests (DNS 10053, LDAPS 3636, SMTP 1025, NFS 20490). Native policy is IANA on the host (53, 636, 25, 2049); remaps are follow-on PRs. LabMITM is a forward proxy, not dest 443.</p>
         <pre><code>dig @&lt;lab-host&gt; -p 10053 ns1.lab.test
 
 ldapsearch -H ldaps://&lt;lab-host&gt;:3636 \

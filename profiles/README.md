@@ -1,7 +1,10 @@
 # Profiles
 
-The only profile shipped in this repository is **`default`** (local/CI baseline;
-LabDNS on port 10053 to avoid systemd-resolved).
+The only profile shipped in this repository is **`default`** (local/CI
+baseline). Its data-plane dests that are not IANA (LabDNS 10053, LDAP
+3389/3636, SMTP 1025, NFS 20490) are residual, not the design — native
+policy is 53 / 389 / 636 / 25 / 2049 (AGENTS.md rule 15). TacLab is
+already native. Remaps are follow-on PRs.
 
 ## Team-local profiles
 

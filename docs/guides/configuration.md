@@ -88,6 +88,17 @@ in `.env` while the profile sets `53`).
 
 ## Preflight
 
+Protocol data planes SUTs already speak use the IANA dest on the **host**
+(DNS 53, NTP 123, LDAP 389 / LDAPS 636, SMTP 25, TACACS+ 49 / 300, RADIUS
+1812/1813, NFS 2049). Container listen ports are unprivileged and
+irrelevant to consumers. Management planes stay high. LabMITM is a forward
+proxy (SUT sets `HTTP_PROXY`), not dest 443. Today's default-profile
+numbers that are not native (DNS 10053, LDAP 3389/3636, SMTP 1025, NFS
+20490) are residual, not a second policy — remaps are follow-on PRs.
+Operator escape (a non-native `profile.env` port) is allowed when
+preflight cannot free the IANA port; it is an escape, not the default
+(AGENTS.md rule 15).
+
 `make preflight` (also run automatically by `make up` and `make register`) checks:
 
 1. **Profile drift** — critical endpoint/mode values in `.env` or process env
@@ -99,34 +110,50 @@ in `.env` while the profile sets `53`).
    `300` when the orchestrator is not root) is not treated as occupied:
    dockerd can still publish them. Preflight then checks `/proc/net` for a
    real listener (TCP LISTEN / UDP bound) instead of skipping those ports.
+   Fail closed if a non-lab process holds the port.
+3. **Docker/host feature knobs** — when a lab feature depends on a Docker
+   daemon or host setting, preflight must fail closed **with the
+   configuration change in the error**. Do not boot a lab that pretends
+   the feature works. LabNTP is not in compose yet; do not add a
+   `userland-proxy` probe in Go until that integrator slice. The
+   normative error for that check, when it exists: write
+   `/etc/docker/daemon.json` `{"userland-proxy": false}` then
+   `systemctl restart docker`. Docker Desktop / VM NAT cannot preserve
+   UDP source — Linux dockerd + `userland-proxy` false, or
+   macvlan/ipvlan; do not start that feature there.
 
-If a profile uses IANA port 53 for DNS and systemd-resolved already holds it,
-preflight fails before compose starts. Stop the conflicting service or pick a
-different `LABDNS_DNS_PORT` in your team profile.
+Error messages must name the fix. If a profile uses IANA port 53 for DNS
+and systemd-resolved already holds it, preflight fails before compose
+starts: stop/disable resolved **or** extra IP for `LAB_PUBLIC_HOST` **or**
+escape `LABDNS_DNS_PORT` (SUTs that cannot set dest port cannot follow
+the escape). Same shape for NTP 123 vs systemd-timesyncd when LabNTP
+lands (stop/disable timesyncd — lab host clock may drift; LabNTP never
+settimeofday — **or** extra IP **or** escape `LABNTP_NTP_PORT=10123`,
+which timesyncd/W32Time cannot follow).
 
 ## profile.env — every knob
 
 | Variable | Default | What it is |
 | --- | --- | --- |
-| `LABDNS_DNS_PORT` | `10053` | DNS data plane (udp+tcp). `53` usually collides with systemd-resolved. |
+| `LABDNS_DNS_PORT` | `10053` | Residual. Native dest is **53**. DNS data plane (udp+tcp). |
 | `LABDNS_REST_PORT` | `18080` | LabDNS REST `/v1` + MCP `/mcp` + operator console `GET /`. |
-| `LABLDAP_LDAP_PORT` | `3389` | LDAP (StartTLS). Cleartext simple bind is disabled. |
-| `LABLDAP_LDAPS_PORT` | `3636` | LDAPS. Cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS or IP). |
+| `LABLDAP_LDAP_PORT` | `3389` | Residual. Native dest is **389**. LDAP (StartTLS). Cleartext simple bind is disabled. |
+| `LABLDAP_LDAPS_PORT` | `3636` | Residual. Native dest is **636**. LDAPS. Cert SAN is `directory` plus `LAB_PUBLIC_HOST` (DNS or IP). |
 | `LABLDAP_HTTPS_PORT` | `8443` | LabLDAP UI + REST + MCP, lab TLS. |
 | `MCP_GATEWAY_PORT` | `8080` | MCPJungle streamable HTTP. |
 | `MCPJUNGLE_IMAGE_TAG` | `0.4.6` | MCPJungle GHCR tag for gateway + registrar. Omit to keep compose `:-0.4.6`. Do not copy upstream `latest` / `latest-stdio`. |
-| `NFS_PORT` | `20490` | ratarmount-rs userspace NFSv3 (writable overlay). |
-| `TACLAB_LEGACY_PORT` | `49` | TACACS+ (RFC 8907). |
-| `TACLAB_TLS_PORT` | `300` | TACACS+ TLS 1.3 (RFC 9887). |
-| `TACLAB_RADIUS_ACCESS_PORT` | `1812` | RADIUS access (udp). Message-Authenticator required. |
-| `TACLAB_RADIUS_ACCT_PORT` | `1813` | RADIUS accounting (udp). |
+| `NFS_PORT` | `20490` | Residual. Native dest is **2049**. ratarmount-rs userspace NFSv3 (writable overlay). |
+| `TACLAB_LEGACY_PORT` | `49` | Already native. TACACS+ (RFC 8907). |
+| `TACLAB_TLS_PORT` | `300` | Already native. TACACS+ TLS 1.3 (RFC 9887). |
+| `TACLAB_RADIUS_ACCESS_PORT` | `1812` | Already native. RADIUS access (udp). Message-Authenticator required. |
+| `TACLAB_RADIUS_ACCT_PORT` | `1813` | Already native. RADIUS accounting (udp). |
 | `TACLAB_RADIUS_RADSEC_PORT` | `2083` | RadSec. Published; listener default off. |
 | `TACLAB_RADIUS_DYNAUTH_PORT` | `3799` | RADIUS DAS. Published; listener default off. |
 | `TACLAB_HTTP_PORT` | `18049` | TacLab UI + REST + MCP. |
-| `MAILDEV_SMTP_PORT` | `1025` | Receive-only SMTP ingest. |
+| `MAILDEV_SMTP_PORT` | `1025` | Residual. Native dest is **25**. Receive-only SMTP ingest. |
 | `MAILDEV_WEB_PORT` | `1080` | LabMail UI + `/email` + `/v1` + MCP. |
 | `MAILDEV_WEB_USER` | `admin` | Web basic-auth user. Frozen at `admin` (YAML does not interpolate this). Password is minted, or the catalog `maildevWeb` value in dev mode. |
-| `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). |
+| `LABMITM_PROXY_PORT` | `18888` | Unauthenticated HTTP/1.1 forward proxy (absolute-form + CONNECT). Not an IANA dest-443 service; do not move this to 443. |
 | `LABMITM_WEB_PORT` | `18088` | LabMITM inspector UI + `/v1` + MCP. |
 | `LABINFO_PORT` | `18090` | Service-directory MCP. |
 | `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
@@ -378,7 +405,8 @@ spec:
     originAllowlist: ["*"]
 ```
 
-Point the system under test at `<lab-host>:1025`. Read captured mail at
+Point the system under test at `<lab-host>:1025` (residual; native dest
+is 25). Read captured mail at
 `:1080` (Basic user `admin`). Native REST is `/v1`; MCP is `/mcp` (bearer
 in `secrets/labmail-token`). Nothing is relayed. Captured mail is wiped on
 restart.
@@ -436,6 +464,8 @@ NFS_DATA_DIR=.data/nfs-work
 mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
   <lab-host>:/ /mnt
 ```
+
+`20490` is residual; native dest is 2049.
 
 AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.28**
 also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After a zstd

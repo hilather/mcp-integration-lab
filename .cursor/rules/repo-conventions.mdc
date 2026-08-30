@@ -16,6 +16,9 @@ Read `AGENTS.md` for the full rules. Non-negotiables:
   lifecycle scripts.
 - Service ports publish on all interfaces (remote systems test against this
   lab); host ports are profile-defined and auth stays on (bearer/TLS).
+  Protocol data planes use IANA dests on the host (AGENTS.md rule 15);
+  today's default-profile 10053/3389/1025/20490 numbers are residual, not
+  the design. Container listen ports are unprivileged.
 - Never commit `secrets/` or edit `third_party/` directly — vendored changes go in
   `patches/` (applied by `mcplab vendor`) and get PR'd upstream.
 - Every service must be listed in the profile's `labinfo/services.yaml` with

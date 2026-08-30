@@ -45,6 +45,11 @@ The curated tool group lives at `http://<lab-host>:8080/v0/groups/integration/mc
 
 ## Hit a data plane
 
+Today's default profile still publishes residual dests (DNS 10053, LDAPS
+3636, SMTP 1025, NFS 20490). Native policy is IANA on the host (53, 636,
+25, 2049); remaps are follow-on PRs. LabMITM is a forward proxy, not dest
+443.
+
 ```bash
 dig @<lab-host> -p 10053 ns1.lab.test
 

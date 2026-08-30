@@ -33,9 +33,10 @@ we work by.
    smoke` is the end-to-end acceptance gate — all checks green.
 5. **Every service is externally exposed on purpose.** Data planes and
    REST/management planes publish on all interfaces so remote systems can
-   test against the lab; host ports are profile-defined, container-internal
-   ports are irrelevant. Don't bind new services to loopback; do give them
-   bearer/TLS auth like the existing ones.
+   test against the lab; host ports are profile-defined (IANA/native dests
+   for protocol data planes — rule 15), and container listen ports are
+   unprivileged and irrelevant to consumers. Don't bind new services to
+   loopback; do give them bearer/TLS auth like the existing ones.
 6. **Never commit generated/runtime secrets.** `secrets/` and
    `third_party/*/secrets/` are produced by `mcplab secrets` and gitignored.
    Documented lab-only values in `profiles/<name>/dev-credentials.yaml` are
@@ -126,6 +127,52 @@ we work by.
     otherwise. The fix must include hardening: a regression test, a
     fail-closed guard, a health/wait condition, or a doc'd quirk here, so the
     same class of failure is caught earlier or can't recur silently.
+15. **Native host ports.** Protocol data planes SUTs already speak use the
+    IANA/standard dest on the **host**: DNS 53, NTP 123, LDAP 389 / LDAPS
+    636, SMTP 25, TACACS+ 49 / 300, RADIUS 1812/1813, NFS 2049. Container
+    listen ports are unprivileged and irrelevant to consumers (compose maps
+    host:container). Management/control planes stay high ports (collision
+    with the gateway and with each other is fine).
+    - LabMITM is a **forward proxy** (SUT sets `HTTP_PROXY`), not an IANA
+      dest-443 service. Do not move `LABMITM_PROXY_PORT` to 443. HTTPS
+      intercept of CONNECT `:443` stays inside the proxy. NFS userspace
+      2049 is native when remapped; 20490 today is residual.
+    - Operator escape (non-native host port) is allowed in `profile.env`
+      when preflight cannot free the IANA port; it is an escape, not the
+      default policy.
+    - **Preflight host occupancy** (already in `internal/lab/ports.go`):
+      every published host port. `EACCES` / `EPERM` is NOT occupied
+      (TacLab 49; dockerd can publish). Occupancy is `/proc/net` TCP
+      LISTEN / UDP bound. Fail closed if a non-lab process holds the port.
+    - **Preflight Docker/host feature knobs.** When a lab feature depends
+      on a Docker daemon or host setting (example: LabNTP per-IP views
+      need published UDP source IPs → `userland-proxy: false`), add a
+      preflight that fails closed **with the configuration change in the
+      error**. Do not boot a lab that pretends the feature works. Do
+      **not** enable a LabNTP userland-proxy check in Go until LabNTP is
+      in compose — document the rule so that integrator slice implements
+      it.
+    - **Error messages must name the fix.** Normative copy for when those
+      checks exist:
+      - DNS 53 held by systemd-resolved: stop/disable resolved **or**
+        extra IP for `LAB_PUBLIC_HOST` **or** escape `LABDNS_DNS_PORT`
+        (SUTs that cannot set dest port cannot follow the escape).
+      - NTP 123 held by systemd-timesyncd: stop/disable timesyncd (lab
+        host clock may drift; LabNTP never settimeofday) **or** extra IP
+        **or** escape `LABNTP_NTP_PORT=10123` (timesyncd/W32Time cannot).
+      - `userland-proxy` true: `/etc/docker/daemon.json`
+        `{"userland-proxy": false}` then `systemctl restart docker`.
+      - Docker Desktop / VM NAT cannot preserve UDP source: Linux dockerd
+        + `userland-proxy` false, or macvlan/ipvlan. Do not start that
+        feature there.
+    - **Today's default profile is residual**, not a second policy.
+      Residuals (do not change these numbers until the per-service remap
+      PR): DNS 10053 → native 53; LDAP 3389/3636 → 389/636; SMTP 1025 →
+      25; NFS 20490 → 2049. TacLab 49/300/1812/1813 already native.
+      Management ports stay high (18080, 18088, 18049, 8080, 8443, 1080,
+      18090). Port remaps are follow-on PRs per service, with preflight
+      errors, tests, labinfo dest-port, Pages. Do not invent
+      10053-as-design.
 
 ## Layout
 
@@ -153,8 +200,12 @@ we work by.
 
 ## Known quirks (learned the hard way)
 
-- Host ports 53 and 5353 collide with systemd-resolved/avahi; that's why DNS
-  defaults to 10053.
+- Host ports 53 and 5353 collide with systemd-resolved/avahi on typical
+  Linux hosts. The default profile's `LABDNS_DNS_PORT=10053` is residual,
+  not the design (rule 15). Native dest is 53; remap is a follow-on PR
+  with preflight errors that name the fix (stop/disable resolved, extra
+  IP for `LAB_PUBLIC_HOST`, or operator escape). Do not invent
+  10053-as-design.
 - MCPJungle is pinned to **0.4.6** (`MCPJUNGLE_IMAGE_TAG`; compose default
   `:-0.4.6` if omitted). This lab’s default is 0.4.6, not upstream Compose
   `latest` / `latest-stdio`. Do not set `MCPJUNGLE_BIND_HOST` (unset = all
@@ -167,6 +218,10 @@ we work by.
   Occupancy is `/proc/net/tcp{,6}` LISTEN and `udp{,6}` bound (TCP dial
   fallback if proc is missing) — do not skip those ports, and do not remap
   them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight.
+  Docker/host feature knobs are the same class of preflight (rule 15): fail
+  closed with the configuration change in the error. LabNTP is not in
+  compose yet — do not add a `userland-proxy` probe in Go until that
+  integrator slice.
 - Docker user-defined networks without `--subnet` take a /16 from the daemon
   default pool (~15 slots of 172.17–31). This lab used two (`mcplab-shared`
   plus compose `mcplab_default`) and exhausted the pool on a busy host.
