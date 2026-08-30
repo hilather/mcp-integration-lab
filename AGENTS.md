@@ -297,8 +297,10 @@ we work by.
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,
   profile switch, or first bring-up. After a catalog or `LAB_DEV_MODE`
   change, `mcplab secrets` is enough: it reloads running apps whose files
-  changed (and `Register()` if any registrarEnv token changed). `make up`
-  skips those names so they are not bounced twice.
+  changed (and `Register()` if any registrarEnv token changed). Enter-dev
+  arms `secrets/.lab-dev-mode` `reloads=pending` before catalog writes or
+  setupsecrets/labgen so a crash after files land still retries those
+  reloads. `make up` skips those names so they are not bounced twice.
 - Dev-mode smoke (`LAB_DEV_MODE=true` in the active `profile.env`) asserts
   catalog values on the wire: Alice's bind password, RADIUS Accept for
   catalog `taclabAdmin`, and `connections_list` secrets equal disk files.

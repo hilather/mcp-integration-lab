@@ -516,6 +516,67 @@ func TestSecretsEnterDevRetriesReloadsWhenPending(t *testing.T) {
 	}
 }
 
+func TestSecretsEnterDevArmsPendingBeforeSubprocesses(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	prev, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prev.reloads != reloadsDone {
+		t.Fatalf("precondition reloads=%q", prev.reloads)
+	}
+
+	// Catalog change lands on disk in applyDevCatalog, which used to run
+	// before the pending marker. A later setupsecrets error then left
+	// reloads=done; retry saw a plaintext match and skipped LabLDAP.
+	mutated := bytes.Replace(validCatalogBytes(t),
+		[]byte("lab-dev-alice-12"),
+		[]byte("lab-dev-alice-99"),
+		1)
+	if err := os.WriteFile(filepath.Join(r.Prof.Dir, "dev-credentials.yaml"), mutated, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	r.deps.setupsecrets = func(bool) error {
+		return errors.New("setupsecrets boom")
+	}
+	err = r.Secrets()
+	if err == nil || !strings.Contains(err.Error(), "setupsecrets boom") {
+		t.Fatalf("want setupsecrets failure, got %v", err)
+	}
+	mid, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mid.reloads != reloadsPending {
+		t.Fatalf("after catalog write + subprocess fail, reloads=%q, want %s", mid.reloads, reloadsPending)
+	}
+	if got := readTrim(t, r, "third_party/go-lab-ldap-mcp/secrets/user-alice"); got != "lab-dev-alice-99" {
+		t.Fatalf("Alice on disk = %q, want catalog write to have landed", got)
+	}
+
+	installTestSecretsDeps(r, map[string]bool{"labldap": true})
+	var labldap bool
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap || !r.alreadyReloaded("labldap") {
+		t.Fatal("retry after catalog-write-then-fail must reloadLabLDAP (disk already matches)")
+	}
+	done, err := parseDevModeMarkerFile(r.path(devModeMarkerRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done.reloads != reloadsDone {
+		t.Fatalf("reloads=%q after retry, want %s", done.reloads, reloadsDone)
+	}
+}
+
 func TestSecretsEnterDevRetriesReloadsWhenMarkerMissing(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
 	if err := r.Secrets(); err != nil {
