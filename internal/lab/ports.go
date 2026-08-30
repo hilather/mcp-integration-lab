@@ -240,7 +240,16 @@ func tcpDialOccupied(port int) (bool, error) {
 
 var labContainerPrefixes = []string{"mcplab-", "labldap-", "labtacacs-"}
 
+// labContainerExact are vendored compose container_name values that do not
+// use the project-prefixed default (TacLab labgen: `taclab`).
+var labContainerExact = []string{"taclab"}
+
 func isLabContainer(name string) bool {
+	for _, exact := range labContainerExact {
+		if name == exact {
+			return true
+		}
+	}
 	for _, prefix := range labContainerPrefixes {
 		if strings.HasPrefix(name, prefix) {
 			return true
@@ -250,20 +259,40 @@ func isLabContainer(name string) bool {
 }
 
 func (r *Runner) dockerContainersPublishingPort(port int) ([]string, error) {
-	out, err := r.capture(".", "docker", "ps",
-		"--filter", fmt.Sprintf("publish=%d", port),
-		"--format", "{{.Names}}")
+	// Parse Names + Ports. `docker ps --filter publish=N` misses UDP
+	// publishes (RADIUS 1812/1813/3799), so Register-after-LabTacacsUp
+	// would treat those as non-lab listeners.
+	out, err := r.capture(".", "docker", "ps", "--format", "{{.Names}}\t{{.Ports}}")
 	if err != nil {
 		return nil, err
 	}
+	return publishedPortHolders(out, port), nil
+}
+
+// publishedPortHolders returns container names whose Ports column maps
+// host port (":N->" in `docker ps` form, TCP or UDP).
+func publishedPortHolders(psOut string, port int) []string {
+	needle := fmt.Sprintf(":%d->", port)
 	var names []string
-	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+	for _, line := range strings.Split(psOut, "\n") {
 		line = strings.TrimSpace(line)
-		if line != "" {
-			names = append(names, line)
+		if line == "" {
+			continue
 		}
+		name, ports, ok := strings.Cut(line, "\t")
+		if !ok {
+			name, ports, ok = strings.Cut(line, " ")
+			if !ok {
+				continue
+			}
+		}
+		name = strings.TrimSpace(name)
+		if name == "" || !strings.Contains(ports, needle) {
+			continue
+		}
+		names = append(names, name)
 	}
-	return names, nil
+	return names
 }
 
 func (r *Runner) preflightPortsAvailable() error {

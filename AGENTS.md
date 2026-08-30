@@ -217,7 +217,12 @@ we work by.
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.
   Occupancy is `/proc/net/tcp{,6}` LISTEN and `udp{,6}` bound (TCP dial
   fallback if proc is missing) — do not skip those ports, and do not remap
-  them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight.
+  them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight
+  unless the holder is a lab container (`mcplab-` / `labldap-` /
+  `labtacacs-` prefixes, or exact vendored `container_name` `taclab`).
+  Find UDP publishes by parsing `docker ps` Ports (`:N->`); `--filter
+  publish=` misses RADIUS 1812/1813/3799, and `Register` re-runs this
+  check after `LabTacacsUp`.
   Docker/host feature knobs are the same class of preflight (rule 15): fail
   closed with the configuration change in the error. LabNTP is not in
   compose yet — do not add a `userland-proxy` probe in Go until that
