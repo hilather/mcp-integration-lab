@@ -9,20 +9,25 @@ import (
 
 func TestSPAServesIndex(t *testing.T) {
 	h := SPA()
-	for _, path := range []string{"/", "/index.html"} {
-		rr := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, path, nil)
-		h.ServeHTTP(rr, req)
-		if rr.Code != http.StatusOK {
-			t.Fatalf("%s: status %d", path, rr.Code)
-		}
-		ct := rr.Header().Get("Content-Type")
-		if !strings.Contains(ct, "text/html") {
-			t.Fatalf("%s: Content-Type %q", path, ct)
-		}
-		if !strings.Contains(rr.Body.String(), "LabGraph") {
-			t.Fatalf("%s: missing LabGraph title chrome", path)
-		}
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("/: status %d", rr.Code)
+	}
+	ct := rr.Header().Get("Content-Type")
+	if !strings.Contains(ct, "text/html") {
+		t.Fatalf("/: Content-Type %q", ct)
+	}
+	if !strings.Contains(rr.Body.String(), "LabGraph") {
+		t.Fatal("/: missing LabGraph title chrome")
+	}
+	// FileServer canonicalizes /index.html to /
+	rr = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodGet, "/index.html", nil)
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusMovedPermanently && rr.Code != http.StatusOK {
+		t.Fatalf("/index.html: status %d", rr.Code)
 	}
 }
 

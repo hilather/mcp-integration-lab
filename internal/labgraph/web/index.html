@@ -285,9 +285,10 @@
       if (!res || !Array.isArray(res.results) || res.results.length !== 5 || res.stopped) return false;
       return res.results.every(r => r.status === "skipped");
     }
-    function applyGraph(res) {
+    function applyGraph(res, op) {
       if (!res || !res.results) return;
-      emptySpec = inferEmpty(res);
+      // Reset does not skip empty spec; do not treat reset statuses as "not empty".
+      if (op !== "reset") emptySpec = inferEmpty(res);
       nodes = APPLY_ORDER.map(id => {
         const hit = res.results.find(r => r.appliance === id) || { appliance: id, status: "" };
         return { appliance: id, status: hit.status || "", stopped: res.stopped === id };
@@ -360,7 +361,7 @@
       applyStatus(st.json);
       if (hasCSRF()) {
         const v = await api("POST", "/v1/scenarios/" + encodeURIComponent(selected) + ":validate");
-        if (v.json && v.json.results) applyGraph(v.json);
+        if (v.json && v.json.results) applyGraph(v.json, "validate");
       }
       renderList(Array.from(document.querySelectorAll(".sc-item")).map(b => b.dataset.name));
       renderInspector();
@@ -395,7 +396,7 @@
       else if (op === "reset") path += ":reset";
       else return;
       const r = await api("POST", path, op === "validate" ? undefined : {});
-      if (r.json && r.json.results) applyGraph(r.json);
+      if (r.json && r.json.results) applyGraph(r.json, op);
       const st = await api("GET", "/v1/scenarios/" + encodeURIComponent(name) + "/status");
       if (st.json) {
         meta.generation = st.json.generation || meta.generation;
