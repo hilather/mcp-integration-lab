@@ -262,12 +262,27 @@ func (s *Service) walk(ctx context.Context, doc *LabScenario, mode walkMode, req
 			continue
 		}
 		if id == "labldap" {
-			ar.Status = "failed"
-			ar.Detail = errNoLDAPApply
+			kind, m, err := classifySection(n)
+			if err != nil || kind != sectionOperations {
+				ar.Status = "failed"
+				if err != nil {
+					ar.Detail = err.Error()
+				} else {
+					ar.Detail = errNoLDAPApply
+				}
+				out.Results = append(out.Results, ar)
+				out.OK = false
+				out.Stopped = id
+				return out, nil
+			}
+			ar = s.walkLDAP(ctx, m, mode)
 			out.Results = append(out.Results, ar)
-			out.OK = false
-			out.Stopped = id
-			return out, nil
+			if ar.Status == "failed" {
+				out.OK = false
+				out.Stopped = id
+				return out, nil
+			}
+			continue
 		}
 		if id == "labtacacs" {
 			ar.Status = "failed"

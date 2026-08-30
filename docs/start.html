@@ -125,7 +125,7 @@ make reload APP=labgraph    # labgraph/bootstrap.yaml + scenarios/*.yaml; drops 
 
         <h2 id="stop">Stop and reset</h2>
         <pre><code>make down     # stop; bind-mounted storage survives
-make reset    # wipe all runtime state
+make reset    # wipe all runtime state (restores bootstraps; pack YAML stays)
 make register # reapply gateway JSON from the profile (no container restart)</code></pre>
         <p class="note">The same text lives in the repo as <a href="https://github.com/hilather/mcp-integration-lab/blob/main/docs/guides/quickstart.md">docs/guides/quickstart.md</a>.</p>
       </article>

@@ -127,7 +127,9 @@ profiles/<name>/
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
   labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
-  scenarios/*.yaml         LabScenario files (empty default is a no-op)
+  scenarios/*.yaml         LabScenario files (empty default is a no-op;
+                           named packs: broken-bind, expired-cert,
+                           split-horizon-dns, mitm-intercept-extra-port)
   mcpjungle/servers/*.json gateway registrations
   mcpjungle/groups/        curated tool groups
 ```

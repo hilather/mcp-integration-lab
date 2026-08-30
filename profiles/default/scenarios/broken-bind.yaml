@@ -1,0 +1,14 @@
+# LabLDAP data-plane bind failure. Control plane only — do not flatten
+# labldap/scenario.yaml. disableUser sets nsAccountLock; native bind refuses
+# before password compare. expirePassword is bind-test must_change only and
+# is not used here. Reset: scenario.reset --appliances=labldap (or make reset).
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: broken-bind
+  description: Disable alice (nsAccountLock) so LDAPS simple bind fails. Control plane only.
+spec:
+  labldap:
+    operations:
+      - op: disableUser
+        id: alice

@@ -84,6 +84,12 @@ func (c *Client) Apply(name string) (*GraphResult, error) {
 	return &res, err
 }
 
+func (c *Client) ApplyFixture(id string) (*GraphResult, error) {
+	var res GraphResult
+	err := c.do(http.MethodPost, "/v1/fixtures/"+id+":apply", map[string]any{}, &res)
+	return &res, err
+}
+
 func (c *Client) Reset(name string, appliances []string) (*GraphResult, error) {
 	var res GraphResult
 	err := c.do(http.MethodPost, "/v1/scenarios/"+name+":reset", ResetRequest{Appliances: appliances}, &res)

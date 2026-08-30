@@ -118,6 +118,7 @@ Same commands as `mcplab reload <app>`. Aliases: `dns`, `labmail`/`mail`,
 
 ```bash
 make down     # stop; bind-mounted storage survives
-make reset    # wipe all runtime state
+make reset    # wipe all runtime state (restores appliance bootstraps; pack YAML stays)
+# Named LabScenario packs (not NFS `make fixtures`): mcplab fixture apply broken-bind
 make register # reapply gateway JSON from the profile (no container restart)
 ```

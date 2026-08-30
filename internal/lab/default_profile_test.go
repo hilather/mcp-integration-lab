@@ -276,4 +276,24 @@ func TestDefaultLabGraphBootstrapAndEmptyScenario(t *testing.T) {
 	if !bytes.Contains(sc, []byte("kind: LabScenario")) || !bytes.Contains(sc, []byte("spec: {}")) {
 		t.Fatalf("default scenario must be empty no-op, got:\n%s", sc)
 	}
+	for _, id := range []string{"broken-bind", "expired-cert", "split-horizon-dns", "mitm-intercept-extra-port"} {
+		p := filepath.Join(dir, "scenarios", id+".yaml")
+		b, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		if bytes.Contains(b, []byte("PRIVATE KEY")) || bytes.Contains(b, []byte("jenkins")) {
+			t.Fatalf("%s must not contain PRIVATE KEY or jenkins", id)
+		}
+		if !bytes.Contains(b, []byte("name: "+id)) {
+			t.Fatalf("%s metadata.name mismatch", id)
+		}
+	}
+	mitm, err := os.ReadFile(filepath.Join(dir, "labmitm", "bootstrap.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(mitm, []byte("ports: [443]")) {
+		t.Fatal("labmitm bootstrap must keep ports: [443]")
+	}
 }

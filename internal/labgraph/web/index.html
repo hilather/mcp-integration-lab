@@ -282,6 +282,9 @@
         wrap.append(d);
       });
     }
+    function specIsEmpty(spec) {
+      return !spec || (typeof spec === "object" && !Array.isArray(spec) && Object.keys(spec).length === 0);
+    }
     function inferEmpty(res) {
       if (!res || !Array.isArray(res.results) || res.results.length !== 5 || res.stopped) return false;
       return res.results.every(r => r.status === "skipped");
@@ -357,6 +360,7 @@
       if (g.json) {
         meta.kind = g.json.kind || "LabScenario";
         meta.apiVersion = g.json.apiVersion || "mcplab.dev/v1alpha1";
+        if (g.json.spec !== undefined) emptySpec = specIsEmpty(g.json.spec);
       }
       const st = await api("GET", "/v1/scenarios/" + encodeURIComponent(selected) + "/status");
       applyStatus(st.json);

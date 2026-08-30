@@ -94,6 +94,19 @@ func Registry() []Capability {
 			ServiceMethods: []string{"Status"},
 		},
 		{
+			ID: "fixture.apply", Title: "Apply fixture pack",
+			REST: []RESTBinding{{"POST", "/v1/fixtures/{id}:apply"}},
+			MCP:  &MCPBinding{Tool: "fixture_apply"},
+			UI:   &UIBinding{Route: "/fixtures/:id", Action: "mutate"},
+			ServiceMethods: []string{"ApplyFixture"},
+		},
+		{
+			ID: "fixture.get", Title: "Get fixture pack", RESTOnly: true,
+			REST: []RESTBinding{{"GET", "/v1/fixtures/{id}"}},
+			UI:   &UIBinding{Route: "/fixtures/:id", Action: "view"},
+			ServiceMethods: []string{"GetFixture"},
+		},
+		{
 			ID: "health.live", Title: "Liveness", RESTOnly: true,
 			REST: []RESTBinding{{"GET", "/v1/health/live"}},
 			UI:   &UIBinding{Route: "/", Action: "view"},

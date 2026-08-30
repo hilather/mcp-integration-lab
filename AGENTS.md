@@ -384,9 +384,16 @@ PR. Keystone runs a Thursday drift check.
   appliance APIs; it does not invent LDAP/TacLab file-level apply.
   Apply order is DNS → MITM → mail → LDAP → TacLab. Partial failure
   stops with no auto-rollback. Empty `profiles/<name>/scenarios/default.yaml`
-  is a no-op so smoke stays green. Do **not** smoke reset-all (omit
-  appliances = all five). CLI `mcplab scenario` is an HTTP client of
-  labgraph (`secrets/labgraph-token`), not a second fan-out. Scratch
+  is a no-op so smoke stays green. Named fixture packs
+  (`broken-bind`, `expired-cert`, `split-horizon-dns`,
+  `mitm-intercept-extra-port`) live beside it; MCP resources
+  `labgraph://fixtures/{id}` and tool `fixture.apply` share `Service.Apply`.
+  `broken-bind` is LabLDAP control `disableUser` only (do not flatten
+  `labldap/scenario.yaml`). `expired-cert` returns a public expired leaf
+  only — never a private key, and apply does not resign `directory.crt`.
+  Do **not** smoke apply those packs or reset-all (omit appliances =
+  all five). CLI `mcplab scenario` / `mcplab fixture apply` are HTTP
+  clients of labgraph (`secrets/labgraph-token`), not a second fan-out. Scratch
   has no CA: the LDAP client loads `/run/lab-secrets/labldap-ca.crt`
   into `RootCAs`. Token file is 0o644. Journal is process memory;
   `make reload APP=labgraph` drops it. Origin allowlist is exact
