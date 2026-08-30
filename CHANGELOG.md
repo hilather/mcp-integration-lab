@@ -9,6 +9,11 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Fixed
 
+- Dev-mode `mcplab secrets` now marks enter-dev reloads pending before
+  writing the catalog or running setupsecrets/labgen. A crash after
+  files land no longer leaves `reloads=done`; retry still reloads
+  running consumers so LDAP `/data` and gateway tokens cannot stay on
+  the previous catalog.
 - Dev-mode LabMail and LabMITM catalog tokens must be at least 32 bytes
   (appliance `auth.MinTokenBytes`). The previous `lab-dev-labmail-token` /
   `lab-dev-labmitm-token` values made those containers exit on serve, so
