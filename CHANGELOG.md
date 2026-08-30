@@ -25,14 +25,26 @@ changes since the previous one (AGENTS.md rule 13).
   Docker/host feature preflights (example: LabNTP + `userland-proxy`)
   must fail closed with the configuration change in the error. No live
   port remaps in this change.
-- Default LabMITM overlay now writes every 1.1–1.4 knob the pinned
-  v1.5.0 appliance understands (`spec.proxy.httpAuth.enabled: false`,
+- Default LabMITM overlay now writes every 1.1–1.4 knob the 1.5+
+  KnownFields set accepts (`spec.proxy.httpAuth.enabled: false`,
   1.2 nested flags, orig-dest, hop/accept including D22-carve
   websocket/connect/absoluteForm on). The stale v1.1.1 “omit these
-  keys or KnownFields fails” rule is gone. Pin stays v1.5.0.
+  keys or KnownFields fails” rule is gone.
+- Vendor pin: LabMITM **v1.6.0** (tag; commit ffb220b; Status
+  live-apply + notes). Overlay knobs already landed in #16.
+  Checkout is the release tag, not a SHA.
 
 ### Fixed
 
+- `EnsureNetwork` treats Docker Engine's `network NAME not found` the
+  same as classic `No such network`, so a missing `mcplab-shared` is
+  created on first `make up` instead of fail-closing (GH-hosted
+  `smoke-dev` inspect text).
+- Port preflight treats vendored TacLab `container_name: taclab` as a
+  lab holder and attributes publishes from `HostConfig.PortBindings`
+  (TCP and UDP). `docker ps` Ports / `--filter publish=` omit RADIUS
+  UDP on GH-hosted Engine, so `Register` after `LabTacacsUp` no longer
+  fail-closes on 1812/1813 (or 49/300/18049/2083).
 - Dev-mode `mcplab secrets` now marks enter-dev reloads pending before
   writing the catalog or running setupsecrets/labgen. A crash after
   files land no longer leaves `reloads=done`; retry still reloads

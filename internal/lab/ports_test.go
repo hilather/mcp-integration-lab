@@ -59,8 +59,59 @@ func TestIsLabContainer(t *testing.T) {
 	if !isLabContainer("mcplab-labdns-1") {
 		t.Fatal("expected mcplab container")
 	}
+	if !isLabContainer("labtacacs-taclab-1") {
+		t.Fatal("expected labtacacs- project prefix")
+	}
+	if !isLabContainer("taclab") {
+		t.Fatal("expected vendored container_name taclab")
+	}
+	if !isLabContainer("/taclab") {
+		t.Fatal("docker inspect Name is /taclab")
+	}
 	if isLabContainer("other-nginx-1") {
 		t.Fatal("did not expect non-lab container")
+	}
+	if isLabContainer("taclab-proxy") {
+		t.Fatal("taclab is exact, not a prefix")
+	}
+}
+
+func TestPublishedPortHoldersFindsUDPAndTCP(t *testing.T) {
+	const ps = "" +
+		"taclab\t0.0.0.0:49->49/tcp, 0.0.0.0:300->300/tcp, 0.0.0.0:18049->8080/tcp, 0.0.0.0:1812->1812/udp, 0.0.0.0:1813->1813/udp, 0.0.0.0:2083->2083/tcp, 0.0.0.0:3799->3799/udp\n" +
+		"mcplab-labdns-1\t0.0.0.0:10053->53/tcp, 0.0.0.0:10053->53/udp\n" +
+		"other-nginx-1\t0.0.0.0:8080->80/tcp\n"
+	got := publishedPortHolders(ps, 1812)
+	if len(got) != 1 || got[0] != "taclab" {
+		t.Fatalf("1812/udp holders = %v, want [taclab]", got)
+	}
+	got = publishedPortHolders(ps, 49)
+	if len(got) != 1 || got[0] != "taclab" {
+		t.Fatalf("49/tcp holders = %v, want [taclab]", got)
+	}
+	if got := publishedPortHolders(ps, 18120); len(got) != 0 {
+		t.Fatalf("18120 must not match :1812->, got %v", got)
+	}
+}
+
+func TestInspectPortBindingHoldersFindsRADIUSUDP(t *testing.T) {
+	// Exact HostConfig.PortBindings shape from `docker inspect` (CI
+	// smoke-dev: ps Ports omitted 1812/1813 UDP; TCP still listed).
+	const out = `/taclab	{"49/tcp":[{"HostIp":"0.0.0.0","HostPort":"49"}],"300/tcp":[{"HostIp":"0.0.0.0","HostPort":"300"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"18049"}],"1812/udp":[{"HostIp":"0.0.0.0","HostPort":"1812"}],"1813/udp":[{"HostIp":"0.0.0.0","HostPort":"1813"}],"2083/tcp":[{"HostIp":"0.0.0.0","HostPort":"2083"}]` + "}\n"
+	got := inspectPortBindingHolders(out, 1812)
+	if len(got) != 1 || got[0] != "taclab" {
+		t.Fatalf("1812/udp holders = %v, want [taclab]", got)
+	}
+	got = inspectPortBindingHolders(out, 1813)
+	if len(got) != 1 || got[0] != "taclab" {
+		t.Fatalf("1813/udp holders = %v, want [taclab]", got)
+	}
+	got = inspectPortBindingHolders(out, 49)
+	if len(got) != 1 || got[0] != "taclab" {
+		t.Fatalf("49/tcp holders = %v, want [taclab]", got)
+	}
+	if got := inspectPortBindingHolders(out, 3799); len(got) != 0 {
+		t.Fatalf("unpublished 3799 holders = %v", got)
 	}
 }
 

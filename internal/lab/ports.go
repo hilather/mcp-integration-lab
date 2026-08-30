@@ -1,6 +1,7 @@
 package lab
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -240,7 +241,17 @@ func tcpDialOccupied(port int) (bool, error) {
 
 var labContainerPrefixes = []string{"mcplab-", "labldap-", "labtacacs-"}
 
+// labContainerExact are vendored compose container_name values that do not
+// use the project-prefixed default (TacLab labgen: `taclab`).
+var labContainerExact = []string{"taclab"}
+
 func isLabContainer(name string) bool {
+	name = strings.TrimPrefix(strings.TrimSpace(name), "/")
+	for _, exact := range labContainerExact {
+		if name == exact {
+			return true
+		}
+	}
 	for _, prefix := range labContainerPrefixes {
 		if strings.HasPrefix(name, prefix) {
 			return true
@@ -250,20 +261,92 @@ func isLabContainer(name string) bool {
 }
 
 func (r *Runner) dockerContainersPublishingPort(port int) ([]string, error) {
-	out, err := r.capture(".", "docker", "ps",
-		"--filter", fmt.Sprintf("publish=%d", port),
-		"--format", "{{.Names}}")
+	// HostConfig.PortBindings is the source of truth for TCP and UDP.
+	// `docker ps` Ports (and --filter publish=) omit RADIUS UDP on
+	// GH-hosted Engine, so Register-after-LabTacacsUp saw 1812/1813 as
+	// non-lab listeners while 49/300/18049/2083 showed holder taclab.
+	idsOut, err := r.capture(".", "docker", "ps", "-q")
 	if err != nil {
 		return nil, err
 	}
+	ids := strings.Fields(idsOut)
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	args := append([]string{"inspect", "--format", "{{.Name}}\t{{json .HostConfig.PortBindings}}"}, ids...)
+	out, err := r.capture(".", "docker", args...)
+	if err != nil {
+		return nil, err
+	}
+	return inspectPortBindingHolders(out, port), nil
+}
+
+type hostPortBinding struct {
+	HostIP   string `json:"HostIp"`
+	HostPort string `json:"HostPort"`
+}
+
+// inspectPortBindingHolders reads `docker inspect --format '{{.Name}}\t{{json .HostConfig.PortBindings}}'` lines.
+func inspectPortBindingHolders(out string, port int) []string {
+	want := strconv.Itoa(port)
 	var names []string
-	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+	seen := map[string]bool{}
+	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
-		if line != "" {
-			names = append(names, line)
+		if line == "" {
+			continue
+		}
+		name, raw, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		name = strings.TrimPrefix(strings.TrimSpace(name), "/")
+		if name == "" || raw == "" || raw == "null" {
+			continue
+		}
+		var bindings map[string][]hostPortBinding
+		if err := json.Unmarshal([]byte(raw), &bindings); err != nil {
+			continue
+		}
+		for _, binds := range bindings {
+			for _, b := range binds {
+				if b.HostPort != want {
+					continue
+				}
+				if !seen[name] {
+					seen[name] = true
+					names = append(names, name)
+				}
+			}
 		}
 	}
-	return names, nil
+	return names
+}
+
+// publishedPortHolders returns container names whose Ports column maps
+// host port (":N->" in `docker ps` form, TCP or UDP).
+func publishedPortHolders(psOut string, port int) []string {
+	needle := fmt.Sprintf(":%d->", port)
+	var names []string
+	for _, line := range strings.Split(psOut, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		name, ports, ok := strings.Cut(line, "\t")
+		if !ok {
+			name, ports, ok = strings.Cut(line, " ")
+			if !ok {
+				continue
+			}
+		}
+		name = strings.TrimSpace(name)
+		if name == "" || !strings.Contains(ports, needle) {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
 }
 
 func (r *Runner) preflightPortsAvailable() error {

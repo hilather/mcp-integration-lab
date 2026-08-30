@@ -10,9 +10,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Allowlists are the v1.5.0 published schema property names
-// (https://raw.githubusercontent.com/hilather/go-lab-mitmproxy/v1.5.0/api/jsonschema/labmitm.dev.v1alpha1.json).
-// Pin is third_party/go-lab-mitmproxy @ v1.5.0 (internal/lab/vendor.go).
+// Allowlists are the v1alpha1 published schema property names
+// (https://raw.githubusercontent.com/hilather/go-lab-mitmproxy/v1.6.0/api/jsonschema/labmitm.dev.v1alpha1.json).
+// Pin is third_party/go-lab-mitmproxy @ v1.6.0 (internal/lab/vendor.go).
 var labmitmV15Allow = map[string][]string{
 	"":                    {"apiVersion", "kind", "metadata", "spec"},
 	"metadata":            {"name", "labels"},

@@ -86,7 +86,14 @@ func TestIsNoSuchNetwork(t *testing.T) {
 	if !isNoSuchNetwork("Error: No such network: mcplab-shared\n", err) {
 		t.Fatal("missing network must be detectable")
 	}
+	// Exact smoke-dev / current Engine wording (CI 33324754059).
+	if !isNoSuchNetwork("Error response from daemon: network mcplab-shared not found\n", err) {
+		t.Fatal("Engine 'network NAME not found' must be treated as missing")
+	}
 	if isNoSuchNetwork("permission denied", err) {
 		t.Fatal("other inspect errors must not look missing")
+	}
+	if isNoSuchNetwork("Error response from daemon: network has active endpoints\n", err) {
+		t.Fatal("in-use network must not look missing")
 	}
 }

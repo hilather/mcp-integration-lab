@@ -88,7 +88,7 @@
           <article class="card">
             <header>
               <h3>LabMITM</h3>
-              <span class="ver">v1.5.0</span>
+              <span class="ver">v1.6.0</span>
             </header>
             <p>Laboratory HTTP(S) intercepting forward proxy. Data plane is unauthenticated; HTTPS intercept is <code>:443</code> only (CONNECT to LabLDAP/TacLab TLS is tunnel-not-decrypt). Native <code>/v1</code> catalog 31 (includes <code>features.get</code>); <code>GET /v1/features</code> is the 11-row hop/accept catalog. SOCKS / inspectFrames / httpAuth are present in the overlay and stay off.</p>
             <p><strong>Connect.</strong> HTTP proxy <code>&lt;lab-host&gt;:18888</code> (forward proxy — SUT sets <code>HTTP_PROXY</code>; not dest 443). Inspector / <code>/v1</code> / MCP at <code>&lt;lab-host&gt;:18088</code>.</p>

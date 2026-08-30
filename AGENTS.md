@@ -187,7 +187,7 @@ we work by.
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.0`,
-  LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.5.0`).
+  LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.0`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -239,7 +239,13 @@ PR. Keystone runs a Thursday drift check.
   `runner` user cannot `net.Listen` them, but dockerd can still publish them.
   Occupancy is `/proc/net/tcp{,6}` LISTEN and `udp{,6}` bound (TCP dial
   fallback if proc is missing) — do not skip those ports, and do not remap
-  them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight.
+  them in CI to paper over a probe bug. `EADDRINUSE` still fails preflight
+  unless the holder is a lab container (`mcplab-` / `labldap-` /
+  `labtacacs-` prefixes, or exact vendored `container_name` `taclab`).
+  Attribute publishes from `docker inspect` `HostConfig.PortBindings`
+  (UDP included). `docker ps` Ports and `--filter publish=` omit RADIUS
+  1812/1813 on GH-hosted Engine; `Register` re-runs this check after
+  `LabTacacsUp`.
   Docker/host feature knobs are the same class of preflight (rule 15): fail
   closed with the configuration change in the error. LabNTP is not in
   compose yet — do not add a `userland-proxy` probe in Go until that
@@ -250,8 +256,10 @@ PR. Keystone runs a Thursday drift check.
   `EnsureNetwork` creates one `mcplab-shared` with `LAB_DOCKER_SUBNET`
   (default `10.99.42.0/24`); the main compose `default` is that external
   network. `make down` removes it when empty. A leftover /16 with endpoints
-  fail-closes (`make down` then `make up`). Do not leave compose `default:`
-  unconfigured.
+  fail-closes (`make down` then `make up`). A missing-network inspect is
+  classic `No such network` or Engine `network NAME not found` — both
+  mean create; do not fail-close on the latter. Do not leave compose
+  `default:` unconfigured.
 - LabDNS is pinned to **v1.3.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
@@ -339,7 +347,7 @@ PR. Keystone runs a Thursday drift check.
   still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.5.0**. Desired state is
+- LabMITM is pinned to **v1.6.0**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
   **lab-owned overlay copy** — do not recopy from the upstream examples
   tree without reviewing `allowHosts`/Origins. Do **not** patch it:
