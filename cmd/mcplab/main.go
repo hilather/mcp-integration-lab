@@ -27,6 +27,10 @@ Usage: mcplab <command> [args]
                  labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph
   scenario       validate|plan|apply|reset [name] [--appliances=a,b]
                  HTTP client of labgraph (secrets/labgraph-token). Default name: default.
+                 Named packs: broken-bind, expired-cert, split-horizon-dns,
+                 mitm-intercept-extra-port.
+  fixture        apply <id>
+                 HTTP client of labgraph POST /v1/fixtures/{id}:apply. Rejects default.
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
   secrets        generate or reconcile tokens/passwords (mode-aware); ensure LabLDAP TLS SANs; reload running apps
@@ -71,6 +75,14 @@ func main() {
 	if cmd == "scenario" {
 		if err := r.Scenario(os.Args[2:]); err != nil {
 			fmt.Fprintf(os.Stderr, "mcplab scenario: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if cmd == "fixture" {
+		if err := r.Fixture(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "mcplab fixture: %v\n", err)
 			os.Exit(1)
 		}
 		return

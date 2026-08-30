@@ -28,6 +28,7 @@
     <button type="button" data-op="validate">Validate</button>
     <button type="button" data-op="plan">Plan</button>
     <button type="button" data-op="apply">Apply</button>
+    <button type="button" data-op="fixture-apply">Apply fixture</button>
     <button type="button" data-op="reset">Reset (all five)</button>
     <button type="button" data-op="status">Status</button>
   </div>
@@ -70,6 +71,7 @@
         if (op === "validate") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":validate");
         if (op === "plan") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":plan", {});
         if (op === "apply") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":apply", {});
+        if (op === "fixture-apply") return api("POST", "/v1/fixtures/" + encodeURIComponent(name) + ":apply", {});
         if (op === "reset") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":reset", {});
       };
     });

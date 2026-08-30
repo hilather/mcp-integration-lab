@@ -1,0 +1,11 @@
+# TLS client-path material. spec is empty: apply is a successful no-op on
+# appliances (does not resign LabLDAP directory.crt; labgraph has no CA key).
+# GetFixture / labgraph://fixtures/expired-cert returns an expired public leaf
+# PEM only. Point an SUT TLS client trust store at material.certPem — verify
+# fails because notAfter is in the past. Never a private key.
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: expired-cert
+  description: Expired public TLS leaf for SUT client-path verify failure. No private key. Apply does not rotate lab certs.
+spec: {}

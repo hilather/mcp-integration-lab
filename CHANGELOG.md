@@ -9,6 +9,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Added
 
+- Named **fixture packs** as `LabScenario` files (`broken-bind`,
+  `expired-cert`, `split-horizon-dns`, `mitm-intercept-extra-port`)
+  plus MCP resources `labgraph://fixtures/{id}` and tool `fixture.apply`
+  (same `Service.Apply` as `scenario.apply`). Agents load a pack instead
+  of inventing YAML. `broken-bind` talks to LabLDAP control only
+  (`disableUser` / `nsAccountLock`). `expired-cert` is public expired
+  leaf material (no private keys). Empty default stays a no-op; `make
+  reset` / labgraph reset restore bootstraps. Jenkins stays out.
 - Cloud-agent review skills from Origin `matt-brewer/agent-skills` @
   `77c4644` live under `.cursor/skills/` (four skills plus
   `.cursor/skills/knowledge/`). `AGENTS.md` has a Cloud section for this

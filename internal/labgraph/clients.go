@@ -55,6 +55,8 @@ type LDAPClient interface {
 	GetBaseline(ctx context.Context) (LDAPBaseline, error)
 	PostReset(ctx context.Context, name, expectedRevision string) (statusCode int, st LDAPResetStatus, err error)
 	GetReset(ctx context.Context) (LDAPResetStatus, error)
+	GetUser(ctx context.Context, id string) (etag string, body json.RawMessage, err error)
+	DisableUser(ctx context.Context, id, etag string) (json.RawMessage, error)
 }
 
 type TacLabClient interface {
@@ -189,6 +191,31 @@ func (c *HTTPLDAP) GetReset(ctx context.Context) (LDAPResetStatus, error) {
 	return st, nil
 }
 
+func (c *HTTPLDAP) GetUser(ctx context.Context, id string) (string, json.RawMessage, error) {
+	hdr, raw, err := doHTTPHeader(ctx, c.Client, c.Base, c.Token, http.MethodGet, "/api/v1/users/"+id, nil)
+	if err != nil {
+		return "", raw, err
+	}
+	etag := strings.TrimSpace(hdr.Get("ETag"))
+	if etag == "" {
+		var u struct {
+			Revision string `json:"revision"`
+		}
+		if json.Unmarshal(raw, &u) == nil && u.Revision != "" {
+			etag = `"` + u.Revision + `"`
+		}
+	}
+	if etag == "" {
+		return "", raw, fmt.Errorf("labldap GET /api/v1/users/%s: missing ETag", id)
+	}
+	return etag, raw, nil
+}
+
+func (c *HTTPLDAP) DisableUser(ctx context.Context, id, etag string) (json.RawMessage, error) {
+	_, _, raw, err := doHTTPCodeHeader(ctx, c.Client, c.Base, c.Token, http.MethodPost, "/api/v1/users/"+id+"/disable", nil, etag)
+	return raw, err
+}
+
 type HTTPTacLab struct {
 	Base   string
 	Token  string
@@ -216,7 +243,17 @@ func doHTTP(ctx context.Context, hc *http.Client, base, token, method, path stri
 	return raw, err
 }
 
+func doHTTPHeader(ctx context.Context, hc *http.Client, base, token, method, path string, body []byte) (http.Header, json.RawMessage, error) {
+	_, hdr, raw, err := doHTTPCodeHeader(ctx, hc, base, token, method, path, body, "")
+	return hdr, raw, err
+}
+
 func doHTTPCode(ctx context.Context, hc *http.Client, base, token, method, path string, body []byte) (int, json.RawMessage, error) {
+	code, _, raw, err := doHTTPCodeHeader(ctx, hc, base, token, method, path, body, "")
+	return code, raw, err
+}
+
+func doHTTPCodeHeader(ctx context.Context, hc *http.Client, base, token, method, path string, body []byte, ifMatch string) (int, http.Header, json.RawMessage, error) {
 	if hc == nil {
 		hc = &http.Client{Timeout: 30 * time.Second}
 	}
@@ -226,7 +263,7 @@ func doHTTPCode(ctx context.Context, hc *http.Client, base, token, method, path 
 	}
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(base, "/")+path, rdr)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -234,19 +271,22 @@ func doHTTPCode(ctx context.Context, hc *http.Client, base, token, method, path 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if ifMatch != "" {
+		req.Header.Set("If-Match", ifMatch)
+	}
 	resp, err := hc.Do(req)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return resp.StatusCode, nil, err
+		return resp.StatusCode, resp.Header, nil, err
 	}
 	if resp.StatusCode >= 300 {
-		return resp.StatusCode, raw, fmt.Errorf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(raw)))
+		return resp.StatusCode, resp.Header, raw, fmt.Errorf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
-	return resp.StatusCode, raw, nil
+	return resp.StatusCode, resp.Header.Clone(), raw, nil
 }
 
 func readTokenFile(path string) (string, error) {

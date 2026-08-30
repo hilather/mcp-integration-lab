@@ -146,7 +146,9 @@ Per-team configuration lives in profiles (`profiles/<name>/`), selected via
 - `labgraph/bootstrap.yaml` — LabGraph service bootstrap (`mcplab.dev/v1alpha1`;
   exact Origins, `allowLegacyClients: true`).
 - `scenarios/*.yaml` — LabScenario files (omitted appliances are left alone;
-  empty default is a no-op).
+  empty default is a no-op). Named fixture packs (`broken-bind`,
+  `expired-cert`, `split-horizon-dns`, `mitm-intercept-extra-port`) load at
+  `labgraph://fixtures/{id}` and apply via `fixture.apply`.
 - `mcpjungle/servers/*.json` — upstream registrations with
   `${ENV}` token injection.
 - `mcpjungle/groups/integration.json` — curated tool-group endpoint.

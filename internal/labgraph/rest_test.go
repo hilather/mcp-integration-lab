@@ -130,6 +130,43 @@ func TestClientSetsBearer(t *testing.T) {
 	}
 }
 
+func TestRESTFixtureGetAndApply(t *testing.T) {
+	dir := t.TempDir()
+	writePacks(t, dir)
+	svc := NewService(dir, Clients{Family: map[string]FamilyClient{}})
+	sess := NewSessionStore("tok")
+	mux := http.NewServeMux()
+	REST(mux, svc, sess)
+	h := sess.Protect(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/fixtures/expired-cert", nil)
+	req.Header.Set("Authorization", "Bearer tok")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("get %d %s", rr.Code, rr.Body.String())
+	}
+	if strings.Contains(rr.Body.String(), "PRIVATE KEY") {
+		t.Fatal("REST fixture get leaked PRIVATE KEY")
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/fixtures/default:apply", strings.NewReader("{}"))
+	req.Header.Set("Authorization", "Bearer tok")
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("default apply want 404, got %d %s", rr.Code, rr.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/fixtures/expired-cert:apply", strings.NewReader("{}"))
+	req.Header.Set("Authorization", "Bearer tok")
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("apply %d %s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestNewHTTPLDAPRequiresCA(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := NewHTTPLDAP("https://control:8443", "t", filepath.Join(dir, "missing.crt")); err == nil {

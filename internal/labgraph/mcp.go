@@ -3,16 +3,18 @@ package labgraph
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// MCPServer registers scenario_* tools that call Service directly (not REST).
+// MCPServer registers scenario_* tools and fixture resources that call Service directly (not REST).
 func MCPServer(svc *Service) *server.MCPServer {
 	s := server.NewMCPServer("labgraph", "0.1.0",
 		server.WithToolCapabilities(false),
-		server.WithInstructions("LabScenario orchestrator. list/get/validate/plan/apply/reset/status. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP and TacLab have no native file-level apply."),
+		server.WithResourceCapabilities(false, false),
+		server.WithInstructions("LabScenario orchestrator. list/get/validate/plan/apply/reset/status plus fixture.apply. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; flatten (users/groups/suffix) and TacLab apply fail closed. Load packs at labgraph://fixtures/{id} or scenario_get (includes spec)."),
 	)
 	add := func(name, desc string, fn func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error), opts ...mcp.ToolOption) {
 		opts = append([]mcp.ToolOption{mcp.WithDescription(desc)}, opts...)
@@ -26,13 +28,17 @@ func MCPServer(svc *Service) *server.MCPServer {
 			}
 			return marshalTool(names)
 		}, mcp.WithReadOnlyHintAnnotation(true))
-	add("scenario_get", "Get one LabScenario by metadata.name.",
+	add("scenario_get", "Get one LabScenario by metadata.name, including spec.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			doc, err := svc.Get(ctx, req.GetString("name", "default"))
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			return marshalTool(map[string]any{"name": doc.Metadata.Name, "kind": doc.Kind, "apiVersion": doc.APIVersion})
+			view, err := scenarioView(doc)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			return marshalTool(view)
 		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")), mcp.WithReadOnlyHintAnnotation(true))
 	add("scenario_validate", "Validate a LabScenario. Family sections call native POST /v1/state:validate. A present labldap/labtacacs section fails closed.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -86,6 +92,38 @@ func MCPServer(svc *Service) *server.MCPServer {
 			}
 			return marshalTool(st)
 		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")), mcp.WithReadOnlyHintAnnotation(true))
+	add("fixture_apply", "Apply a named fixture pack (closed FixtureIDs). Same Service.Apply as scenario_apply; not a REST proxy. Rejects default.",
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			res, err := svc.ApplyFixture(ctx, req.GetString("id", ""), applyReqFromMCP(req))
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			return marshalTool(res)
+		}, mcp.WithString("id", mcp.Description("Fixture pack id"), mcp.Required()),
+		mcp.WithString("expectedRevision", mcp.Description("Optional JSON object of appliance id → expectedRevision")),
+		mcp.WithNumber("generation", mcp.Description("Optional labgraph journal generation for OCC")))
+	for _, id := range FixtureIDs {
+		id := id
+		s.AddResource(mcp.NewResource("labgraph://fixtures/"+id, id,
+			mcp.WithResourceDescription("Fixture pack "+id),
+			mcp.WithMIMEType("application/json"),
+		), func(ctx context.Context, req mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+			view, err := svc.GetFixture(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			b, err := json.Marshal(view)
+			if err != nil {
+				return nil, err
+			}
+			if ContainsPrivateKey(b) {
+				return nil, fmt.Errorf("refused PRIVATE KEY in resource")
+			}
+			return []mcp.ResourceContents{
+				mcp.TextResourceContents{URI: req.Params.URI, MIMEType: "application/json", Text: string(b)},
+			}, nil
+		})
+	}
 	return s
 }
 

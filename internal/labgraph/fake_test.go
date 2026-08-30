@@ -77,6 +77,11 @@ type fakeLDAP struct {
 	getN      int
 	PostErr   error
 	FailGet   bool
+	UserETag  string
+	UserBody  json.RawMessage
+	UserErr   error
+	DisableErr error
+	LastMatch string
 }
 
 func (f *fakeLDAP) GetBaseline(context.Context) (LDAPBaseline, error) {
@@ -120,6 +125,35 @@ type fakeTac struct {
 	mu    sync.Mutex
 	Calls []string
 	Err   error
+}
+
+func (f *fakeLDAP) GetUser(_ context.Context, id string) (string, json.RawMessage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Calls = append(f.Calls, "getUser:"+id)
+	if f.UserErr != nil {
+		return "", f.UserBody, f.UserErr
+	}
+	etag := f.UserETag
+	if etag == "" {
+		etag = `"rev-alice"`
+	}
+	body := f.UserBody
+	if len(body) == 0 {
+		body = json.RawMessage(`{"id":"` + id + `","revision":"rev-alice"}`)
+	}
+	return etag, body, nil
+}
+
+func (f *fakeLDAP) DisableUser(_ context.Context, id, etag string) (json.RawMessage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Calls = append(f.Calls, "disable:"+id)
+	f.LastMatch = etag
+	if f.DisableErr != nil {
+		return nil, f.DisableErr
+	}
+	return json.RawMessage(`{"id":"` + id + `","enabled":false}`), nil
 }
 
 func (f *fakeTac) Status(context.Context) (json.RawMessage, error) {

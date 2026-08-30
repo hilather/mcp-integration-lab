@@ -35,7 +35,9 @@ profiles/<name>/
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
   labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
-  scenarios/*.yaml         LabScenario files (empty default is a no-op)
+  scenarios/*.yaml         LabScenario files (empty default is a no-op;
+                           named packs: broken-bind, expired-cert,
+                           split-horizon-dns, mitm-intercept-extra-port)
   mcpjungle/
     servers/*.json         upstream MCP registrations
     groups/integration.json curated tool group
@@ -452,16 +454,25 @@ recopy from the upstream examples tree.
 First-party LabScenario orchestrator (catalog id `labgraph`). Desired
 state is `labgraph/bootstrap.yaml` (`mcplab.dev/v1alpha1` `LabGraph`)
 plus `scenarios/*.yaml` (`LabScenario`). The default scenario has
-`spec: {}` so list/get/validate/plan/apply/status are no-ops.
+`spec: {}` so list/get/validate/plan/apply/status are no-ops. Named
+packs (`broken-bind`, `expired-cert`, `split-horizon-dns`,
+`mitm-intercept-extra-port`) are also `LabScenario` files. Load them at
+`labgraph://fixtures/{id}` (or `scenario_get`, which includes `spec`)
+and apply with `fixture.apply` / `mcplab fixture apply <id>`.
+`broken-bind` is LabLDAP control `disableUser` only (do not flatten
+`labldap/scenario.yaml`). `expired-cert` is an expired public leaf for
+SUT TLS client verify — no private key, apply does not resign lab
+certs. NFS `make fixtures` is a different thing (empty-root `.tar.zst`).
 
 labgraph fans out to native appliance APIs in order DNS → MITM → mail →
 LDAP → TacLab. Family sections use native validate/plan/apply envelopes
-(`expectedRevision` from `GET /v1/state` when omitted). Present
-`spec.labldap` / `spec.labtacacs` fail closed on validate/plan/apply
-(no file-level apply). Reset calls native reset only (LabLDAP OCC is
+(`expectedRevision` from `GET /v1/state` when omitted). LabLDAP
+control-plane `disableUser` is allowed; flatten (`users` / suffix) and
+`spec.labtacacs` fail closed. Reset calls native reset only (LabLDAP OCC is
 `baseline.expectedRevision`). Partial apply stops; no auto-rollback.
 
-`mcplab scenario validate|plan|apply|reset [name]` is an HTTP client of
+`mcplab scenario validate|plan|apply|reset [name]` and `mcplab fixture apply <id>`
+are HTTP clients of
 labgraph (`LAB_PUBLIC_HOST`:`LABGRAPH_PORT`, `secrets/labgraph-token`).
 `make reload APP=labgraph` drops the in-memory journal. Origin
 allowlist is exact Origins (loopback implicit; no `"*"`). Preflight

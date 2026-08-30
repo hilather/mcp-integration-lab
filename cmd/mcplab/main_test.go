@@ -72,6 +72,9 @@ func TestCLIUsageDocumentsScenario(t *testing.T) {
 			t.Errorf("usage missing scenario op %s:\n%s", op, out)
 		}
 	}
+	if !strings.Contains(out, "fixture") || !strings.Contains(out, "broken-bind") {
+		t.Fatalf("usage missing fixture packs:\n%s", out)
+	}
 }
 
 func TestCLIReloadRequiresApp(t *testing.T) {

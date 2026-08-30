@@ -1,0 +1,23 @@
+# Live replaceTLS. Default overlay file stays ports: [443]. Extra dest 9443
+# is intercept, not a host publish (avoids Ilya 8443 / LabLDAP control).
+# Generate-mode CA rotates on apply. Reset restores [443].
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: mitm-intercept-extra-port
+  description: Intercept CONNECT dest ports 443 and 9443. Overlay bootstrap stays [443].
+spec:
+  labmitm:
+    operations:
+      - op: replaceTLS
+        tls:
+          intercept: true
+          hosts: []
+          ports: [443, 9443]
+          ca:
+            mode: generate
+            certFile: ""
+            keyFile: ""
+          upstream:
+            insecureSkipVerify: false
+            extraCAFiles: []
