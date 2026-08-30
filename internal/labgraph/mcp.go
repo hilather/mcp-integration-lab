@@ -40,7 +40,7 @@ func MCPServer(svc *Service) *server.MCPServer {
 			}
 			return marshalTool(view)
 		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")), mcp.WithReadOnlyHintAnnotation(true))
-	add("scenario_validate", "Validate a LabScenario. Family sections call native POST /v1/state:validate. A present labldap/labtacacs section fails closed.",
+	add("scenario_validate", "Validate a LabScenario. Family sections call native POST /v1/state:validate. LabLDAP control-plane disableUser is allowed; flatten (users/groups/suffix) and TacLab sections fail closed.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			res, err := svc.Validate(ctx, req.GetString("name", "default"))
 			if err != nil {

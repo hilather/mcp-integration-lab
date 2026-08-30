@@ -14,6 +14,11 @@ type ldapControlOp struct {
 }
 
 func parseLDAPControlOps(m map[string]any) ([]ldapControlOp, error) {
+	for _, flatten := range []string{"users", "groups", "suffix", "apiVersion", "kind"} {
+		if _, ok := m[flatten]; ok {
+			return nil, fmt.Errorf("%s", errNoLDAPApply)
+		}
+	}
 	raw, err := json.Marshal(m["operations"])
 	if err != nil {
 		return nil, err

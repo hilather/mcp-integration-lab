@@ -128,6 +128,29 @@ spec:
 	if len(ldap.Calls) != 0 {
 		t.Fatalf("flatten must not call ldap %v", ldap.Calls)
 	}
+
+	s = testService(t, "mix.yaml", `
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: mix
+spec:
+  labldap:
+    users: [{id: bob}]
+    operations:
+      - op: disableUser
+        id: alice
+`, nil, ldap, nil)
+	res, err = s.Apply(context.Background(), "mix", ApplyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.OK || !strings.Contains(res.Results[3].Detail, "no native file-level") {
+		t.Fatalf("ops+users must fail closed: %+v", res)
+	}
+	if len(ldap.Calls) != 0 {
+		t.Fatalf("ops+users must not call ldap %v", ldap.Calls)
+	}
 }
 
 func TestSplitHorizonAndMITMPackEnvelopes(t *testing.T) {
@@ -153,8 +176,21 @@ func TestSplitHorizonAndMITMPackEnvelopes(t *testing.T) {
 	if err != nil || !res.OK {
 		t.Fatalf("dns pack: %v %+v", err, res)
 	}
-	if !strings.Contains(string(dnsBody), `"split-horizon"`) || !strings.Contains(string(dnsBody), `"overlay"`) || !strings.Contains(string(dnsBody), `"internal-horizon"`) {
-		t.Fatalf("dns body %s", dnsBody)
+	var dnsEnv struct {
+		Operations []struct {
+			Op     string `json:"op"`
+			Target struct {
+				Kind string `json:"kind"`
+				ID   string `json:"id"`
+			} `json:"target"`
+			Value map[string]any `json:"value"`
+		} `json:"operations"`
+	}
+	if err := json.Unmarshal(dnsBody, &dnsEnv); err != nil {
+		t.Fatal(err)
+	}
+	if len(dnsEnv.Operations) != 2 || dnsEnv.Operations[0].Target.Kind != "zone" || dnsEnv.Operations[0].Value["mode"] != "overlay" || dnsEnv.Operations[0].Value["name"] != "split.lab.test." || dnsEnv.Operations[1].Target.Kind != "clientGroup" {
+		t.Fatalf("dns envelope %+v body %s", dnsEnv, dnsBody)
 	}
 	res, err = s.ApplyFixture(context.Background(), "mitm-intercept-extra-port", ApplyRequest{})
 	if err != nil || !res.OK {
@@ -182,6 +218,23 @@ func TestMCPResourcesAndFixtureApplyTool(t *testing.T) {
 	srv := MCPServer(s)
 	if srv == nil {
 		t.Fatal("nil server")
+	}
+	tools := srv.ListTools()
+	if _, ok := tools["fixture_apply"]; !ok {
+		t.Fatal("missing fixture_apply tool")
+	}
+	if _, ok := tools["fixture_list"]; ok {
+		t.Fatal("unexpected fixture_list tool")
+	}
+	if _, ok := tools["fixture_get"]; ok {
+		t.Fatal("unexpected fixture_get tool")
+	}
+	res := srv.ListResources()
+	for _, id := range FixtureIDs {
+		uri := "labgraph://fixtures/" + id
+		if _, ok := res[uri]; !ok {
+			t.Fatalf("missing resource %s (have %v)", uri, res)
+		}
 	}
 	view, err := s.GetFixture(context.Background(), "broken-bind")
 	if err != nil {

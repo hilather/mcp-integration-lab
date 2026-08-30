@@ -27,8 +27,9 @@ changes since the previous one (AGENTS.md rule 13).
   host port 18091): loads `LabScenario` YAML from the profile and fans
   out to native appliance plan/apply/reset (DNS → MITM → mail → LDAP →
   TacLab). Empty default scenario is a no-op so smoke stays green.
-  Partial failure is honest (stop, no rollback). LabLDAP and TacLab
-  have no file-level apply. Jenkins stays out of the integrator.
+  Partial failure is honest (stop, no rollback). LabLDAP file-level
+  flatten and TacLab apply fail closed (control-plane disableUser
+  landed with fixture packs). Jenkins stays out of the integrator.
 
 ### Changed
 
