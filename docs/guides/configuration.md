@@ -463,10 +463,13 @@ LDAP → TacLab. Family sections use native validate/plan/apply envelopes
 
 `mcplab scenario validate|plan|apply|reset [name]` is an HTTP client of
 labgraph (`LAB_PUBLIC_HOST`:`LABGRAPH_PORT`, `secrets/labgraph-token`).
-`make reload APP=labgraph` drops the in-memory journal. Origin
-allowlist is exact Origins (loopback implicit; no `"*"`). Preflight
-warns when `LAB_PUBLIC_HOST` is not loopback and the list is empty.
-Jenkins is not in the integrator.
+The operator console at `GET /` is a split inspector (scenario list |
+five-node order; request log is secondary). Reset confirms first and
+stays lab-wide even on `spec: {}`. SPA auth is cookie + memory CSRF
+after `POST /v1/session`. `make reload APP=labgraph` drops the in-memory
+journal. Origin allowlist is exact Origins (loopback implicit; no `"*"`).
+Preflight warns when `LAB_PUBLIC_HOST` is not loopback and the list is
+empty. Jenkins is not in the integrator.
 
 Point systems under test at `<lab-host>:18888` as `HTTP_PROXY` /
 `HTTPS_PROXY`. Inspector / REST / MCP is `:18088` (bearer in

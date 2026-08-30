@@ -2,80 +2,471 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>labgraph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LabGraph</title>
+  <!-- cookie labgraph_session + memory CSRF after POST /v1/session; token never in web storage -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, sans-serif; margin: 1.5rem; max-width: 52rem; }
-    h1 { font-size: 1.25rem; }
-    label, button { display: inline-block; margin: .25rem .25rem .25rem 0; }
-    input { width: 20rem; }
-    pre { background: #111; color: #eee; padding: .75rem; overflow: auto; }
-    .row { margin: .5rem 0; }
-    #login { margin-bottom: 1rem; }
+    :root {
+      --bg: #0b0c0e;
+      --elev: #121317;
+      --panel: #181a1f;
+      --fg: #ecece8;
+      --muted: #8a8b86;
+      --accent: #d4a06a;
+      --danger: #c45c5c;
+      --border: color-mix(in oklab, var(--fg) 12%, transparent);
+      --font: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--fg); }
+    body { font-family: var(--font); font-size: 14px; line-height: 1.45; }
+    a { color: inherit; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    :focus { outline: none; }
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .skip {
+      position: absolute; left: -999px; top: 0; z-index: 20;
+      background: var(--accent); color: var(--bg); padding: .4rem .7rem;
+    }
+    .skip:focus, .skip:focus-visible { left: .5rem; top: .5rem; }
+    .top {
+      display: flex; align-items: center; gap: .75rem;
+      height: 48px; padding: 0 1rem; background: var(--elev);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: .5rem; font-weight: 600; letter-spacing: .01em; }
+    .mark {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: .4rem; flex: 1; }
+    .badge {
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: .1rem .55rem; color: var(--muted); font-size: 12px;
+    }
+    .badge.on { color: var(--fg); border-color: color-mix(in oklab, var(--accent) 45%, var(--border)); }
+    .session { display: flex; align-items: center; gap: .4rem; }
+    .session input {
+      width: 12rem; background: var(--bg); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 6px; padding: .25rem .45rem;
+    }
+    .ghost, .danger-outline, .danger-fill, .primary, .textish {
+      border-radius: 6px; padding: .35rem .7rem; border: 1px solid var(--border);
+      background: transparent; color: var(--fg);
+    }
+    .ghost:hover:not(:disabled) { background: var(--panel); }
+    .primary { background: #fff; color: #111; border-color: #fff; font-weight: 500; }
+    .danger-outline { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 70%, transparent); }
+    .danger-fill { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .textish { border: 0; color: var(--muted); }
+    .shell { display: grid; grid-template-columns: 11rem 16rem 1fr; height: calc(100% - 48px); }
+    .nav { background: var(--elev); border-right: 1px solid var(--border); padding: .85rem .6rem; }
+    .nav h2 {
+      margin: .85rem 0 .35rem; font-size: 11px; letter-spacing: .08em;
+      color: var(--muted); font-weight: 500;
+    }
+    .nav h2:first-child { margin-top: 0; }
+    .nav button {
+      display: block; width: 100%; text-align: left; background: transparent;
+      color: var(--fg); border: 0; border-radius: 6px; padding: .4rem .55rem;
+    }
+    .nav button.active {
+      background: var(--panel);
+      box-shadow: inset 2px 0 0 var(--accent);
+    }
+    .nav button.danger { color: var(--danger); }
+    .list {
+      background: var(--elev); border-right: 1px solid var(--border);
+      padding: .85rem .7rem; overflow: auto;
+    }
+    .list h2 {
+      margin: 0 0 .7rem; font-size: 11px; letter-spacing: .1em;
+      color: var(--muted); font-weight: 500;
+    }
+    .sc-item {
+      display: flex; align-items: center; gap: .6rem;
+      width: 100%; text-align: left; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 8px; padding: .65rem .7rem; color: var(--fg);
+    }
+    .sc-item .meta { color: var(--muted); font-size: 12px; }
+    .sc-item .grow { flex: 1; }
+    .pill {
+      width: 2.6rem; height: 2.6rem; border-radius: 50%;
+      border: 1px solid var(--border); display: grid; place-items: center;
+      font-size: 10px; color: var(--muted); flex-shrink: 0;
+    }
+    .pill.empty { color: var(--accent); border-color: color-mix(in oklab, var(--accent) 50%, var(--border)); }
+    main { padding: 1.25rem 1.4rem 1.5rem; overflow: auto; background: var(--bg); }
+    h1 { margin: 0; font-size: 1.7rem; font-weight: 600; }
+    .sub { color: var(--muted); margin: .35rem 0 1rem; font-size: 13px; }
+    .note {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      padding: .7rem .85rem; color: var(--muted); margin-bottom: 1rem;
+    }
+    .nodes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .55rem; margin-bottom: 1rem; }
+    .node {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      min-height: 4.4rem; padding: .45rem; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    }
+    .node .id { font-size: 11px; color: var(--muted); margin-bottom: .2rem; }
+    .node .st { font-weight: 600; letter-spacing: .04em; font-size: 12px; }
+    .node.skipped .st { color: var(--muted); }
+    .node.failed .st, .node.stopped .st { color: var(--danger); }
+    .node.ok .st { color: var(--accent); }
+    .actions { display: flex; align-items: center; gap: .45rem; margin-bottom: 1rem; }
+    .actions .spacer { flex: 1; }
+    .confirm {
+      display: none; border: 1px solid var(--danger); border-radius: 8px;
+      padding: .9rem 1rem; margin-bottom: 1rem; background: color-mix(in oklab, var(--danger) 8%, var(--bg));
+    }
+    .confirm.show { display: block; }
+    .confirm h3 { margin: 0 0 .4rem; font-size: 1rem; }
+    .confirm p, .confirm .walk { color: var(--muted); margin: 0 0 .55rem; }
+    .confirm .walk { font-family: var(--mono); font-size: 12px; color: var(--fg); }
+    .confirm .row { display: flex; justify-content: space-between; align-items: center; }
+    .log { border-top: 1px solid var(--border); padding-top: .6rem; }
+    .log details { margin: .25rem 0; }
+    .log summary {
+      font-family: var(--mono); font-size: 12px; color: var(--muted); cursor: pointer;
+    }
+    .log pre {
+      margin: .4rem 0 0; background: var(--elev); color: var(--fg);
+      padding: .65rem; overflow: auto; border-radius: 6px; font-family: var(--mono); font-size: 12px;
+    }
+    .signed-out-hint { color: var(--muted); margin: 1rem 0; }
+    @media (max-width: 960px) {
+      .shell { grid-template-columns: 1fr; height: auto; }
+      .nodes { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
-  <h1>labgraph</h1>
-  <p>LabScenario orchestrator. UI talks REST only. Token is never stored in localStorage.</p>
-  <div id="login">
-    <label>Bearer <input id="token" type="password" autocomplete="off"></label>
-    <button type="button" id="signin">Sign in</button>
-    <button type="button" id="signout">Sign out</button>
+  <a class="skip" href="#main">Skip to main content</a>
+  <header class="top">
+    <div class="brand"><span class="mark" aria-hidden="true"></span> LabGraph</div>
+    <div class="badges" id="badges">
+      <span class="badge" id="b-ready">ready</span>
+      <span class="badge" id="b-cookie">cookie session</span>
+      <span class="badge" id="b-csrf">CSRF in memory</span>
+      <span class="badge on">SPA Origin-gated</span>
+      <span class="badge on">/v1 is CSRF</span>
+    </div>
+    <div class="session">
+      <label id="token-label">Bearer <input id="token" type="password" autocomplete="off"></label>
+      <button type="button" class="ghost" id="signin">Sign in</button>
+      <button type="button" class="ghost" id="signout">Sign out</button>
+    </div>
+  </header>
+  <div class="shell">
+    <nav class="nav" aria-label="Operator">
+      <h2>GRAPH</h2>
+      <button type="button" class="active" data-nav="scenarios">Scenarios</button>
+      <h2>INSPECT</h2>
+      <button type="button" data-op="get">Get</button>
+      <button type="button" data-op="status">Status</button>
+      <h2>MUTATE</h2>
+      <button type="button" data-op="validate" data-mutate>Validate</button>
+      <button type="button" data-op="plan" data-mutate>Plan</button>
+      <button type="button" data-op="apply" data-mutate>Apply</button>
+      <h2>DANGER</h2>
+      <button type="button" class="danger" data-nav="reset" data-mutate>Reset</button>
+    </nav>
+    <aside class="list" id="list-pane">
+      <h2>SCENARIOS</h2>
+      <div id="scenario-list"></div>
+    </aside>
+    <main id="main">
+      <p class="signed-out-hint" id="signed-out-hint">Paste the labgraph bearer and sign in. The token is kept only long enough to POST /v1/session, then cleared. It is never written to web storage.</p>
+      <div id="inspector" hidden>
+        <h1 id="title">—</h1>
+        <p class="sub" id="sub"></p>
+        <div class="note" id="empty-note" hidden>spec: {} — validate, plan, and apply skip all five. Reset does not. It is lab-wide even on this empty default.</div>
+        <div class="nodes" id="nodes"></div>
+        <div class="actions">
+          <button type="button" class="ghost" data-op="validate" data-mutate>Validate</button>
+          <button type="button" class="ghost" data-op="plan" data-mutate>Plan</button>
+          <button type="button" class="primary" data-op="apply" data-mutate>Apply</button>
+          <span class="spacer"></span>
+          <button type="button" class="danger-outline" id="reset-open" data-mutate>Reset (all five)</button>
+        </div>
+        <div class="confirm" id="confirm" role="region" aria-label="Reset confirmation">
+          <h3>Reset all five appliances?</h3>
+          <p>Empty spec does not skip this. Native reset + bootstrap on each, in order. No auto-rollback if one fails.</p>
+          <div class="walk">labdns → labmitm → maildev → labldap → labtacacs</div>
+          <div class="row">
+            <button type="button" class="textish" id="reset-cancel">Cancel</button>
+            <button type="button" class="danger-fill" id="reset-go" data-mutate>Reset all five</button>
+          </div>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+    </main>
   </div>
-  <div class="row">
-    <button type="button" data-op="list">List</button>
-    <label>Name <input id="name" value="default"></label>
-    <button type="button" data-op="get">Get</button>
-    <button type="button" data-op="validate">Validate</button>
-    <button type="button" data-op="plan">Plan</button>
-    <button type="button" data-op="apply">Apply</button>
-    <button type="button" data-op="reset">Reset (all five)</button>
-    <button type="button" data-op="status">Status</button>
-  </div>
-  <pre id="out">signed out</pre>
   <script>
+    const APPLY_ORDER = ["labdns", "labmitm", "maildev", "labldap", "labtacacs"];
     let csrf = "";
-    const out = document.getElementById("out");
+    let cookieSession = false;
+    let ready = false;
+    let selected = "default";
+    let meta = { kind: "LabScenario", apiVersion: "mcplab.dev/v1alpha1", generation: 0, lastOp: "none" };
+    let emptySpec = false;
+    let nodes = APPLY_ORDER.map(id => ({ appliance: id, status: "" }));
+
+    const $ = id => document.getElementById(id);
+    function setBadge(id, on) { $(id).classList.toggle("on", !!on); }
+    function hasCSRF() { return csrf !== ""; }
+    function gateMutate() {
+      document.querySelectorAll("[data-mutate]").forEach(el => { el.disabled = !hasCSRF(); });
+    }
+    function chrome() {
+      setBadge("b-ready", ready);
+      setBadge("b-cookie", cookieSession);
+      setBadge("b-csrf", hasCSRF());
+      $("token-label").hidden = cookieSession;
+      $("signin").hidden = cookieSession;
+      $("signed-out-hint").hidden = cookieSession;
+      $("inspector").hidden = !cookieSession;
+      gateMutate();
+    }
+    function renderList(names) {
+      const box = $("scenario-list");
+      box.replaceChildren();
+      (names || []).forEach(name => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "sc-item";
+        btn.dataset.name = name;
+        const grow = document.createElement("div");
+        grow.className = "grow";
+        grow.innerHTML = "<strong></strong><div class=\"meta\"></div>";
+        grow.querySelector("strong").textContent = name;
+        grow.querySelector(".meta").textContent = emptySpec && name === selected
+          ? "LabScenario · spec {}"
+          : "LabScenario";
+        const pill = document.createElement("div");
+        pill.className = "pill" + (emptySpec && name === selected ? " empty" : "");
+        pill.textContent = emptySpec && name === selected ? "empty" : "";
+        btn.append(grow, pill);
+        btn.onclick = () => selectScenario(name);
+        box.append(btn);
+      });
+    }
+    function renderInspector() {
+      $("title").textContent = selected;
+      $("sub").textContent = meta.apiVersion + " · " + meta.kind + " · generation " + (meta.generation || 0) + " · lastOp " + (meta.lastOp || "none");
+      $("empty-note").hidden = !emptySpec;
+      const wrap = $("nodes");
+      wrap.replaceChildren();
+      nodes.forEach(n => {
+        const d = document.createElement("div");
+        let kind = (n.status || "").toLowerCase() || "unknown";
+        if (n.stopped) kind = "stopped";
+        d.className = "node " + (kind === "skipped" ? "skipped" : (kind === "failed" || kind === "stopped" ? kind : (n.status ? "ok" : "")));
+        const id = document.createElement("div");
+        id.className = "id";
+        id.textContent = n.appliance;
+        const st = document.createElement("div");
+        st.className = "st";
+        st.textContent = (n.stopped ? "STOPPED" : (n.status || "—")).toUpperCase();
+        d.append(id, st);
+        wrap.append(d);
+      });
+    }
+    function inferEmpty(res) {
+      if (!res || !Array.isArray(res.results) || res.results.length !== 5 || res.stopped) return false;
+      return res.results.every(r => r.status === "skipped");
+    }
+    function applyGraph(res) {
+      if (!res || !res.results) return;
+      emptySpec = inferEmpty(res);
+      nodes = APPLY_ORDER.map(id => {
+        const hit = res.results.find(r => r.appliance === id) || { appliance: id, status: "" };
+        return { appliance: id, status: hit.status || "", stopped: res.stopped === id };
+      });
+      if (res.generation != null) meta.generation = res.generation;
+      renderList(Array.from(document.querySelectorAll(".sc-item")).map(b => b.dataset.name));
+      renderInspector();
+    }
+    function applyStatus(st) {
+      if (!st) return;
+      meta.generation = st.generation || 0;
+      meta.lastOp = st.lastOp || "none";
+      if (Array.isArray(st.appliances) && st.appliances.length) {
+        nodes = APPLY_ORDER.map(id => {
+          const hit = st.appliances.find(a => a.appliance === id) || {};
+          return { appliance: id, status: hit.lastStatus || "", stuck: !!hit.stuck };
+        });
+      }
+      renderInspector();
+    }
+    function appendLog(method, path, status, body) {
+      const det = document.createElement("details");
+      const sum = document.createElement("summary");
+      sum.textContent = method + " " + path + (status ? " · " + status : "");
+      const pre = document.createElement("pre");
+      if (status === 204 || body === "") {
+        pre.textContent = "(no body)";
+      } else {
+        try { pre.textContent = JSON.stringify(JSON.parse(body), null, 2); }
+        catch { pre.textContent = body; }
+      }
+      det.append(sum, pre);
+      $("log").prepend(det);
+    }
     async function api(method, path, body) {
       const headers = { "Accept": "application/json" };
       if (csrf && method !== "GET") headers["X-LabGraph-CSRF"] = csrf;
-      if (body) headers["Content-Type"] = "application/json";
-      const r = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" });
-      const t = await r.text();
-      out.textContent = t;
-      return r;
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      const r = await fetch(path, {
+        method, headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        credentials: "same-origin"
+      });
+      if (r.status === 204) {
+        appendLog(method, path, 204, "");
+        return { ok: r.ok, status: 204, json: null, text: "" };
+      }
+      const text = await r.text();
+      appendLog(method, path, r.status, text);
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+      return { ok: r.ok, status: r.status, json, text };
     }
-    document.getElementById("signin").onclick = async () => {
-      const token = document.getElementById("token").value;
+    async function loadReady() {
+      try {
+        const r = await fetch("/v1/health/ready", { credentials: "same-origin" });
+        const j = await r.json().catch(() => ({}));
+        ready = r.ok && j.status === "ready";
+      } catch { ready = false; }
+      chrome();
+    }
+    async function selectScenario(name) {
+      selected = name || "default";
+      const g = await api("GET", "/v1/scenarios/" + encodeURIComponent(selected));
+      if (g.json) {
+        meta.kind = g.json.kind || "LabScenario";
+        meta.apiVersion = g.json.apiVersion || "mcplab.dev/v1alpha1";
+      }
+      const st = await api("GET", "/v1/scenarios/" + encodeURIComponent(selected) + "/status");
+      applyStatus(st.json);
+      if (hasCSRF()) {
+        const v = await api("POST", "/v1/scenarios/" + encodeURIComponent(selected) + ":validate");
+        if (v.json && v.json.results) applyGraph(v.json);
+      }
+      renderList(Array.from(document.querySelectorAll(".sc-item")).map(b => b.dataset.name));
+      renderInspector();
+    }
+    async function refreshList() {
+      const r = await api("GET", "/v1/scenarios");
+      const names = (r.json && r.json.items) || [];
+      if (names.length && names.indexOf(selected) < 0) selected = names[0];
+      renderList(names);
+    }
+    async function runOp(op) {
+      const name = selected || "default";
+      if (op === "get") {
+        const r = await api("GET", "/v1/scenarios/" + encodeURIComponent(name));
+        if (r.json) {
+          meta.kind = r.json.kind || meta.kind;
+          meta.apiVersion = r.json.apiVersion || meta.apiVersion;
+          renderInspector();
+        }
+        return;
+      }
+      if (op === "status") {
+        const r = await api("GET", "/v1/scenarios/" + encodeURIComponent(name) + "/status");
+        applyStatus(r.json);
+        return;
+      }
+      if (!hasCSRF()) return;
+      let path = "/v1/scenarios/" + encodeURIComponent(name);
+      if (op === "validate") path += ":validate";
+      else if (op === "plan") path += ":plan";
+      else if (op === "apply") path += ":apply";
+      else if (op === "reset") path += ":reset";
+      else return;
+      const r = await api("POST", path, op === "validate" ? undefined : {});
+      if (r.json && r.json.results) applyGraph(r.json);
+      const st = await api("GET", "/v1/scenarios/" + encodeURIComponent(name) + "/status");
+      if (st.json) {
+        meta.generation = st.json.generation || meta.generation;
+        meta.lastOp = st.json.lastOp || meta.lastOp;
+        renderInspector();
+      }
+    }
+    function showConfirm(on) { $("confirm").classList.toggle("show", on); }
+    $("signin").onclick = async () => {
+      const token = $("token").value;
       const r = await fetch("/v1/session", {
         method: "POST",
         headers: { "Authorization": "Bearer " + token },
         credentials: "same-origin"
       });
+      $("token").value = "";
       const j = await r.json().catch(() => ({}));
+      if (r.status === 204) appendLog("POST", "/v1/session", 204, "");
+      else appendLog("POST", "/v1/session", r.status, JSON.stringify(j));
       csrf = j.csrfToken || "";
-      document.getElementById("token").value = "";
-      out.textContent = r.ok ? "signed in" : (j.error || r.status);
+      cookieSession = r.ok && hasCSRF();
+      chrome();
+      if (cookieSession) {
+        await refreshList();
+        await selectScenario(selected);
+      }
     };
-    document.getElementById("signout").onclick = async () => {
+    $("signout").onclick = async () => {
       await api("DELETE", "/v1/session");
       csrf = "";
+      cookieSession = false;
+      emptySpec = false;
+      $("log").replaceChildren();
+      chrome();
+    };
+    $("reset-open").onclick = () => { if (hasCSRF()) showConfirm(true); };
+    $("reset-cancel").onclick = () => showConfirm(false);
+    $("reset-go").onclick = async () => {
+      if (!hasCSRF()) return;
+      showConfirm(false);
+      await runOp("reset");
     };
     document.querySelectorAll("button[data-op]").forEach(btn => {
-      btn.onclick = async () => {
-        const name = document.getElementById("name").value || "default";
-        const op = btn.dataset.op;
-        if (op === "list") return api("GET", "/v1/scenarios");
-        if (op === "get") return api("GET", "/v1/scenarios/" + encodeURIComponent(name));
-        if (op === "status") return api("GET", "/v1/scenarios/" + encodeURIComponent(name) + "/status");
-        if (op === "validate") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":validate");
-        if (op === "plan") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":plan", {});
-        if (op === "apply") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":apply", {});
-        if (op === "reset") return api("POST", "/v1/scenarios/" + encodeURIComponent(name) + ":reset", {});
+      btn.onclick = () => runOp(btn.dataset.op);
+    });
+    document.querySelectorAll("button[data-nav]").forEach(btn => {
+      btn.onclick = () => {
+        if (btn.dataset.nav === "reset") { if (hasCSRF()) showConfirm(true); return; }
+        document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        $("list-pane").scrollIntoView({ block: "nearest" });
       };
     });
-    fetch("/v1/session", { credentials: "same-origin" }).then(r => r.ok ? r.json() : null).then(j => {
-      if (j && j.csrfToken) { csrf = j.csrfToken; out.textContent = "session restored"; }
-    }).catch(() => {});
+    document.addEventListener("keydown", ev => {
+      if (ev.key === "Escape") showConfirm(false);
+    });
+    (async () => {
+      await loadReady();
+      try {
+        const r = await fetch("/v1/session", { credentials: "same-origin" });
+        if (!r.ok) { chrome(); return; }
+        const j = await r.json().catch(() => ({}));
+        csrf = j.csrfToken || "";
+        cookieSession = hasCSRF();
+        chrome();
+        if (cookieSession) {
+          await refreshList();
+          await selectScenario(selected);
+        }
+      } catch { chrome(); }
+    })();
   </script>
 </body>
 </html>
