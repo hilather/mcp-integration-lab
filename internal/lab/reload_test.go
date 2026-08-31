@@ -30,6 +30,8 @@ func TestResolveReloadAliases(t *testing.T) {
 		"scenario":  "labgraph",
 		"labntp":    "labntp",
 		"ntp":       "labntp",
+		"labsso":    "labsso",
+		"sso":       "labsso",
 	}
 	for in, want := range cases {
 		got, err := ResolveReload(in)
@@ -114,6 +116,9 @@ func TestMakefileReloadUsageMentionsLabgraph(t *testing.T) {
 	}
 	if !strings.Contains(string(b), "labntp") {
 		t.Fatal("Makefile reload usage missing labntp")
+	}
+	if !strings.Contains(string(b), "labsso") {
+		t.Fatal("Makefile reload usage missing labsso")
 	}
 }
 

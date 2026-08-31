@@ -262,6 +262,13 @@ func TestServiceExistsKnowsLabNTP(t *testing.T) {
 	}
 }
 
+func TestServiceExistsKnowsLabSSO(t *testing.T) {
+	_, err := (&Runner{}).serviceExists("labsso")
+	if err != nil && strings.Contains(err.Error(), `unknown service "labsso"`) {
+		t.Fatal(`serviceExists must inspect main compose labsso`)
+	}
+}
+
 func TestSecretsDevWritesCatalog(t *testing.T) {
 	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\n", validCatalogBytes(t))
 	if err := r.Secrets(); err != nil {
@@ -274,6 +281,8 @@ func TestSecretsDevWritesCatalog(t *testing.T) {
 		"secrets/labmitm-token":                             "lab-dev-labmitm-token-32b-minimum",
 		"secrets/labgraph-token":                            "lab-dev-labgraph-token",
 		"secrets/labntp-token":                              "lab-dev-labntp-token-32b-minimum",
+		"secrets/labsso-token":                              "lab-dev-labsso-token-32b-minimum",
+		"secrets/labsso-users/alice.password":               "lab-dev-sso-alice-12",
 		"secrets/mcp-client-token":                          "lab-dev-mcp-client-token",
 		"secrets/maildev-web-password":                      "lab-dev-mail-admin-1",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":   "lab-dev-labldap-token-admin",
@@ -314,6 +323,8 @@ func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 		"secrets/labmitm-token",
 		"secrets/labgraph-token",
 		"secrets/labntp-token",
+		"secrets/labsso-token",
+		"secrets/labsso-users/alice.password",
 		"secrets/mcp-client-token",
 		"secrets/maildev-web-password",
 	} {
@@ -322,6 +333,9 @@ func TestSecretsNonDevNeverReadsCatalog(t *testing.T) {
 	alice := readTrim(t, r, "third_party/go-lab-ldap-mcp/secrets/user-alice")
 	if alice == "lab-dev-alice-12" {
 		t.Fatal("non-dev must not write catalog Alice")
+	}
+	if readTrim(t, r, labssoAliceRel) == "lab-dev-sso-alice-12" {
+		t.Fatal("non-dev must not write catalog SSO Alice")
 	}
 	if readTrim(t, r, taclabSecretRel("api_admin_token")) == "lab-dev-labtacacs-token-admin" {
 		t.Fatal("non-dev must not write catalog TacLab token")
@@ -1482,6 +1496,9 @@ func writeStageSources(r *Runner, withOptionalCerts bool) error {
 		"secrets/labmitm-token":                                               "mitm-token\n",
 		"secrets/labgraph-token":                                              "graph-token\n",
 		"secrets/labntp-token":                                                "ntp-token\n",
+		"secrets/labsso-token":                                                "sso-token\n",
+		"secrets/labsso-users/alice.password":                                 "sso-alice\n",
+		"secrets/labsso-tls/ca.crt":                                           "-----BEGIN CERTIFICATE-----\nSSOCA\n-----END CERTIFICATE-----\n",
 		"third_party/go-lab-ldap-mcp/secrets/token-admin":                     "ldap-admin\n",
 		"third_party/go-lab-ldap-mcp/secrets/user-alice":                      "alice-pw\n",
 		"third_party/go-lab-ldap-mcp/secrets/tls/ca.crt":                      "-----BEGIN CERTIFICATE-----\nLABCA\n-----END CERTIFICATE-----\n",
@@ -1509,4 +1526,190 @@ func writeStageSources(r *Runner, withOptionalCerts bool) error {
 		}
 	}
 	return nil
+}
+
+func TestSecretsLabssoFirstMintClearsPendingWhenAbsent(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\n", nil)
+	var mains []string
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if r.labssoTLSReloadPending() {
+		t.Fatal("first mint with no labsso container must not leave TLS pending")
+	}
+	for _, name := range mains {
+		if name == "labsso" {
+			t.Fatal("absent labsso must not queue reloadMain")
+		}
+	}
+	mustHexToken(t, readTrim(t, r, labssoTokenRel), labssoTokenRel)
+	mustHexToken(t, readTrim(t, r, labssoAliceRel), labssoAliceRel)
+	assertLabssoTLS(t, r, r.Prof.Get("LAB_PUBLIC_HOST", "localhost"))
+	fi, err := os.Stat(r.path(labssoSigningRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0o644 {
+		t.Fatalf("signing.pem mode = %04o, want 0644", fi.Mode().Perm())
+	}
+}
+
+func TestSecretsLabssoTLSReloadRetriedWhenPending(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, map[string]bool{"labsso": true})
+	r.deps.reloadMain = func(s string) error {
+		if s == "labsso" {
+			return errors.New("labsso reload failed")
+		}
+		return nil
+	}
+	err := r.Secrets()
+	if err == nil || !strings.Contains(err.Error(), "labsso reload failed") {
+		t.Fatalf("want labsso reload failure, got %v", err)
+	}
+	if !r.labssoTLSReloadPending() {
+		t.Fatal("pending LabSSO TLS reload marker must remain after failure")
+	}
+
+	var n int
+	r.deps.reloadMain = func(s string) error {
+		if s == "labsso" {
+			n++
+		}
+		return nil
+	}
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("second Secrets with complete SANs must still reload labsso, n=%d", n)
+	}
+	if r.labssoTLSReloadPending() {
+		t.Fatal("pending marker must clear after successful reload")
+	}
+}
+
+func TestSecretsLabssoOnlyFirstMintDoesNotReloadLabLDAP(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(r.labssoTLSDir()); err != nil {
+		t.Fatal(err)
+	}
+	installTestSecretsDeps(r, map[string]bool{"labldap": true, "labsso": true})
+	var labldap bool
+	var mains []string
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if labldap {
+		t.Fatal("LabSSO-only first mint must not reloadLabLDAP")
+	}
+	found := false
+	for _, name := range mains {
+		if name == "labsso" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("LabSSO-only first mint must reloadMain labsso, mains=%v", mains)
+	}
+}
+
+func TestSecretsLabLDAPOnlySANDoesNotReloadLabsso(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=false\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	if _, err := labssoTLSEnsure(r.labssoTLSDir(), "203.0.113.10"); err != nil {
+		t.Fatal(err)
+	}
+	installTestSecretsDeps(r, map[string]bool{"labldap": true, "labsso": true})
+	var labldap bool
+	var mains []string
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap {
+		t.Fatal("LabLDAP-only SAN rewrite must reloadLabLDAP")
+	}
+	for _, name := range mains {
+		if name == "labsso" {
+			t.Fatalf("LabLDAP-only SAN rewrite must not reloadMain labsso: %v", mains)
+		}
+	}
+}
+
+func TestSecretsPublicHostChangeReloadsLabLDAPAndLabSSO(t *testing.T) {
+	r := scaffoldSecretsRunner(t, "LAB_DEV_MODE=true\nLAB_PUBLIC_HOST=lab.example.test\n", validCatalogBytes(t))
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	r.Prof.Values["LAB_PUBLIC_HOST"] = "203.0.113.10"
+	installTestSecretsDeps(r, map[string]bool{"labldap": true, "labsso": true})
+	var labldap, registered, gateway bool
+	var mains []string
+	r.deps.reloadLabLDAP = func() error { labldap = true; return nil }
+	r.deps.register = func() error { registered = true; return nil }
+	r.deps.reloadGateway = func() error { gateway = true; return nil }
+	r.deps.reloadMain = func(s string) error { mains = append(mains, s); return nil }
+	if err := r.Secrets(); err != nil {
+		t.Fatal(err)
+	}
+	if !labldap {
+		t.Fatal("public-host change must reloadLabLDAP")
+	}
+	found := false
+	for _, name := range mains {
+		if name == "labsso" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("public-host change must reloadMain labsso, mains=%v", mains)
+	}
+	if registered || gateway {
+		t.Fatalf("TLS re-sign is not a registrarEnv change: register=%v gateway=%v", registered, gateway)
+	}
+	if r.labssoTLSReloadPending() || r.labldapTLSReloadPending() {
+		t.Fatal("successful reload must clear both TLS pending markers")
+	}
+}
+
+func assertLabssoTLS(t *testing.T, r *Runner, publicHost string) {
+	t.Helper()
+	dir := r.labssoTLSDir()
+	fi, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0o755 {
+		t.Fatalf("labsso-tls dir mode = %04o, want 0755", fi.Mode().Perm())
+	}
+	for _, name := range []string{"ca.crt", "ca.key", "tls.crt", "tls.key"} {
+		p := filepath.Join(dir, name)
+		st, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Mode().Perm() != 0o644 {
+			t.Fatalf("%s mode = %04o, want 0644", name, st.Mode().Perm())
+		}
+	}
+	cert := mustCert(t, filepath.Join(dir, "tls.crt"))
+	if !containsDNS(cert.DNSNames, labssoLeafDNS) || !containsDNS(cert.DNSNames, "localhost") {
+		t.Fatalf("labsso leaf SANs = %v", cert.DNSNames)
+	}
+	assertPublicHostSAN(t, cert, publicHost)
 }

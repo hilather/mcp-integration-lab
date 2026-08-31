@@ -22,7 +22,7 @@ make smoke
 
 `make up` is idempotent. It clones pinned vendors into `third_party/`, applies patches, mints gitignored secrets, builds local images, starts three compose projects on `mcplab-shared`, and registers every MCP server with the gateway. First run is image-build heavy.
 
-`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with `LAB_DEV_MODE=true` it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog `taclabAdmin`, `connections_list` secrets equal the files on disk, `devMode=true`).
+`make smoke` runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, LabMITM, LabNTP, LabSSO, and labgraph. On the default profile that is random secrets and labinfo redaction. Against a profile with `LAB_DEV_MODE=true` it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog `taclabAdmin`, `connections_list` secrets equal the files on disk, `devMode=true`).
 
 ## Attach an MCP client
 
@@ -47,8 +47,8 @@ The curated tool group lives at `http://<lab-host>:8080/v0/groups/integration/mc
 
 Today's default profile still publishes residual dests (DNS 10053, LDAPS
 3636, SMTP 1025, NFS 20490). Native policy is IANA on the host (53, 636,
-25, 2049); remaps are follow-on PRs. LabMITM is a forward proxy, not dest
-443.
+25, 2049, HTTPS 443 for LabSSO); remaps are follow-on PRs. LabSSO is dest-443.
+LabMITM is a forward proxy, not dest 443.
 
 ```bash
 dig @<lab-host> -p 10053 ns1.lab.test
@@ -75,7 +75,7 @@ cp .env.example .env
 make up PROFILE=teamx
 ```
 
-Set `LAB_PUBLIC_HOST` to the DNS name or address remote testers use. That value is what labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs in both modes. Full reference: [configuration.md](configuration.md).
+Set `LAB_PUBLIC_HOST` to the DNS name or address remote testers use. That value is what labinfo puts in every URL, a DNS or IP SAN on LabLDAP and LabSSO leaf certs in both modes, and the LabSSO issuer string. Full reference: [configuration.md](configuration.md).
 
 ## Easy connect (dev mode)
 
@@ -109,10 +109,11 @@ make reload APP=labtacacs   # TacLab compose project
 make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register
 make reload APP=labgraph    # labgraph/bootstrap.yaml + scenarios/*.yaml; drops the journal
 make reload APP=labntp      # labntp/bootstrap.yaml; does not re-register
+make reload APP=labsso      # labsso/bootstrap.yaml; does not re-register
 ```
 
 Same commands as `mcplab reload <app>`. Aliases: `dns`, `labmail`/`mail`,
-`ldap`, `taclab`/`tacacs`, `gateway`, `mitm`, `graph`/`scenario`, `ntp`. Sibling services stay up. Use full
+`ldap`, `taclab`/`tacacs`, `gateway`, `mitm`, `graph`/`scenario`, `ntp`, `sso`. Sibling services stay up. Use full
 `make up` after a vendor pin bump, a profile switch, or first bring-up.
 
 ## Stop and reset

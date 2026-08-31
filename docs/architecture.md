@@ -19,6 +19,7 @@ secrets layout, and gateway policy.
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
 | LabMITM (`go-lab-mitmproxy` **v1.6.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
 | LabNTP (`go-lab-ntp` **v1.0.0-rc.2**) | Laboratory NTPv3/v4 unicast with per-IP virtual clocks, operator console, `/v1`, MCP | `http://labntp:8088/mcp` (bearer; `allowLegacyClients: true`) | NTP 10123 (UDP; ADR 0014 default, not residual), REST/MCP/UI 18123 |
+| LabSSO (`go-lab-sso` **v1.0.0-rc.1**) | Laboratory OIDC/OAuth2 + SAML IdP with vendor clothes, operator console, `/v1`, MCP | `http://labsso:8080/mcp` (bearer; `allowLegacyClients: true`) | HTTPS 443 (dest-443), REST/MCP/UI 18443 |
 | ratarmount-rs **v0.1.28** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490† |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | labgraph (first-party) | LabScenario orchestrator: native plan/apply/reset fan-out, REST + MCP + SPA | `http://labgraph:8080/mcp` (bearer; `allowLegacyClients: true`) | 18091 |
@@ -26,7 +27,7 @@ secrets layout, and gateway policy.
 
 † Residual default-profile dest, not the designed IANA dest (DNS 53, LDAP
 389 / LDAPS 636, SMTP 25, NFS 2049). TacLab 49/300/1812/1813 are already
-native. LabMITM 18888 is a forward-proxy listen (SUT sets `HTTP_PROXY`),
+native. LabSSO 443 is dest-443. LabMITM 18888 is a forward-proxy listen (SUT sets `HTTP_PROXY`),
 not dest 443. Remaps are follow-on PRs per service. See
 [Host ports and preflight](#host-ports-and-preflight).
 
@@ -39,17 +40,17 @@ host:container).
 
 Protocol data planes SUTs already speak use the IANA/standard dest on the
 **host**: DNS 53, NTP 123, LDAP 389 / LDAPS 636, SMTP 25, TACACS+ 49 / 300,
-RADIUS 1812/1813, NFS 2049 (AGENTS.md rule 15). Management/control planes
-stay high (collision with the gateway and with each other is fine).
-Today's default profile numbers above that are not native are residual, not
-a second policy — do not invent 10053-as-design.
+RADIUS 1812/1813, NFS 2049, HTTPS 443 for LabSSO (AGENTS.md rule 15).
+Management/control planes stay high (collision with the gateway and with
+each other is fine). Today's default profile numbers above that are not
+native are residual, not a second policy — do not invent 10053-as-design.
 
-LabMITM is a forward proxy, not an IANA dest-443 service. Do not move
-`LABMITM_PROXY_PORT` to 443; HTTPS intercept of CONNECT `:443` stays inside
-the proxy. NFS userspace 2049 is native when remapped; 20490 today is
-residual. Operator escape (a non-native host port in `profile.env`) is
-allowed when preflight cannot free the IANA port; it is an escape, not the
-default.
+LabSSO is dest-443. LabMITM is a forward proxy, not an IANA dest-443
+service. Do not move `LABMITM_PROXY_PORT` to 443; HTTPS intercept of
+CONNECT `:443` stays inside the proxy. NFS userspace 2049 is native when
+remapped; 20490 today is residual. Operator escape (a non-native host port
+in `profile.env`) is allowed when preflight cannot free the IANA port; it
+is an escape, not the default.
 
 **Host occupancy** (`internal/lab/ports.go`): every published host port.
 `EACCES` / `EPERM` is not occupied (TacLab 49; the operator uid may not
@@ -73,6 +74,9 @@ checks fire:
 - NTP 123 held by systemd-timesyncd: stop/disable timesyncd (lab host
   clock may drift; LabNTP never settimeofday) **or** extra IP **or**
   escape `LABNTP_NTP_PORT=10123` (timesyncd/W32Time cannot).
+- HTTPS 443 held by nginx/caddy/apache/another compose stack:
+  stop/disable the occupant **or** extra IP for `LAB_PUBLIC_HOST` **or**
+  escape `LABSSO_HTTPS_PORT` (SUTs that hardcode dest 443 cannot follow).
 - `userland-proxy` true: write `/etc/docker/daemon.json`
   `{"userland-proxy": false}` then `systemctl restart docker`.
 - Docker Desktop / VM NAT cannot preserve UDP source: Linux dockerd +
@@ -91,6 +95,7 @@ flowchart LR
     Mail["LabMail (compose: maildev)"]
     MITM["labmitm"]
     NTP["labntp"]
+    SSO["labsso"]
     Info["labinfo (service directory)"]
     Graph["labgraph"]
   end
@@ -108,9 +113,10 @@ flowchart LR
   Jungle -->|"HTTP + bearer"| Mail
   Jungle -->|"HTTP + bearer"| MITM
   Jungle -->|"HTTP + bearer"| NTP
+  Jungle -->|"HTTP + bearer"| SSO
   Jungle -->|"HTTP + bearer"| Graph
   Control --> Dir
-  Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP, HTTP proxy, NTP"| mcplab
+  Testers[integration test clients] -->|"DNS, LDAP/LDAPS, NFS, TACACS+, RADIUS, SMTP, HTTP proxy, NTP, HTTPS 443"| mcplab
   Testers --> labldap
   Testers --> labtacacs
 ```
@@ -150,6 +156,8 @@ Per-team configuration lives in profiles (`profiles/<name>/`), selected via
   lab-owned overlay copy, exact Origins, `allowLegacyClients: true`).
 - `labntp/bootstrap.yaml` — LabNTP desired state (`labntp.dev/v1alpha1`;
   lab-owned overlay copy, `allowedOrigins: []`, `allowLegacyClients: true`).
+- `labsso/bootstrap.yaml` — LabSSO desired state (`labsso.dev/v1alpha1`;
+  lab-owned overlay copy, issuer must match derived issuer, no `allowedOrigins`).
 - `labgraph/bootstrap.yaml` — LabGraph service bootstrap (`mcplab.dev/v1alpha1`;
   exact Origins, `allowLegacyClients: true`).
 - `scenarios/*.yaml` — LabScenario files (omitted appliances are left alone;
@@ -173,7 +181,7 @@ generated). Catalog-only enter-dev still pins secret files via
 Outside profiles: `secrets/` and `third_party/*/secrets/` — generated, gitignored.
 `profiles/<name>/dev-credentials.yaml` is documented lab-only catalog (the
 default profile ships `lab-dev-*` values) and is inert unless `LAB_DEV_MODE=true`.
-LabMail, LabMITM, and LabNTP tokens must be at least 32 bytes (`auth.MinTokenBytes`);
+LabMail, LabMITM, LabNTP, and LabSSO tokens must be at least 32 bytes (`auth.MinTokenBytes`);
 catalog validate fail-closes so a short value cannot crash-loop those
 containers.
 Container storage is profile-definable (`NFS_ARCHIVE_DIR`, `NFS_DATA_DIR`);
@@ -218,6 +226,7 @@ tweak does not bounce the rest of the lab:
 | `labmitm` | same for compose service `labmitm` | captured flows; generate-mode CA rotates (does not re-register) |
 | `labgraph` | same for compose service `labgraph` | in-memory apply/reset journal |
 | `labntp` | same for compose service `labntp` | in-process NTP views / query log (does not re-register) |
+| `labsso` | same for compose service `labsso` | in-memory sessions (does not re-register) |
 
 `make labldap-up` / `make labtacacs-up` stay idempotent project bring-up
 (used by `make up`). Use full `make up` after a vendor pin bump, a profile
@@ -233,27 +242,27 @@ Internal hops always use static bearer tokens on an isolated docker network.
   apply. labinfo redacts credentials and only describes auth. Secret files
   are random-if-missing. Leaving dev mode (marker `secrets/.lab-dev-mode`)
   unlinks and remints orchestrator tokens, runs LabLDAP `setupsecrets --force`,
-  and `labgen -force`. LabLDAP TLS is not rotated (extra SANs are
-  mode-independent); leaves may still be re-signed if `LAB_PUBLIC_HOST`
+  and `labgen -force`. LabLDAP and LabSSO CAs are not rotated (extra SANs
+  are mode-independent); leaves may still be re-signed if `LAB_PUBLIC_HOST`
   is missing from the SAN set.
 - Dev (`LAB_DEV_MODE=true` → gateway `development`): no client auth, and the
   labinfo tools reveal credentials — `endpoints_list` each web service's
   token, `connections_list` the on-the-wire secrets (LDAP bind password,
   RADIUS and TACACS+ shared secrets, TacLab lab-user passwords, LabLDAP CA
-  PEM, optional TacLab client certs) — all staged world-readable in
+  PEM, LabSSO CA PEM, IdP Alice password, optional TacLab client certs) — all staged world-readable in
   `secrets/labinfo-creds/` (lab-grade static secrets, gitignored).
   `mcplab secrets` writes the active profile's `dev-credentials.yaml` into
   those files, including TacLab lab-user passwords and AAA shared secrets
   (first mint / pin-bump via `labgen -secrets-from`; catalog-only enter-dev
   still pins after labgen; fail-closed if the catalog is missing; no merge with
   `default`). The default profile ships `lab-dev-*` values; they are inert
-  unless this knob is on. LabMail, LabMITM, and LabNTP tokens must be at least 32
+  unless this knob is on. LabMail, LabMITM, LabNTP, and LabSSO tokens must be at least 32
   bytes (`auth.MinTokenBytes`). Catalog reconcile never inspects `MCPJUNGLE_MODE`.
   `MCPJUNGLE_MODE` can still be pinned explicitly to decouple the gateway
   from reveal. `Secrets()` reloads running containers whose files changed
   (or when the marker is missing / `reloads` is not `done`, so a crash
-  retries against leftover LabLDAP `/data`, or when LabLDAP leaves were
-  re-signed for `LAB_PUBLIC_HOST`) and re-registers the gateway
+  retries against leftover LabLDAP `/data`, or when LabLDAP or LabSSO
+  leaves were re-signed for `LAB_PUBLIC_HOST`) and re-registers the gateway
   when registrar tokens change; `make up` skips those apps. The
   `reloads=pending` marker is written before catalog apply and
   setupsecrets/labgen, so a crash after those files land still retries.
@@ -265,7 +274,8 @@ Internal hops always use static bearer tokens on an isolated docker network.
 
 labinfo's catalog (`profiles/<name>/labinfo/services.yaml`) requires a
 `connection` block per service — protocol endpoints, client parameters (LDAP
-DNs, DNS zones, NFS mount options, SMTP posture, AAA specifics), and
+DNs, DNS zones, NFS mount options, SMTP posture, AAA specifics, SSO
+issuer/JWKS), and
 connection credentials — so agents can configure clients and systems under
 test without human spelunking. labinfo fails to start if a service lacks one
 (fail-closed, AGENTS.md rule 9).
@@ -390,6 +400,16 @@ per-persona tool groups and OTel metrics scraping.
   0o644. Host-published UDP is SNAT'd (NAT collision); there is no Go
   `userland-proxy` probe. `make reload APP=labntp` does not re-register.
   No labgraph NTP fan-out in this pin.
+- LabSSO is pinned to **v1.0.0-rc.1** (tag; commit `f4c5f1e`). MCP pin
+  is relaxed with `spec.listeners.management.mcp.allowLegacyClients: true`
+  in the profile bootstrap (no LabSSO patch). Compose must pass
+  `--management-listen=:8080`. No `NET_BIND_SERVICE`. Host HTTPS is
+  dest-443; management is 18443. Dedicated CA under `secrets/labsso-tls/`
+  (dir 0o755, keys 0o644). PKCS#8 signing key mint-if-missing, out of
+  catalog. `spec.issuer` must equal the derived issuer; catalog issuer
+  URLs omit `:443`. SAML on, generic clothes. Do not write
+  `allowedOrigins`. Loopback management is unauthenticated admin.
+  `make reload APP=labsso` does not re-register. No labgraph SSO fan-out.
 - ratarmount-rs is pinned to **v0.1.28** (`.deb` in
   `docker/ratarmount/Dockerfile`). NFSv3 has no locking (`nolock` required)
   and AUTH_SYS only; the lab boundary is the docker network / host. The
@@ -404,7 +424,8 @@ per-persona tool groups and OTel metrics scraping.
 - ratarmount image is Ubuntu-based (release .deb). Alpine/musl source build is
   a size optimization for later.
 - LabLDAP and TacLab images build locally from the vendored repos (TacLab's
-  build compiles its embedded React UI too); LabMail, LabMITM, and LabNTP
+  build compiles its embedded React UI too); LabMail, LabMITM, LabNTP,
+  and LabSSO
   build from `third_party/go-lab-maildev`, `third_party/go-lab-mitmproxy`,
-  and `third_party/go-lab-ntp` the same way LabDNS does. First `make up`
+  `third_party/go-lab-ntp`, and `third_party/go-lab-sso` the same way LabDNS does. First `make up`
   takes several minutes.

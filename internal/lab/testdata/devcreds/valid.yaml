@@ -11,11 +11,13 @@ spec:
     labmitm:           "lab-dev-labmitm-token-32b-minimum"
     labgraph:          "lab-dev-labgraph-token"
     labntp:            "lab-dev-labntp-token-32b-minimum"
+    labsso:            "lab-dev-labsso-token-32b-minimum"
     mcpClient:         "lab-dev-mcp-client-token"
     labldapAdmin:      "lab-dev-labldap-token-admin"
     labtacacsAdmin:    "lab-dev-labtacacs-token-admin"
   passwords:
     maildevWeb:        "lab-dev-mail-admin-1"
+    labssoAlice:       "lab-dev-sso-alice-12"
     labldapAlice:      "lab-dev-alice-12"
     labldapRuntime:    "lab-dev-runtime-12"
     labldapDM:         "lab-dev-dm-password-12"

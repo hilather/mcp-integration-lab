@@ -77,6 +77,7 @@ spec:
         - mcpjungle
         - control
         - taclab
+        - labsso
         # Optional CONNECT-tunnel names (not HTTP origins; do not uncomment
         # without accepting unauthenticated TCP to these listeners).
         # These lines must stay inside allowHosts so uncommenting is valid YAML.

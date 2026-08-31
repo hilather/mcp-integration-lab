@@ -23,10 +23,12 @@ func TestLoadDevCredentialsValid(t *testing.T) {
 		{"spec.tokens.labmitm", doc.Spec.Tokens.LabMITM, "lab-dev-labmitm-token-32b-minimum"},
 		{"spec.tokens.labgraph", doc.Spec.Tokens.Labgraph, "lab-dev-labgraph-token"},
 		{"spec.tokens.labntp", doc.Spec.Tokens.LabNTP, "lab-dev-labntp-token-32b-minimum"},
+		{"spec.tokens.labsso", doc.Spec.Tokens.LabSSO, "lab-dev-labsso-token-32b-minimum"},
 		{"spec.tokens.mcpClient", doc.Spec.Tokens.MCPClient, "lab-dev-mcp-client-token"},
 		{"spec.tokens.labldapAdmin", doc.Spec.Tokens.LabLDAPAdmin, "lab-dev-labldap-token-admin"},
 		{"spec.tokens.labtacacsAdmin", doc.Spec.Tokens.LabTacacsAdmin, "lab-dev-labtacacs-token-admin"},
 		{"spec.passwords.maildevWeb", doc.Spec.Passwords.MaildevWeb, "lab-dev-mail-admin-1"},
+		{"spec.passwords.labssoAlice", doc.Spec.Passwords.LabSSOAlice, "lab-dev-sso-alice-12"},
 		{"spec.passwords.labldapAlice", doc.Spec.Passwords.LabLDAPAlice, "lab-dev-alice-12"},
 		{"spec.passwords.labldapRuntime", doc.Spec.Passwords.LabLDAPRuntime, "lab-dev-runtime-12"},
 		{"spec.passwords.labldapDM", doc.Spec.Passwords.LabLDAPDM, "lab-dev-dm-password-12"},
@@ -93,6 +95,13 @@ func TestLoadDevCredentialsMissingLabntp(t *testing.T) {
 	}
 }
 
+func TestLoadDevCredentialsMissingLabsso(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("missing-labsso.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labsso is required") {
+		t.Fatalf("expected missing labsso, got %v", err)
+	}
+}
+
 func TestLoadDevCredentialsEmptyValue(t *testing.T) {
 	_, err := LoadDevCredentials(testdataDevcreds("empty-value.yaml"))
 	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labdns is required") {
@@ -127,6 +136,16 @@ func TestLoadDevCredentialsLabntpCatalogTokenTooShort(t *testing.T) {
 	}
 }
 
+func TestLoadDevCredentialsLabssoCatalogTokenTooShort(t *testing.T) {
+	_, err := LoadDevCredentials(testdataDevcreds("labsso-short.yaml"))
+	if err == nil || !strings.Contains(err.Error(), "spec.tokens.labsso") {
+		t.Fatalf("expected labsso MinTokenBytes failure, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "MinTokenBytes") {
+		t.Fatalf("expected MinTokenBytes in error, got %v", err)
+	}
+}
+
 func TestValidateApplianceTokensExactMinBytes(t *testing.T) {
 	doc, err := LoadDevCredentials(testdataDevcreds("valid.yaml"))
 	if err != nil {
@@ -135,6 +154,7 @@ func TestValidateApplianceTokensExactMinBytes(t *testing.T) {
 	doc.Spec.Tokens.Labmail = strings.Repeat("m", applianceTokenMinBytes)
 	doc.Spec.Tokens.LabMITM = strings.Repeat("t", applianceTokenMinBytes)
 	doc.Spec.Tokens.LabNTP = strings.Repeat("n", applianceTokenMinBytes)
+	doc.Spec.Tokens.LabSSO = strings.Repeat("s", applianceTokenMinBytes)
 	if err := doc.Validate(); err != nil {
 		t.Fatalf("exactly %d-byte tokens must pass: %v", applianceTokenMinBytes, err)
 	}

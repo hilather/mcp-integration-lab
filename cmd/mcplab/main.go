@@ -21,10 +21,10 @@ Usage: mcplab <command> [args]
   reset          down -v for all compose projects: wipe all runtime state
   register       (re)apply gateway config from the active profile
   preflight      fail fast on profile drift and unavailable host ports
-  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM/LabNTP/labgraph scenario through the gateway
+  smoke          end-to-end DNS/LDAP/NFS/TACACS+RADIUS/mail/LabMITM/LabNTP/LabSSO/labgraph scenario through the gateway
                  (dev mode also asserts catalog values on the wire)
   reload <app>   rebuild/recreate one app (not a full redeploy). Apps:
-                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp
+                 labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp, labsso
   scenario       validate|plan|apply|reset [name] [--appliances=a,b]
                  HTTP client of labgraph (secrets/labgraph-token). Default name: default.
                  Named packs: broken-bind, expired-cert, split-horizon-dns,
@@ -33,7 +33,7 @@ Usage: mcplab <command> [args]
                  HTTP client of labgraph POST /v1/fixtures/{id}:apply. Rejects default.
 
   vendor         clone/update pinned service repos into third_party/ and apply patches/
-  secrets        generate or reconcile tokens/passwords (mode-aware); ensure LabLDAP TLS SANs; reload running apps
+  secrets        generate or reconcile tokens/passwords (mode-aware); ensure LabLDAP and LabSSO TLS SANs; reload running apps
   creds          print the shareable credentials sheet (dev mode only)
   fixtures       build the NFS fixture archive + work dir
   labldap-up     bring up only the LabLDAP compose project (idempotent)

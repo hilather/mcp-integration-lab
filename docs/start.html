@@ -63,7 +63,7 @@ cd mcp-integration-lab
 make up
 make smoke</code></pre>
         <p><code>make up</code> is idempotent. It clones pinned vendors into <code>third_party/</code>, applies patches, mints gitignored secrets, builds local images, starts three compose projects on <code>mcplab-shared</code>, and registers every MCP server with the gateway. First run is image-build heavy.</p>
-        <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, and LabMITM. On the default profile that is random secrets and labinfo redaction. Against a profile with <code>LAB_DEV_MODE=true</code> it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog <code>taclabAdmin</code>, <code>connections_list</code> secrets equal the files on disk, <code>devMode=true</code>).</p>
+        <p><code>make smoke</code> runs an agent-style scenario through the gateway: DNS, LDAP, NFS, TACACS+/RADIUS, mail, LabMITM, LabNTP, LabSSO, and labgraph. On the default profile that is random secrets and labinfo redaction. Against a profile with <code>LAB_DEV_MODE=true</code> it also asserts catalog values on the wire (Alice's bind password, RADIUS Accept for catalog <code>taclabAdmin</code>, <code>connections_list</code> secrets equal the files on disk, <code>devMode=true</code>).</p>
 
         <h2 id="client">Attach an MCP client</h2>
         <p>The default profile runs the gateway in enterprise mode. Clients send a bearer token. Drop the header only if you set <code>LAB_DEV_MODE=true</code>.</p>
@@ -80,7 +80,7 @@ make smoke</code></pre>
         <p>The curated tool group lives at <code>http://&lt;lab-host&gt;:8080/v0/groups/integration/mcp</code>. Ask labinfo for <code>endpoints_list</code> and <code>connections_list</code> before you spelunk.</p>
 
         <h2 id="planes">Hit a data plane</h2>
-        <p>Today's default profile still publishes residual dests (DNS 10053, LDAPS 3636, SMTP 1025, NFS 20490). Native policy is IANA on the host (53, 636, 25, 2049); remaps are follow-on PRs. LabMITM is a forward proxy, not dest 443.</p>
+        <p>Today's default profile still publishes residual dests (DNS 10053, LDAPS 3636, SMTP 1025, NFS 20490). Native policy is IANA on the host (53, 636, 25, 2049, HTTPS 443 for LabSSO); remaps are follow-on PRs. LabSSO is dest-443. LabMITM is a forward proxy, not dest 443.</p>
         <pre><code>dig @&lt;lab-host&gt; -p 10053 ns1.lab.test
 
 ldapsearch -H ldaps://&lt;lab-host&gt;:3636 \
@@ -98,7 +98,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
         <pre><code>cp .env.example .env
 # PROFILE=teamx
 make up PROFILE=teamx</code></pre>
-        <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name or address remote testers use. That value is what labinfo puts in every URL, and a DNS or IP SAN on LabLDAP leaf certs in both modes. Full reference: <a href="configure.html">Configure</a>.</p>
+        <p>Set <code>LAB_PUBLIC_HOST</code> to the DNS name or address remote testers use. That value is what labinfo puts in every URL, a DNS or IP SAN on LabLDAP and LabSSO leaf certs in both modes, and the LabSSO issuer string. Full reference: <a href="configure.html">Configure</a>.</p>
 
         <h2 id="dev">Easy connect (dev mode)</h2>
         <p>For a throwaway local lab, copy the default profile and set <code>LAB_DEV_MODE=true</code> in <strong>that profile's</strong> <code>profile.env</code> (not process env on <code>default</code> — preflight rejects the drift):</p>
@@ -121,7 +121,8 @@ make reload APP=labldap     # labldap/scenario.yaml; re-seeds ephemeral /data
 make reload APP=labtacacs   # TacLab compose project
 make reload APP=labmitm     # labmitm/bootstrap.yaml; wipes captured flows; does not re-register
 make reload APP=labgraph    # labgraph/bootstrap.yaml + scenarios/*.yaml; drops the journal
-make reload APP=labntp      # labntp/bootstrap.yaml; does not re-register</code></pre>
+make reload APP=labntp      # labntp/bootstrap.yaml; does not re-register
+make reload APP=labsso      # labsso/bootstrap.yaml; does not re-register</code></pre>
         <p>Same as <code>mcplab reload &lt;app&gt;</code>. Sibling services stay up. Use full <code>make up</code> after a vendor pin bump, a profile switch, or first bring-up.</p>
 
         <h2 id="stop">Stop and reset</h2>

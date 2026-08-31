@@ -27,6 +27,20 @@ func testProfileDir(root string) string {
 	return filepath.Join(root, "profiles", testProfileName)
 }
 
+func TestPreflightKeysIncludesLabSSO(t *testing.T) {
+	want := map[string]bool{"LABSSO_HTTPS_PORT": false, "LABSSO_REST_PORT": false}
+	for _, k := range preflightKeys {
+		if _, ok := want[k]; ok {
+			want[k] = true
+		}
+	}
+	for k, seen := range want {
+		if !seen {
+			t.Fatalf("preflightKeys missing %s", k)
+		}
+	}
+}
+
 func TestPreflightKeysIncludesLabNTP(t *testing.T) {
 	want := map[string]bool{"LABNTP_NTP_PORT": false, "LABNTP_REST_PORT": false}
 	for _, k := range preflightKeys {
@@ -265,5 +279,56 @@ func TestPreflightAllowsDriftWithBypassFlag(t *testing.T) {
 	}
 	if err := r.Preflight(); err != nil {
 		t.Fatalf("Preflight() unexpected error with bypass: %v", err)
+	}
+}
+
+func TestPreflightSkipsMissingLabssoBootstrap(t *testing.T) {
+	// Do not put LABSSO_HTTPS_PORT in Values. Preflight() always ends in
+	// preflightPortsAvailable(); a dest-443 probe fails make test when a
+	// non-lab process holds 443. checkLabssoIssuer returns before derive
+	// when the bootstrap file is missing — the skip does not need the port.
+	root := t.TempDir()
+	writeProfileEnv(t, root, "LAB_PUBLIC_HOST=localhost\n")
+	r := &Runner{
+		Prof: &profile.Profile{
+			Name: testProfileName,
+			Dir:  testProfileDir(root),
+			Values: map[string]string{
+				"LAB_PUBLIC_HOST": "localhost",
+			},
+		},
+	}
+	if _, err := os.Stat(filepath.Join(testProfileDir(root), "labsso", "bootstrap.yaml")); !os.IsNotExist(err) {
+		t.Fatalf("bootstrap should be missing, stat: %v", err)
+	}
+	if err := r.Preflight(); err != nil {
+		t.Fatalf("missing labsso bootstrap must skip issuer check: %v", err)
+	}
+}
+
+func TestPreflightLabssoIssuerMismatch(t *testing.T) {
+	root := t.TempDir()
+	writeProfileEnv(t, root, "LAB_PUBLIC_HOST=localhost\nLABSSO_HTTPS_PORT=443\n")
+	dir := filepath.Join(testProfileDir(root), "labsso")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("apiVersion: labsso.dev/v1alpha1\nkind: LabSSO\nspec:\n  issuer: https://localhost:443\n")
+	if err := os.WriteFile(filepath.Join(dir, "bootstrap.yaml"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := &Runner{
+		Prof: &profile.Profile{
+			Name: testProfileName,
+			Dir:  testProfileDir(root),
+			Values: map[string]string{
+				"LAB_PUBLIC_HOST":   "localhost",
+				"LABSSO_HTTPS_PORT": "443",
+			},
+		},
+	}
+	err := r.Preflight()
+	if err == nil || !strings.Contains(err.Error(), "spec.issuer") || !strings.Contains(err.Error(), "https://localhost") {
+		t.Fatalf("want issuer mismatch naming YAML edit, got %v", err)
 	}
 }

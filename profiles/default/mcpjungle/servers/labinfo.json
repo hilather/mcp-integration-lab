@@ -1,7 +1,7 @@
 {
   "name": "labinfo",
   "transport": "streamable_http",
-  "description": "Lab service directory: user-facing web/REST endpoint URLs (endpoints_list) and protocol-level connection details — hosts/ports, LDAP DNs, DNS zones, NFS mount options, SMTP settings, AAA secrets (connections_list) — of every lab service. Credentials included when the lab runs in dev mode. Use it to direct users to the right URL or to configure a client against a lab service.",
+  "description": "Lab service directory: user-facing web/REST endpoint URLs (endpoints_list) and protocol-level connection details — hosts/ports, LDAP DNs, DNS zones, NFS mount options, SMTP settings, AAA secrets, SSO issuer/JWKS (connections_list) — of every lab service. Credentials included when the lab runs in dev mode. Use it to direct users to the right URL or to configure a client against a lab service.",
   "url": "http://labinfo:8080/mcp",
   "bearer_token": "${LABINFO_TOKEN}"
 }

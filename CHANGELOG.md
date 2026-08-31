@@ -9,6 +9,15 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Added
 
+- **LabSSO** integrator pin (`go-lab-sso` **v1.0.0-rc.1**, catalog id
+  `labsso`): HTTPS dest-443 IdP (OIDC + SAML, generic clothes),
+  management 18443, token and Alice password 0o644, dedicated CA
+  (`secrets/labsso-tls/`, dir 0o755), PKCS#8 signing key mint-if-missing
+  (out of catalog). Issuer YAML must match the derived issuer; catalog
+  issuer URLs omit `:443`. No `allowedOrigins` yet. No labgraph SSO
+  fan-out. `make reload APP=labsso` does not re-register.
+
+
 - Named **fixture packs** as `LabScenario` files (`broken-bind`,
   `expired-cert`, `split-horizon-dns`, `mitm-intercept-extra-port`)
   plus MCP resources `labgraph://fixtures/{id}` and tool `fixture.apply`

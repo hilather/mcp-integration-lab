@@ -46,6 +46,8 @@ var publishedPortSpecs = []struct {
 	{"LABGRAPH_PORT", []portProto{portTCP}},
 	{"LABNTP_NTP_PORT", []portProto{portUDP}},
 	{"LABNTP_REST_PORT", []portProto{portTCP}},
+	{"LABSSO_HTTPS_PORT", []portProto{portTCP}},
+	{"LABSSO_REST_PORT", []portProto{portTCP}},
 	{"MCP_GATEWAY_PORT", []portProto{portTCP}},
 	{"LABLDAP_LDAP_PORT", []portProto{portTCP}},
 	{"LABLDAP_LDAPS_PORT", []portProto{portTCP}},
@@ -396,11 +398,17 @@ func (r *Runner) preflightPortsAvailable() error {
 }
 
 func occupiedPortHint(conflicts []string) string {
-	hint := "hint: stop the conflicting service or change the profile port"
+	var hints []string
 	for _, c := range conflicts {
 		if strings.Contains(c, "LABNTP_NTP_PORT=123") {
-			return "hint: stop/disable systemd-timesyncd (lab host clock may drift; LabNTP never settimeofday) or extra IP for LAB_PUBLIC_HOST or keep LABNTP_NTP_PORT=10123 (timesyncd/W32Time cannot follow a non-123 dest)"
+			hints = append(hints, "hint: stop/disable systemd-timesyncd (lab host clock may drift; LabNTP never settimeofday) or extra IP for LAB_PUBLIC_HOST or keep LABNTP_NTP_PORT=10123 (timesyncd/W32Time cannot follow a non-123 dest)")
+		}
+		if strings.Contains(c, "LABSSO_HTTPS_PORT=443") {
+			hints = append(hints, "hint: stop/disable occupant (nginx/caddy/apache/another compose stack) or extra IP for LAB_PUBLIC_HOST or escape LABSSO_HTTPS_PORT (SUTs that hardcode dest 443 cannot follow)")
 		}
 	}
-	return hint
+	if len(hints) == 0 {
+		return "hint: stop the conflicting service or change the profile port"
+	}
+	return strings.Join(hints, "\n")
 }

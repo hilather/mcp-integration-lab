@@ -75,6 +75,47 @@ func TestPublishedPortSpecsIncludesLabNTP(t *testing.T) {
 	}
 }
 
+func TestPublishedPortSpecsIncludesLabSSO(t *testing.T) {
+	want := map[string][]portProto{
+		"LABSSO_HTTPS_PORT": {portTCP},
+		"LABSSO_REST_PORT":  {portTCP},
+	}
+	seen := map[string][]portProto{}
+	for _, spec := range publishedPortSpecs {
+		if _, ok := want[spec.EnvKey]; ok {
+			seen[spec.EnvKey] = spec.Protos
+		}
+	}
+	for k, protos := range want {
+		got, ok := seen[k]
+		if !ok {
+			t.Fatalf("publishedPortSpecs missing %s", k)
+		}
+		if len(got) != len(protos) || got[0] != protos[0] {
+			t.Fatalf("publishedPortSpecs %s protos = %v, want %v", k, got, protos)
+		}
+	}
+}
+
+func TestOccupiedPortHintCollectsNTPAndLabSSO443(t *testing.T) {
+	got := occupiedPortHint([]string{
+		"LABNTP_NTP_PORT=123 (udp) already in use",
+		"LABSSO_HTTPS_PORT=443 (tcp) already in use",
+	})
+	for _, want := range []string{"systemd-timesyncd", "LABSSO_HTTPS_PORT", "nginx/caddy/apache", "dest 443"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("combined hint missing %q: %s", want, got)
+		}
+	}
+	ssoOnly := occupiedPortHint([]string{"LABSSO_HTTPS_PORT=443 (tcp) already in use"})
+	if !strings.Contains(ssoOnly, "escape LABSSO_HTTPS_PORT") {
+		t.Fatalf("443 hint missing escape: %s", ssoOnly)
+	}
+	if strings.Contains(ssoOnly, "timesyncd") {
+		t.Fatal("443-only occupancy must not use the NTP timesyncd hint")
+	}
+}
+
 func TestOccupiedPortHintTimesyncdOnNTP123(t *testing.T) {
 	got := occupiedPortHint([]string{"LABNTP_NTP_PORT=123 (udp) already in use"})
 	for _, want := range []string{"systemd-timesyncd", "LABNTP_NTP_PORT=10123", "settimeofday"} {

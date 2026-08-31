@@ -24,7 +24,7 @@ const (
 	taclabSharedSecretMinLen     = 16
 	taclabSharedSecretMinClasses = 3
 
-	// LabMail / LabMITM / LabNTP auth.MinTokenBytes (serve fail-closes).
+	// LabMail / LabMITM / LabNTP / LabSSO auth.MinTokenBytes (serve fail-closes).
 	applianceTokenMinBytes = 32
 )
 
@@ -56,6 +56,7 @@ type DevTokens struct {
 	LabMITM        string `yaml:"labmitm"`
 	Labgraph       string `yaml:"labgraph"`
 	LabNTP         string `yaml:"labntp"`
+	LabSSO         string `yaml:"labsso"`
 	MCPClient      string `yaml:"mcpClient"`
 	LabLDAPAdmin   string `yaml:"labldapAdmin"`
 	LabTacacsAdmin string `yaml:"labtacacsAdmin"`
@@ -63,6 +64,7 @@ type DevTokens struct {
 
 type DevPasswords struct {
 	MaildevWeb        string `yaml:"maildevWeb"`
+	LabSSOAlice       string `yaml:"labssoAlice"`
 	LabLDAPAlice      string `yaml:"labldapAlice"`
 	LabLDAPRuntime    string `yaml:"labldapRuntime"`
 	LabLDAPDM         string `yaml:"labldapDM"`
@@ -107,7 +109,7 @@ func parseDevCredentials(r io.Reader) (*DevCredentials, error) {
 }
 
 // Validate fail-closes on wrong apiVersion/kind, missing/empty required
-// keys, LabMail/LabMITM/LabNTP tokens shorter than appliance auth.MinTokenBytes,
+// keys, LabMail/LabMITM/LabNTP/LabSSO tokens shorter than appliance auth.MinTokenBytes,
 // LabLDAP passwords shorter than minLength, TacLab shared secrets
 // that would crash the appliance at boot, equal TACACS/RADIUS secrets,
 // and whitespace/NUL/newline in secrets-from-bound fields.
@@ -132,10 +134,12 @@ func (d *DevCredentials) Validate() error {
 		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
 		{"spec.tokens.labgraph", d.Spec.Tokens.Labgraph},
 		{"spec.tokens.labntp", d.Spec.Tokens.LabNTP},
+		{"spec.tokens.labsso", d.Spec.Tokens.LabSSO},
 		{"spec.tokens.mcpClient", d.Spec.Tokens.MCPClient},
 		{"spec.tokens.labldapAdmin", d.Spec.Tokens.LabLDAPAdmin},
 		{"spec.tokens.labtacacsAdmin", d.Spec.Tokens.LabTacacsAdmin},
 		{"spec.passwords.maildevWeb", d.Spec.Passwords.MaildevWeb},
+		{"spec.passwords.labssoAlice", d.Spec.Passwords.LabSSOAlice},
 		{"spec.passwords.labldapAlice", d.Spec.Passwords.LabLDAPAlice},
 		{"spec.passwords.labldapRuntime", d.Spec.Passwords.LabLDAPRuntime},
 		{"spec.passwords.labldapDM", d.Spec.Passwords.LabLDAPDM},
@@ -157,6 +161,7 @@ func (d *DevCredentials) Validate() error {
 		{"spec.tokens.labmail", d.Spec.Tokens.Labmail},
 		{"spec.tokens.labmitm", d.Spec.Tokens.LabMITM},
 		{"spec.tokens.labntp", d.Spec.Tokens.LabNTP},
+		{"spec.tokens.labsso", d.Spec.Tokens.LabSSO},
 	} {
 		if len(f.value) < applianceTokenMinBytes {
 			return fmt.Errorf("%s is shorter than appliance auth.MinTokenBytes (%d)", f.path, applianceTokenMinBytes)

@@ -3,9 +3,12 @@ package lab
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -24,10 +27,11 @@ import (
 )
 
 // Smoke runs the end-to-end scenario: drives DNS, LDAP, TACACS+/RADIUS,
-// mail, LabMITM, LabNTP, and labgraph state through the MCP gateway the way an agent would,
+// mail, LabMITM, LabNTP, LabSSO, and labgraph state through the MCP gateway the way an agent would,
 // then verifies every result on the real data plane (DNS query, LDAPS bind,
 // kernel NFS mount, RADIUS PAP auth, SMTP delivery into the receive-only
-// mail sink, HTTP intercept via the published proxy port).
+// mail sink, HTTP intercept via the published proxy port, NTP query,
+// OIDC discovery / JWKS / SAML metadata).
 func (r *Runner) Smoke() error {
 	s := &smokeState{r: r}
 
@@ -44,6 +48,7 @@ func (r *Runner) Smoke() error {
 	s.maildevScenario()
 	s.labmitmScenario()
 	s.labntpScenario()
+	s.labssoScenario()
 	s.labinfoScenario()
 	s.labgraphScenario()
 	s.devCatalogScenario()
@@ -625,6 +630,103 @@ func (s *smokeState) ntpUDPQueryOK() bool {
 	return strings.Contains(out, "transmit=")
 }
 
+func (s *smokeState) labssoScenario() {
+	s.step("labsso scenario: ready, management bearer, discovery+JWKS, SAML metadata, MCP")
+
+	restPort := s.r.Prof.Get("LABSSO_REST_PORT", "18443")
+	base := "http://127.0.0.1:" + restPort
+	s.check(waitHealthy(base+"/v1/health/ready", 10*time.Second) == nil, "labsso /v1/health/ready")
+
+	bad, err := http.NewRequest(http.MethodGet, base+"/v1/status", nil)
+	if err != nil {
+		s.check(false, "labsso build /v1/status request")
+		return
+	}
+	bad.Header.Set("Authorization", "Bearer not-the-labsso-token")
+	badResp, err := http.DefaultClient.Do(bad)
+	if err == nil {
+		_, _ = io.Copy(io.Discard, badResp.Body)
+		_ = badResp.Body.Close()
+	}
+	s.check(err == nil && badResp.StatusCode == http.StatusUnauthorized, "labsso /v1/status bad bearer is 401")
+
+	tok, err := readTrimmed(s.r.path(labssoTokenRel))
+	good, err2 := http.NewRequest(http.MethodGet, base+"/v1/status", nil)
+	if err == nil && err2 == nil {
+		good.Header.Set("Authorization", "Bearer "+tok)
+	}
+	goodResp, err := http.DefaultClient.Do(good)
+	if err == nil {
+		_, _ = io.Copy(io.Discard, goodResp.Body)
+		_ = goodResp.Body.Close()
+	}
+	s.check(err == nil && goodResp != nil && goodResp.StatusCode == http.StatusOK, "labsso /v1/status good bearer is 200")
+
+	issuer := deriveLabssoIssuer(s.r.Prof.Get("LAB_PUBLIC_HOST", "localhost"), s.r.Prof.Get("LABSSO_HTTPS_PORT", "443"))
+	client, err := s.labssoHTTPSClient()
+	if !s.check(err == nil, "labsso HTTPS client trusts dedicated CA") {
+		return
+	}
+	discResp, err := client.Get(issuer + "/.well-known/openid-configuration")
+	var disc struct {
+		Issuer  string `json:"issuer"`
+		JWKSURI string `json:"jwks_uri"`
+	}
+	if err == nil {
+		body, _ := io.ReadAll(discResp.Body)
+		_ = discResp.Body.Close()
+		if discResp.StatusCode == http.StatusOK {
+			err = json.Unmarshal(body, &disc)
+		} else {
+			err = fmt.Errorf("discovery status %d", discResp.StatusCode)
+		}
+	}
+	s.check(err == nil && disc.Issuer == issuer, "OIDC discovery issuer matches derived issuer")
+	if disc.JWKSURI == "" {
+		s.check(false, "discovery jwks_uri is present")
+	} else {
+		jwksResp, jerr := client.Get(disc.JWKSURI)
+		if jerr == nil {
+			_, _ = io.Copy(io.Discard, jwksResp.Body)
+			_ = jwksResp.Body.Close()
+		}
+		s.check(jerr == nil && jwksResp != nil && jwksResp.StatusCode == http.StatusOK, "follow jwks_uri")
+	}
+
+	metaResp, err := client.Get(issuer + "/saml/metadata")
+	if err == nil {
+		_, _ = io.Copy(io.Discard, metaResp.Body)
+		_ = metaResp.Body.Close()
+	}
+	s.check(err == nil && metaResp != nil && metaResp.StatusCode == http.StatusOK, "SAML metadata 200")
+
+	stateOut, err := s.invoke("labsso__sso_state_get", "{}")
+	s.check(err == nil && stateOut != "", "labsso__sso_state_get")
+
+	clientsOut, err := s.invoke("labsso__sso_clients_list", "{}")
+	s.check(err == nil && strings.Contains(clientsOut, "lab-app"), "labsso__sso_clients_list sees lab-app")
+
+	_, err = s.invoke("labsso__sso_state_reset", `{"reason":"smoke"}`)
+	s.check(err == nil, "labsso__sso_state_reset")
+}
+
+func (s *smokeState) labssoHTTPSClient() (*http.Client, error) {
+	pem, err := os.ReadFile(s.r.path(labssoTLSRel + "/ca.crt"))
+	if err != nil {
+		return nil, err
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("labsso CA PEM")
+	}
+	return &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
+		},
+	}, nil
+}
+
 func (s *smokeState) labinfoScenario() {
 	s.step("labinfo scenario: agents can look up user-facing service URLs")
 
@@ -655,10 +757,12 @@ func (s *smokeState) labinfoScenario() {
 	mitmWebPort := s.r.Prof.Get("LABMITM_WEB_PORT", "18088")
 	graphPort := s.r.Prof.Get("LABGRAPH_PORT", "18091")
 	ntpRestPort := s.r.Prof.Get("LABNTP_REST_PORT", "18123")
+	ssoRestPort := s.r.Prof.Get("LABSSO_REST_PORT", "18443")
 	foundGateway := false
 	foundMITM := false
 	foundGraph := false
 	foundNTP := false
+	foundSSO := false
 	credentialsRevealed := false
 	for _, svc := range eps.Services {
 		if svc.ID == "gateway" {
@@ -689,6 +793,13 @@ func (s *smokeState) labinfoScenario() {
 				}
 			}
 		}
+		if svc.ID == "labsso" {
+			for _, u := range svc.URLs {
+				if strings.Contains(u.URL, ":"+ssoRestPort) {
+					foundSSO = true
+				}
+			}
+		}
 		if svc.Credential != nil && svc.Credential.Secret != "" {
 			credentialsRevealed = true
 		}
@@ -697,6 +808,7 @@ func (s *smokeState) labinfoScenario() {
 	s.check(foundMITM, "labmitm catalog URL carries the profile's web port")
 	s.check(foundGraph, "labgraph catalog URL carries the profile's port")
 	s.check(foundNTP, "labntp catalog URL carries the profile's rest port")
+	s.check(foundSSO, "labsso catalog URL carries the profile's rest port")
 	s.check(credentialsRevealed == devMode,
 		fmt.Sprintf("credentials revealed only in dev mode (revealed=%v)", credentialsRevealed))
 
@@ -734,6 +846,8 @@ func (s *smokeState) labinfoScenario() {
 	foundMailMCP := false
 	foundBaseDN := false
 	foundNTPUDP := false
+	foundSSOIssuer := false
+	foundSSODest := false
 	connSecretsRevealed := false
 	for _, svc := range conns.Services {
 		if len(svc.Endpoints) == 0 {
@@ -749,6 +863,12 @@ func (s *smokeState) labinfoScenario() {
 			if svc.ID == "labntp" && e.Protocol == "ntp-udp" && strings.HasSuffix(e.Address, ":"+ntpPort) {
 				foundNTPUDP = true
 			}
+			if svc.ID == "labsso" && e.Protocol == "https" && !strings.Contains(e.Address, ":443") {
+				foundSSOIssuer = true
+			}
+		}
+		if svc.ID == "labsso" && strings.Contains(svc.Parameters["dest_port"], "443") {
+			foundSSODest = true
 		}
 		if svc.ID == "labldap" && strings.HasPrefix(svc.Parameters["base_dn"], "dc=") {
 			foundBaseDN = true
@@ -763,6 +883,8 @@ func (s *smokeState) labinfoScenario() {
 	s.check(foundSMTP, "maildev SMTP endpoint carries the profile's port")
 	s.check(foundMailMCP, "maildev MCP endpoint is cataloged")
 	s.check(foundNTPUDP, "labntp ntp-udp endpoint carries the profile dest port")
+	s.check(foundSSOIssuer, "labsso issuer omits :443")
+	s.check(foundSSODest, "labsso dest_port documents 443")
 	s.check(foundBaseDN, "labldap parameters include the base DN")
 	s.check(connSecretsRevealed == devMode,
 		fmt.Sprintf("connection secrets revealed only in dev mode (revealed=%v)", connSecretsRevealed))
@@ -911,10 +1033,12 @@ func catalogFileExpects(doc *DevCredentials) []catalogFileExpect {
 		{"spec.tokens.labmitm", "secrets/labmitm-token", doc.Spec.Tokens.LabMITM, ""},
 		{"spec.tokens.labgraph", "secrets/labgraph-token", doc.Spec.Tokens.Labgraph, ""},
 		{"spec.tokens.labntp", "secrets/labntp-token", doc.Spec.Tokens.LabNTP, ""},
+		{"spec.tokens.labsso", labssoTokenRel, doc.Spec.Tokens.LabSSO, ""},
 		{"spec.tokens.mcpClient", "secrets/mcp-client-token", doc.Spec.Tokens.MCPClient, ""},
 		{"spec.tokens.labldapAdmin", ll + "token-admin", doc.Spec.Tokens.LabLDAPAdmin, ""},
 		{"spec.tokens.labtacacsAdmin", ts + "api_admin_token", doc.Spec.Tokens.LabTacacsAdmin, ""},
 		{"spec.passwords.maildevWeb", "secrets/maildev-web-password", doc.Spec.Passwords.MaildevWeb, ""},
+		{"spec.passwords.labssoAlice", labssoAliceRel, doc.Spec.Passwords.LabSSOAlice, ""},
 		{"spec.passwords.labldapAlice", ll + "user-alice", doc.Spec.Passwords.LabLDAPAlice, ""},
 		{"spec.passwords.labldapRuntime", ll + "runtime-ldap", doc.Spec.Passwords.LabLDAPRuntime, ""},
 		{"spec.passwords.labldapDM", ll + "dm.pw", doc.Spec.Passwords.LabLDAPDM, ""},

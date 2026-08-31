@@ -1,7 +1,7 @@
 # Agent guide — MCP Integration Lab
 
 This repo orchestrates AI-ready lab services (DNS, LDAP, TACACS+/RADIUS,
-mail, NFS, HTTP intercept, NTP, LabScenario orchestration) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
+mail, NFS, HTTP intercept, NTP, SSO, LabScenario orchestration) behind one MCP gateway for integration testing. It owns all configuration, secrets layout,
 and gateway policy; the services themselves are vendored. These are the rules
 we work by.
 
@@ -65,7 +65,7 @@ we work by.
  client needs from scratch: one endpoint per protocol (host:port), the
  non-secret client parameters (LDAP base/bind DNs and OUs, DNS zones, NFS
  mount options, SMTP auth/TLS posture, AAA specifics like RFC 3579
- Message-Authenticator), and the on-the-wire credentials (bind passwords,
+ Message-Authenticator, SSO issuer/JWKS), and the on-the-wire credentials (bind passwords,
  shared secrets). Any credential — web token or connection secret — is
  referenced from a staged copy under `secrets/labinfo-creds/` (add it to
  `stageLabinfoCreds` in `internal/lab/secrets.go`) so dev mode can reveal
@@ -74,12 +74,12 @@ we work by.
 10. **Dev mode is one knob: `LAB_DEV_MODE` in the profile.** `true` opens the
  gateway (MCPJungle development mode, no client auth), makes labinfo
  reveal credentials (web-service tokens and connection secrets alike,
- including the LabLDAP CA PEM, TacLab lab-user passwords, and the TACACS+
+ including the LabLDAP CA PEM, LabSSO CA PEM, IdP Alice password, TacLab lab-user passwords, and the TACACS+
  shared secret), and reconciles secret files from that profile's
  `dev-credentials.yaml` (no merge with `default`; fail-closed if the
- catalog is missing). LabMail, LabMITM, and LabNTP tokens must be ≥32 bytes
+ catalog is missing). LabMail, LabMITM, LabNTP, and LabSSO tokens must be ≥32 bytes
  (`auth.MinTokenBytes`); Validate fail-closes so a short catalog cannot
- crash-loop `maildev`/`labmitm`/`labntp`. `mcplab creds` / `make creds` prints the same sheet
+ crash-loop `maildev`/`labmitm`/`labntp`/`labsso`. `mcplab creds` / `make creds` prints the same sheet
  from files on disk (fails closed outside dev; never prints TLS private
  keys). `false` (default) hardens the gateway (enterprise: client tokens +
  ACLs), labinfo only describes how auth works, and minting stays
@@ -129,13 +129,15 @@ we work by.
     same class of failure is caught earlier or can't recur silently.
 15. **Native host ports.** Protocol data planes SUTs already speak use the
     IANA/standard dest on the **host**: DNS 53, NTP 123, LDAP 389 / LDAPS
-    636, SMTP 25, TACACS+ 49 / 300, RADIUS 1812/1813, NFS 2049. Container
+    636, SMTP 25, TACACS+ 49 / 300, RADIUS 1812/1813, NFS 2049, HTTPS 443
+    (LabSSO). Container
     listen ports are unprivileged and irrelevant to consumers (compose maps
     host:container). Management/control planes stay high ports (collision
     with the gateway and with each other is fine).
     - LabMITM is a **forward proxy** (SUT sets `HTTP_PROXY`), not an IANA
       dest-443 service. Do not move `LABMITM_PROXY_PORT` to 443. HTTPS
-      intercept of CONNECT `:443` stays inside the proxy. NFS userspace
+      intercept of CONNECT `:443` stays inside the proxy. LabSSO **is**
+      dest-443 (`LABSSO_HTTPS_PORT`). NFS userspace
       2049 is native when remapped; 20490 today is residual.
     - Operator escape (non-native host port) is allowed in `profile.env`
       when preflight cannot free the IANA port; it is an escape, not the
@@ -160,6 +162,10 @@ we work by.
       - NTP 123 held by systemd-timesyncd: stop/disable timesyncd (lab
         host clock may drift; LabNTP never settimeofday) **or** extra IP
         **or** escape `LABNTP_NTP_PORT=10123` (timesyncd/W32Time cannot).
+      - HTTPS 443 held by nginx/caddy/apache/another compose stack:
+        stop/disable the occupant **or** extra IP for `LAB_PUBLIC_HOST`
+        **or** escape `LABSSO_HTTPS_PORT` (SUTs that hardcode dest 443
+        cannot follow).
       - `userland-proxy` true: `/etc/docker/daemon.json`
         `{"userland-proxy": false}` then `systemctl restart docker`.
       - Docker Desktop / VM NAT cannot preserve UDP source: Linux dockerd
@@ -170,7 +176,7 @@ we work by.
       PR): DNS 10053 → native 53; LDAP 3389/3636 → 389/636; SMTP 1025 →
       25; NFS 20490 → 2049. TacLab 49/300/1812/1813 already native.
       Management ports stay high (18080, 18088, 18049, 8080, 8443, 1080,
-      18090, 18091, 18123). LabNTP data-plane default 10123 is the FR /
+      18090, 18091, 18123, 18443). LabNTP data-plane default 10123 is the FR /
       ADR 0014 publish (not a residual-as-design); privileged 123 is
       the operator escape. Port remaps for residual dests are follow-on
       PRs per service, with preflight errors, tests, labinfo dest-port,
@@ -185,14 +191,14 @@ we work by.
 - `cmd/labgraph`, `internal/labgraph` — first-party LabScenario orchestrator
   (REST + MCP + SPA); built by `docker/labgraph/`
 - `docker-compose.yaml` — main project (gateway, LabDNS, LabMail as compose
-  service `maildev`, LabMITM, LabNTP, NFS, labinfo, labgraph); MCPJungle image is
+  service `maildev`, LabMITM, LabNTP, LabSSO, NFS, labinfo, labgraph); MCPJungle image is
   `ghcr.io/mcpjungle/mcpjungle:${MCPJUNGLE_IMAGE_TAG:-0.4.6}` (gateway +
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.0`,
   LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.0`,
-  LabNTP `v1.0.0-rc.2`).
+  LabNTP `v1.0.0-rc.2`, LabSSO `v1.0.0-rc.1`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -372,7 +378,7 @@ PR. Keystone runs a Thursday drift check.
   `mitm_features_list` is the frozen 11-row hop/accept catalog. Do not
   write “catalog 11” as the `/v1` surface. `allowHosts` is HTTP-useful
   compose DNS (`*.lab`, labdns, labinfo, maildev, mcpjungle, control,
-  taclab). Do not uncomment `directory` / `nfs` without accepting
+  taclab, labsso). Do not uncomment `directory` / `nfs` without accepting
   unauthenticated TCP. CONNECT to non-443 TLS (LabLDAP LDAPS, TacLab
   TLS) is tunnel-not-decrypt; intercept is `:443` only. Origin allowlist
   is exact Origins (loopback already allowed; no `"*"` / `"private"`
@@ -398,6 +404,23 @@ PR. Keystone runs a Thursday drift check.
   `ntp_views_preview` stay reliable. No Go `userland-proxy` probe.
   `make reload APP=labntp` recreates only that container and does
   **not** re-register. No labgraph NTP fan-out in this pin.
+- LabSSO is pinned to **v1.0.0-rc.1** (`f4c5f1e`). Do **not** patch it:
+  the profile bootstrap sets `spec.listeners.management.mcp.allowLegacyClients:
+  true` (a key on `management` itself is a KnownFields reject). Compose
+  must pass `--management-listen=:8080`. Container listen is unprivileged
+  `:10443` / `:8080` — **no** `NET_BIND_SERVICE`. Host HTTPS default is
+  **443** (dest-443; LabMITM stays a forward proxy). Management is
+  **18443**. Bind-mounted `secrets/labsso-token`, Alice password, TLS
+  dir, and PKCS#8 signing PEM are **0o644** (dir **0o755**). Dedicated
+  LabSSO CA under `secrets/labsso-tls/` — do not reuse the LabLDAP CA.
+  Signing key is mint-if-missing and **out of the catalog**.
+  `spec.issuer` must equal the derived issuer (`https://$LAB_PUBLIC_HOST`
+  when `LABSSO_HTTPS_PORT` is empty or 443). Catalog issuer URLs omit
+  `:443`. SAML is on (needs the RSA signing key); clothes are generic.
+  Do not write `allowedOrigins` (not in the Go model yet). Management
+  loopback-unauth is hardcoded (host `127.0.0.1` needs no bearer; remote
+  peers do). No time bus. No labgraph SSO fan-out. `make reload APP=labsso`
+  (alias `sso`) recreates only that container and does **not** re-register.
 - labgraph is first-party orchestration (catalog id `labgraph`, host
   `LABGRAPH_PORT` 18091). It fans out LabScenario YAML to native
   appliance APIs; it does not invent LDAP/TacLab file-level apply.
@@ -421,7 +444,7 @@ PR. Keystone runs a Thursday drift check.
   is not in the integrator. Mira review of the SPA is scheduled via
   Keystone after merge.
 - Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
-  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp). It is
+  (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp, labsso). It is
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
   compose project, and mcpjungle reload re-runs `register` because
   registration SQLite is tmpfs. Full `make up` after a vendor pin bump,

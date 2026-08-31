@@ -1,0 +1,7 @@
+{
+  "name": "labsso",
+  "transport": "streamable_http",
+  "description": "Laboratory identity provider (LabSSO): OIDC/OAuth2, SAML, vendor clothes, plan/apply/reset over REST /v1 and MCP /mcp.",
+  "url": "http://labsso:8080/mcp",
+  "bearer_token": "${LABSSO_TOKEN}"
+}

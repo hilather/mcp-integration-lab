@@ -123,7 +123,7 @@ func TestDefaultLabMITMBootstrap(t *testing.T) {
 	if !doc.Spec.TLS.Intercept || len(doc.Spec.TLS.Ports) != 1 || doc.Spec.TLS.Ports[0] != 443 {
 		t.Fatalf("tls intercept=%v ports=%v, want intercept :443", doc.Spec.TLS.Intercept, doc.Spec.TLS.Ports)
 	}
-	wantHosts := []string{"*.lab", "labdns", "labinfo", "maildev", "mcpjungle", "control", "taclab"}
+	wantHosts := []string{"*.lab", "labdns", "labinfo", "maildev", "mcpjungle", "control", "taclab", "labsso"}
 	if len(doc.Spec.Proxy.Targets.AllowHosts) != len(wantHosts) {
 		t.Fatalf("allowHosts = %v, want %v", doc.Spec.Proxy.Targets.AllowHosts, wantHosts)
 	}
@@ -217,6 +217,12 @@ func TestDefaultProfileDevCredentials(t *testing.T) {
 	if !bytes.Contains(env, []byte("LABNTP_REST_PORT=18123")) {
 		t.Fatal("default profile must pin LABNTP_REST_PORT=18123")
 	}
+	if !bytes.Contains(env, []byte("LABSSO_HTTPS_PORT=443")) {
+		t.Fatal("default profile must pin LABSSO_HTTPS_PORT=443")
+	}
+	if !bytes.Contains(env, []byte("LABSSO_REST_PORT=18443")) {
+		t.Fatal("default profile must pin LABSSO_REST_PORT=18443")
+	}
 	for _, line := range strings.Split(string(env), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "#") || line == "" {
@@ -304,6 +310,80 @@ func TestDefaultLabNTPBootstrap(t *testing.T) {
 	}
 	if !foundDefault {
 		t.Fatal("overlay must include an enabled default filter")
+	}
+}
+
+func TestDefaultLabSSOBootstrap(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join(defaultProfileDir(t), "labsso", "bootstrap.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := string(b)
+	if !strings.Contains(raw, "lab-owned copy") || !strings.Contains(raw, "do not recopy from the upstream examples tree") {
+		t.Fatal("bootstrap header must say lab-owned copy; do not recopy from the upstream examples tree")
+	}
+	if strings.Contains(raw, "allowedOrigins:") {
+		t.Fatal("bootstrap must not write allowedOrigins")
+	}
+	var doc struct {
+		APIVersion string `yaml:"apiVersion"`
+		Kind       string `yaml:"kind"`
+		Spec       struct {
+			Issuer    string `yaml:"issuer"`
+			Listeners struct {
+				HTTPS struct {
+					CertRef string `yaml:"certRef"`
+					KeyRef  string `yaml:"keyRef"`
+				} `yaml:"https"`
+				Management struct {
+					MCP struct {
+						AllowLegacyClients bool `yaml:"allowLegacyClients"`
+					} `yaml:"mcp"`
+				} `yaml:"management"`
+			} `yaml:"listeners"`
+			Protocols struct {
+				SAML struct {
+					Enabled bool `yaml:"enabled"`
+				} `yaml:"saml"`
+			} `yaml:"protocols"`
+			Signing struct {
+				KeyRef string `yaml:"keyRef"`
+			} `yaml:"signing"`
+			Access struct {
+				TokenRef string `yaml:"tokenRef"`
+			} `yaml:"access"`
+			Clients []struct {
+				ID       string `yaml:"id"`
+				ClientID string `yaml:"clientId"`
+			} `yaml:"clients"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.APIVersion != "labsso.dev/v1alpha1" || doc.Kind != "LabSSO" {
+		t.Fatalf("apiVersion=%q kind=%q", doc.APIVersion, doc.Kind)
+	}
+	if doc.Spec.Issuer != "https://localhost" {
+		t.Fatalf("issuer = %q, want https://localhost", doc.Spec.Issuer)
+	}
+	if !doc.Spec.Listeners.Management.MCP.AllowLegacyClients {
+		t.Fatal("spec.listeners.management.mcp.allowLegacyClients must be true")
+	}
+	if doc.Spec.Access.TokenRef != "/run/secrets/labsso-token" {
+		t.Fatalf("tokenRef = %q", doc.Spec.Access.TokenRef)
+	}
+	if doc.Spec.Listeners.HTTPS.CertRef != "/run/secrets/labsso-tls/tls.crt" || doc.Spec.Listeners.HTTPS.KeyRef != "/run/secrets/labsso-tls/tls.key" {
+		t.Fatalf("tls refs = %q %q", doc.Spec.Listeners.HTTPS.CertRef, doc.Spec.Listeners.HTTPS.KeyRef)
+	}
+	if doc.Spec.Signing.KeyRef != "/run/secrets/labsso-oidc/signing.pem" {
+		t.Fatalf("signing keyRef = %q", doc.Spec.Signing.KeyRef)
+	}
+	if !doc.Spec.Protocols.SAML.Enabled {
+		t.Fatal("SAML must be enabled")
+	}
+	if len(doc.Spec.Clients) != 1 || doc.Spec.Clients[0].ID != "lab-app" || doc.Spec.Clients[0].ClientID != "lab-app" {
+		t.Fatalf("clients = %#v, want id and clientId lab-app", doc.Spec.Clients)
 	}
 }
 

@@ -259,7 +259,7 @@ services:
       parameters:
         auth: "proxy data plane is unauthenticated; HTTP 407 (spec.proxy.httpAuth) is opt-in YAML, off here; management is bearer-only (no HTTP Basic)"
         tls: "HTTPS intercept uses an in-process lab CA on :443 only; clients must trust GET /v1/ca. CONNECT to non-443 TLS (LabLDAP LDAPS, TacLab TLS) is tunnel-not-decrypt"
-        hosts: "allowHosts includes *.lab and compose DNS names (labdns, labinfo, maildev, mcpjungle, control, taclab)"
+        hosts: "allowHosts includes *.lab and compose DNS names (labdns, labinfo, maildev, mcpjungle, control, taclab, labsso)"
         flags: "SOCKS BIND/UDP/user-pass, h2c, inspectFrames, orig-dest stay off (Reset-only). Hop/accept (http2, SOCKS CONNECT, websocket/connect/absoluteForm) are live setFeature via MCP mitm_change_apply. Intercept stays :443 only."
         features: "GET /v1/features and MCP mitm_features_list return the frozen 11-row hop/accept catalog. Native /v1 catalog is 31 rows (includes features.get)."
       credentials:
@@ -332,3 +332,56 @@ services:
         - name: labntp-token
           file: /run/lab-secrets/labntp-token
           usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labntp-token"
+
+  - id: labsso
+    name: LabSSO (lab identity provider)
+    description: Laboratory OIDC/OAuth2 and SAML IdP with vendor clothes. Operator SPA at /, REST under /v1, MCP under /mcp. The data plane is HTTPS dest-443.
+    urls:
+      - name: Operator console
+        url: http://${LAB_PUBLIC_HOST}:${LABSSO_REST_PORT}/
+      - name: REST API
+        url: http://${LAB_PUBLIC_HOST}:${LABSSO_REST_PORT}/v1
+      - name: MCP endpoint
+        url: http://${LAB_PUBLIC_HOST}:${LABSSO_REST_PORT}/mcp
+      - name: OIDC discovery
+        url: https://${LAB_PUBLIC_HOST}/.well-known/openid-configuration
+    note: "HTTPS data plane is dest-443 (issuer https://${LAB_PUBLIC_HOST} with no port when LABSSO_HTTPS_PORT is 443). Management is ${LABSSO_REST_PORT}. Loopback management requests are unauthenticated admin; remote peers need the bearer. SPA Origins are not allowlisted yet (loopback only). Escape-port profiles must edit bootstrap spec.issuer and these catalog issuer/discovery URLs."
+    credential:
+      file: /run/lab-secrets/labsso-token
+      usage: "HTTP header 'Authorization: Bearer <token>' for native /v1, MCP, and the operator SPA; on the lab host: secrets/labsso-token"
+    connection:
+      endpoints:
+        - name: HTTPS issuer
+          protocol: https
+          address: https://${LAB_PUBLIC_HOST}
+        - name: OIDC discovery
+          protocol: oidc-discovery
+          address: https://${LAB_PUBLIC_HOST}/.well-known/openid-configuration
+        - name: JWKS
+          protocol: jwks
+          address: https://${LAB_PUBLIC_HOST}/oauth2/jwks
+          note: follow discovery jwks_uri; generic clothes use /oauth2/jwks
+        - name: SAML metadata
+          protocol: saml-metadata
+          address: https://${LAB_PUBLIC_HOST}/saml/metadata
+        - name: MCP (streamable HTTP)
+          protocol: mcp-streamable-http
+          address: http://${LAB_PUBLIC_HOST}:${LABSSO_REST_PORT}/mcp
+          note: bearer only; gateway interpolates LABSSO_TOKEN
+      parameters:
+        auth: "PKCE S256 required on the data plane; management bearer is REST/MCP only. Loopback Hosts skip bearer (hardcoded loopback-unauth)."
+        clothes: "default vendor is generic; agents can sso_tunable_vendor_swap at runtime"
+        dest_port: "host publish default ${LABSSO_HTTPS_PORT} (443). Non-443 is an operator escape; SUTs that hardcode dest 443 cannot follow. Catalog issuer URLs omit :443."
+        login: "GET {issuer}/login"
+        redirect: "exact match only; bootstrap public client lab-app uses localhost / 127.0.0.1 callback and ACS URLs"
+        tls: "trust secrets/labsso-tls/ca.crt (dedicated LabSSO CA; do not reuse the LabLDAP CA)"
+      credentials:
+        - name: labsso-token
+          file: /run/lab-secrets/labsso-token
+          usage: "HTTP header 'Authorization: Bearer <token>' for native /v1 and MCP; on the lab host: secrets/labsso-token"
+        - name: labsso-alice
+          file: /run/lab-secrets/labsso-alice
+          usage: "password for IdP user alice (username alice); on the lab host: secrets/labsso-users/alice.password"
+        - name: labsso-ca.crt
+          file: /run/lab-secrets/labsso-ca.crt
+          usage: "LabSSO HTTPS trust root (PEM); on the lab host: secrets/labsso-tls/ca.crt"

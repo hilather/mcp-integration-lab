@@ -199,6 +199,41 @@ services:
       retries: 12
       start_period: 3s
 
+  # LabSSO laboratory IdP (OIDC + SAML). Pinned go-lab-sso v1.0.0-rc.1.
+  # Host TCP 443 -> container :10443 (dest-443). Management 18443 -> :8080.
+  # No NET_BIND_SERVICE (container listen is unprivileged). Reload:
+  # `make reload APP=labsso`. Does not re-register.
+  labsso:
+    build:
+      context: ./third_party/go-lab-sso
+    image: labsso:local
+    command: ["serve", "--config=/etc/labsso/config.yaml", "--management-listen=:8080"]
+    networks: [default]
+    ports:
+      - "${LABSSO_HTTPS_PORT:-443}:10443/tcp"
+      - "${LABSSO_REST_PORT:-18443}:8080/tcp"
+    environment:
+      LAB_PUBLIC_HOST: ${LAB_PUBLIC_HOST:-localhost}
+      LABSSO_HTTPS_PORT: ${LABSSO_HTTPS_PORT:-443}
+    volumes:
+      - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labsso/bootstrap.yaml:/etc/labsso/config.yaml:ro
+      - ./secrets/labsso-token:/run/secrets/labsso-token:ro
+      - ./secrets/labsso-tls:/run/secrets/labsso-tls:ro
+      - ./secrets/labsso-oidc/signing.pem:/run/secrets/labsso-oidc/signing.pem:ro
+      - ./secrets/labsso-users/alice.password:/run/secrets/labsso-users/alice.password:ro
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    user: "65532:65532"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/labsso", "healthcheck", "--url=http://127.0.0.1:8080/v1/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+
   # ------------------------------------------------- labinfo service directory
   # First-party MCP service: tells agents the user-facing web/REST URLs of
   # every lab service (endpoints_list) and the protocol-level connection
@@ -243,6 +278,8 @@ services:
       LABGRAPH_PORT: ${LABGRAPH_PORT:-18091}
       LABNTP_NTP_PORT: ${LABNTP_NTP_PORT:-10123}
       LABNTP_REST_PORT: ${LABNTP_REST_PORT:-18123}
+      LABSSO_HTTPS_PORT: ${LABSSO_HTTPS_PORT:-443}
+      LABSSO_REST_PORT: ${LABSSO_REST_PORT:-18443}
     volumes:
       - ${MCPLAB_PROFILE_DIR:-./profiles/default}/labinfo/services.yaml:/etc/labinfo/services.yaml:ro
       # Staged by `mcplab secrets`: world-readable copies of web tokens,
@@ -341,6 +378,7 @@ services:
       LABMITM_TOKEN: ${LABMITM_TOKEN:-}
       LABGRAPH_TOKEN: ${LABGRAPH_TOKEN:-}
       LABNTP_TOKEN: ${LABNTP_TOKEN:-}
+      LABSSO_TOKEN: ${LABSSO_TOKEN:-}
       MCP_CLIENT_TOKEN: ${MCP_CLIENT_TOKEN:-}
       # CLI stores its server config (enterprise admin token) under $HOME.
       HOME: /cli-home

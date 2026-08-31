@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MCP Integration Lab — one gateway, every lab protocol</title>
-  <meta name="description" content="DNS, LDAP, TACACS+, RADIUS, mail, NFS, and HTTP intercept behind a single MCP gateway. YAML-configured, ephemeral, ready for integration tests." />
+  <meta name="description" content="DNS, LDAP, TACACS+, RADIUS, mail, NFS, HTTP intercept, NTP, and SSO behind a single MCP gateway. YAML-configured, ephemeral, ready for integration tests." />
   <meta name="theme-color" content="#0b0c0e" />
   <meta property="og:title" content="MCP Integration Lab" />
   <meta property="og:description" content="One gateway. Every lab protocol. YAML-configured, ephemeral, ready for integration tests." />
@@ -45,7 +45,7 @@
           <h1>One gateway.<br />Every lab protocol.</h1>
           <p class="lead">
             MCP Integration Lab stands up DNS, LDAP, TACACS+, RADIUS, mail, NFS,
-            and HTTP intercept behind a single MCP endpoint. Configuration is YAML and lives
+            HTTP intercept, NTP, and SSO behind a single MCP endpoint. Configuration is YAML and lives
             in a profile. Runtime state is ephemeral and a restart wipes it.
           </p>
           <div class="hero-actions">
@@ -86,7 +86,7 @@
         <div class="sec-head">
           <div class="eyebrow">Topology</div>
           <h2>Agents talk to one URL. Testers talk to the wire.</h2>
-          <p>Three compose projects meet on <code>mcplab-shared</code> (one /24). Gateway registration is tmpfs. Profiles are the source of truth. Published numbers below are today's default profile: 10053, 3389/3636, 1025, and 20490 are residual (policy is IANA dests 53, 389/636, 25, 2049). TacLab is already native. LabMITM is a forward proxy, not dest 443.</p>
+          <p>Three compose projects meet on <code>mcplab-shared</code> (one /24). Gateway registration is tmpfs. Profiles are the source of truth. Published numbers below are today's default profile: 10053, 3389/3636, 1025, and 20490 are residual (policy is IANA dests 53, 389/636, 25, 2049, HTTPS 443 for LabSSO). TacLab is already native. LabSSO is dest-443. LabMITM is a forward proxy, not dest 443.</p>
         </div>
         <div class="topo">
           <div class="topo-flow">
@@ -105,6 +105,7 @@
             <span>NFS 20490 residual</span>
             <span>HTTP proxy 18888</span>
             <span>NTP 10123</span>
+            <span>HTTPS 443</span>
           </div>
           <div class="topo-projects">
             <div class="topo-project">
@@ -116,6 +117,7 @@
                 <li><strong>LabMail</strong> — 1025 residual / 1080</li>
                 <li><strong>LabMITM</strong> — 18888 / 18088</li>
                 <li><strong>LabNTP</strong> — 10123 / 18123</li>
+                <li><strong>LabSSO</strong> — 443 / 18443</li>
                 <li><strong>ratarmount-rs</strong> — 20490 residual</li>
                 <li><strong>MCPJungle</strong> — 8080 (0.4.6)</li>
               </ul>
@@ -147,7 +149,7 @@
       <div class="wrap">
         <div class="sec-head">
           <div class="eyebrow">The stack</div>
-          <h2>Ten services. One profile. One client URL.</h2>
+          <h2>Eleven services. One profile. One client URL.</h2>
           <p>Each appliance is a real protocol on the wire. Agents talk to the gateway. Testers talk to the data planes.</p>
         </div>
         <div class="cards">
@@ -198,6 +200,14 @@
             </header>
             <p>Laboratory NTPv3/v4 unicast with per-IP virtual clocks, an operator console, native <code>/v1</code>, and MCP. Host UDP default is 10123 (ADR 0014); privileged 123 is opt-in. SPA Origins are deny-all.</p>
             <div class="meta"><span>10123 · 18123</span><a href="https://github.com/hilather/go-lab-ntp">go-lab-ntp</a></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>LabSSO</h3>
+              <span class="ver">v1.0.0-rc.1</span>
+            </header>
+            <p>Laboratory OIDC/OAuth2 and SAML IdP with vendor clothes, an operator console, native <code>/v1</code>, and MCP. Host HTTPS is dest-443; management is 18443. Catalog issuer URLs omit <code>:443</code>.</p>
+            <div class="meta"><span>443 · 18443</span><a href="https://github.com/hilather/go-lab-sso">go-lab-sso</a></div>
           </article>
           <article class="card">
             <header>

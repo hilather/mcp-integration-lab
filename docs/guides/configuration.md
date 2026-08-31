@@ -35,6 +35,7 @@ profiles/<name>/
   labmail/bootstrap.yaml   LabMail desired state (relay keys rejected)
   labmitm/bootstrap.yaml   LabMITM desired state (exact Origins; no "*")
   labntp/bootstrap.yaml    LabNTP desired state (allowedOrigins deny-all; no "*")
+  labsso/bootstrap.yaml    LabSSO desired state (issuer must match derived; no allowedOrigins)
   labgraph/bootstrap.yaml  LabGraph service bootstrap (SPA Origins; no "*")
   scenarios/*.yaml         LabScenario files (empty default is a no-op;
                            named packs: broken-bind, expired-cert,
@@ -65,7 +66,7 @@ Never hardcode a port in `docker-compose.yaml` — add a variable to
 
 `dev-credentials.yaml` is a `DevCredentials` document
 (`apiVersion: mcplab.dev/v1alpha1`). Every token, password, and shared-secret
-key is required. LabMail and LabMITM tokens must be at least 32 bytes
+key is required. LabMail, LabMITM, LabNTP, and LabSSO tokens must be at least 32 bytes
 (appliance `auth.MinTokenBytes`). LabLDAP passwords must be at least 12
 characters; TacLab shared secrets must pass the appliance policy (length ≥16,
 ≥3 character classes, exact-match known-weak list). The active profile's file is the only
@@ -95,8 +96,9 @@ in `.env` while the profile sets `53`).
 
 Protocol data planes SUTs already speak use the IANA dest on the **host**
 (DNS 53, NTP 123, LDAP 389 / LDAPS 636, SMTP 25, TACACS+ 49 / 300, RADIUS
-1812/1813, NFS 2049). Container listen ports are unprivileged and
-irrelevant to consumers. Management planes stay high. LabMITM is a forward
+1812/1813, NFS 2049, HTTPS 443 for LabSSO). Container listen ports are unprivileged and
+irrelevant to consumers. Management planes stay high. LabSSO is dest-443.
+LabMITM is a forward
 proxy (SUT sets `HTTP_PROXY`), not dest 443. Today's default-profile
 numbers that are not native (DNS 10053, LDAP 3389/3636, SMTP 1025, NFS
 20490) are residual, not a second policy — remaps are follow-on PRs.
@@ -136,7 +138,9 @@ the escape). Same shape for NTP 123 vs systemd-timesyncd when the
 profile opts into `LABNTP_NTP_PORT=123` (stop/disable timesyncd — lab
 host clock may drift; LabNTP never settimeofday — **or** extra IP
 **or** keep `LABNTP_NTP_PORT=10123`, which timesyncd/W32Time cannot
-follow).
+follow). HTTPS 443 held by nginx/caddy/apache/another compose stack:
+stop/disable the occupant **or** extra IP for `LAB_PUBLIC_HOST` **or**
+escape `LABSSO_HTTPS_PORT` (SUTs that hardcode dest 443 cannot follow).
 
 ## profile.env — every knob
 
@@ -166,8 +170,10 @@ follow).
 | `LABGRAPH_PORT` | `18091` | LabScenario orchestrator REST / MCP / SPA. |
 | `LABNTP_NTP_PORT` | `10123` | LabNTP NTPv3/v4 data plane (UDP). FR / ADR 0014 default, not residual-as-design. Privileged 123 is opt-in. |
 | `LABNTP_REST_PORT` | `18123` | LabNTP operator console + REST `/v1` + MCP `/mcp`. |
+| `LABSSO_HTTPS_PORT` | `443` | LabSSO HTTPS data plane (dest-443). Non-443 is an operator escape. |
+| `LABSSO_REST_PORT` | `18443` | LabSSO operator console + REST `/v1` + MCP `/mcp`. |
 | `LABGRAPH_LABLDAP_SCENARIO_NAME` | `mcp-integration-lab` | Compiled LabLDAP scenario `metadata.name` for `POST /api/v1/reset`. |
-| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, a DNS or IP SAN on LabLDAP leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap`. |
+| `LAB_PUBLIC_HOST` | `localhost` | Hostname labinfo puts in every URL, LabSSO issuer (no `:443` when dest is 443), a DNS or IP SAN on LabLDAP and LabSSO leaf certs (both modes), and LabLDAP management Host extras (overlay `LABLDAP_MANAGEMENT_ALLOWED_HOSTS`). Set this to the name or address remote testers use. Changing it needs `mcplab secrets` plus `make reload APP=labldap` / `APP=labsso`, and an issuer edit in `labsso/bootstrap.yaml`. |
 | `LAB_DOCKER_SUBNET` | `10.99.42.0/24` | IPv4 CIDR for `mcplab-shared` (`/24`–`/27`). Docker's default is a /16 per user-defined network; this lab uses one /24. Leftover /16: `make down` then `make up`. |
 | `LAB_DEV_MODE` | `false` | Single security knob. See below. Also consumes `dev-credentials.yaml`. |
 | `MCPJUNGLE_MODE` | follows `LAB_DEV_MODE` | Pin to decouple gateway mode from labinfo reveal and catalog reconcile. |
@@ -183,13 +189,15 @@ bump, or a profile switch. After a `dev-credentials.yaml` or `LAB_DEV_MODE` edit
 `LAB_PUBLIC_HOST` SAN change, `mcplab secrets` reloads running apps
 whose files changed; `make up` skips those names. Changing `LAB_PUBLIC_HOST`
 also needs `make reload APP=labldap` so the control container picks up
-`LABLDAP_MANAGEMENT_ALLOWED_HOSTS` (`mcplab secrets` re-signs the leaf SAN;
-reload recreates directory + control).
+`LABLDAP_MANAGEMENT_ALLOWED_HOSTS` (`mcplab secrets` re-signs the LabLDAP
+and LabSSO leaf SANs and reloads a running `labsso`; reload recreates
+LabLDAP directory + control). Escape-port or host changes also need an
+issuer edit in `labsso/bootstrap.yaml`.
 
 After that, recreate **one** application:
 
 ```bash
-make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph|labntp
+make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|labgraph|labntp|labsso
 # equivalent: mcplab reload <app>
 ```
 
@@ -202,11 +210,12 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|l
 | `mcpjungle/servers/*.json` | `make register` | no container restart (JSON is re-applied) |
 | gateway container itself | `make reload APP=mcpjungle` | tmpfs SQLite wiped, then `register` |
 | `labldap/scenario.yaml` | `make reload APP=labldap` | ephemeral `/data` re-seeded from the scenario |
-| `LAB_PUBLIC_HOST` | `mcplab secrets` then `make reload APP=labldap` | leaf SAN rewrite; control Host allow-list env |
+| `LAB_PUBLIC_HOST` | `mcplab secrets` then `make reload APP=labldap` / `APP=labsso` | LabLDAP + LabSSO leaf SAN rewrite; LabLDAP control Host allow-list env; LabSSO issuer YAML must match |
 | TacLab labgen output / image | `make reload APP=labtacacs` | in-process AAA state gone; labgen files stay |
 | `labmitm/bootstrap.yaml` | `make reload APP=labmitm` | captured flows gone; generate-mode CA rotates; does not re-register |
 | `labgraph/bootstrap.yaml` or `scenarios/*.yaml` | `make reload APP=labgraph` | in-memory apply/reset journal gone |
 | `labntp/bootstrap.yaml` | `make reload APP=labntp` | in-process NTP views / query log gone; does not re-register |
+| `labsso/bootstrap.yaml` | `make reload APP=labsso` | in-memory sessions gone; does not re-register |
 
 `make labldap-up` / `make labtacacs-up` are idempotent project bring-up
 (the path `make up` uses). They do not force-recreate a running directory.
@@ -443,7 +452,7 @@ catalog is 31 (includes `features.get`); `GET /v1/features` / MCP
 `mitm_features_list` is the frozen 11-row hop/accept catalog. HTTPS
 intercept is **:443 only**; CONNECT to LabLDAP LDAPS or TacLab TLS is
 tunnel-not-decrypt. `allowHosts` is HTTP-useful compose DNS (`*.lab`,
-labdns, labinfo, maildev, mcpjungle, control, taclab).
+labdns, labinfo, maildev, mcpjungle, control, taclab, labsso).
 
 Origin allowlist is exact Origins (loopback already allowed; no `"*"` /
 `"private"`). When `LAB_PUBLIC_HOST` is not loopback, add
@@ -481,6 +490,29 @@ and does not re-register. No labgraph NTP fan-out in this pin.
 
 Point systems under test at `<lab-host>:10123` (UDP). Operator console
 / REST / MCP is `:18123` (bearer in `secrets/labntp-token`).
+
+## LabSSO
+
+Laboratory OIDC/OAuth2 + SAML IdP (catalog id `labsso`, pin
+**v1.0.0-rc.1**). Desired state is `labsso/bootstrap.yaml`
+(`labsso.dev/v1alpha1`), a lab-owned overlay copy. `allowLegacyClients:
+true` lives under `spec.listeners.management.mcp`. Compose must pass
+`--management-listen=:8080`. No `NET_BIND_SERVICE`. Token, Alice
+password, TLS files, and the PKCS#8 signing PEM are 0o644 (TLS dir
+0o755). Dedicated LabSSO CA — do not reuse the LabLDAP CA.
+
+Host HTTPS default is **443** (dest-443). Management is `:18443`.
+`spec.issuer` must equal the derived issuer (`https://$LAB_PUBLIC_HOST`
+when the dest is 443). Catalog issuer / discovery URLs omit `:443`.
+Do not write `allowedOrigins`. SAML is on; clothes are generic.
+Loopback management requests are unauthenticated admin; remote peers
+need the bearer. `make reload APP=labsso` does not re-register. No
+labgraph SSO fan-out.
+
+Point systems under test at `https://<lab-host>/` (trust
+`secrets/labsso-tls/ca.crt`). Operator console / REST / MCP is `:18443`
+(bearer in `secrets/labsso-token`). Escape-port profiles must edit
+bootstrap `spec.issuer` and the catalog issuer URLs.
 
 ## LabGraph
 
@@ -550,7 +582,7 @@ block — labinfo refuses to start without one. URLs are `${VAR}`
 templates over the profile env. Host comes from `LAB_PUBLIC_HOST`.
 Credentials point at staged copies under `secrets/labinfo-creds/` and
 are revealed only when `LAB_DEV_MODE=true`. The default catalog includes
-the LabLDAP CA PEM, TacLab lab-user passwords, the TACACS+ shared secret,
+the LabLDAP CA PEM, LabSSO CA PEM, IdP Alice password, TacLab lab-user passwords, the TACACS+ shared secret,
 and optional TacLab client certs. There is no labinfo catalog service for
 the inbound `labinfo-token`. `mcplab creds` / `make creds` prints the same
 sheet from those staged files (dev mode only).
@@ -610,8 +642,8 @@ The curated tool group — this is what most agents should attach to:
 ```json
 {
   "name": "integration",
-  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labgraph, LabNTP, labinfo.",
-  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph", "labntp"]
+  "description": "Curated tool subset: LabDNS, LabLDAP, TacLab, LabMail, LabMITM, labgraph, LabNTP, LabSSO, labinfo.",
+  "included_servers": ["labdns", "labldap", "labtacacs", "labinfo", "labmail", "labmitm", "labgraph", "labntp", "labsso"]
 }
 ```
 
@@ -626,17 +658,17 @@ follows `LAB_DEV_MODE` unless you pin `MCPJUNGLE_MODE`.
   random-if-missing. If `secrets/.lab-dev-mode` is present from a previous
   dev bring-up, `mcplab secrets` remints orchestrator tokens, force-runs
   LabLDAP `setupsecrets` and TacLab `labgen`, reloads running containers,
-  and removes the marker last. LabLDAP TLS is not rotated (extra SANs
+  and removes the marker last. LabLDAP and LabSSO CAs are not rotated (extra SANs
   are mode-independent; leaves may still be re-signed if
   `LAB_PUBLIC_HOST` is missing).
 - **true** — open gateway, labinfo reveals web tokens and connection
   secrets (LDAP bind password, RADIUS and TACACS+ shared secrets, TacLab
-  lab-user passwords, LabLDAP CA PEM), and `mcplab secrets` writes this
+  lab-user passwords, LabLDAP CA PEM, LabSSO CA PEM, IdP Alice password), and `mcplab secrets` writes this
   profile's `dev-credentials.yaml` (fail-closed if missing or incomplete;
   no merge with `default`), including TacLab lab-user passwords and AAA
   shared secrets (first mint / pin-bump via `labgen -secrets-from`;
   catalog-only enter-dev still pins after `labgen`). The default profile ships `lab-dev-*`
-  values; they are inert unless this knob is on. LabMail and LabMITM tokens
+  values; they are inert unless this knob is on. LabMail, LabMITM, LabNTP, and LabSSO tokens
   must be at least 32 bytes (appliance `auth.MinTokenBytes`). `make creds` prints the
   shareable sheet from files on disk (never TLS private keys). Never
   default a shared team profile to dev mode. Set the knob in **that

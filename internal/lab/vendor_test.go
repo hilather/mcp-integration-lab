@@ -30,6 +30,9 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	if got["third_party/go-lab-ntp"] != "v1.0.0-rc.2" {
 		t.Fatalf("labntp pin = %q, want v1.0.0-rc.2", got["third_party/go-lab-ntp"])
 	}
+	if got["third_party/go-lab-sso"] != "v1.0.0-rc.1" {
+		t.Fatalf("labsso pin = %q, want v1.0.0-rc.1", got["third_party/go-lab-sso"])
+	}
 }
 
 func TestRatarmountDebPin(t *testing.T) {

@@ -26,6 +26,8 @@ var preflightKeys = []string{
 	"LABGRAPH_PORT",
 	"LABNTP_NTP_PORT",
 	"LABNTP_REST_PORT",
+	"LABSSO_HTTPS_PORT",
+	"LABSSO_REST_PORT",
 	"LAB_DEV_MODE",
 	"MCPJUNGLE_MODE",
 	"LAB_DOCKER_SUBNET",
@@ -43,6 +45,9 @@ func (r *Runner) Preflight() error {
 	r.warnLabmitmOrigin()
 	r.warnLabgraphOrigin()
 	r.warnLabntpOrigin()
+	if err := r.checkLabssoIssuer(); err != nil {
+		return err
+	}
 	return r.preflightPortsAvailable()
 }
 
@@ -148,6 +153,39 @@ func (r *Runner) warnLabntpOrigin() {
 	webPort := r.Prof.Get("LABNTP_REST_PORT", "18123")
 	fmt.Printf("warning: LAB_PUBLIC_HOST=%s is not loopback; add http://%s:%s to\nlabntp allowedOrigins or the operator SPA will 403 /v1\n",
 		host, host, webPort)
+}
+
+// checkLabssoIssuer fail-closes when labsso/bootstrap.yaml spec.issuer
+// disagrees with the derived issuer (LAB_PUBLIC_HOST + LABSSO_HTTPS_PORT).
+// Skip when the bootstrap file is absent so Preflight tests that only
+// write profile.env stay valid.
+func (r *Runner) checkLabssoIssuer() error {
+	path := filepath.Join(r.Prof.Dir, "labsso", "bootstrap.yaml")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("preflight failed: read %s: %w", path, err)
+	}
+	var doc struct {
+		Spec struct {
+			Issuer string `yaml:"issuer"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return fmt.Errorf("preflight failed: labsso/bootstrap.yaml: %w", err)
+	}
+	want := deriveLabssoIssuer(
+		r.Prof.Get("LAB_PUBLIC_HOST", "localhost"),
+		r.Prof.Get("LABSSO_HTTPS_PORT", "443"),
+	)
+	got := strings.TrimSpace(doc.Spec.Issuer)
+	if got == want {
+		return nil
+	}
+	return fmt.Errorf("preflight failed: labsso/bootstrap.yaml spec.issuer=%q, want %q (must equal derived issuer for LAB_PUBLIC_HOST + LABSSO_HTTPS_PORT; edit spec.issuer)",
+		got, want)
 }
 
 // preflightEnvDrift catches stale .env/process overrides before slow bring-up

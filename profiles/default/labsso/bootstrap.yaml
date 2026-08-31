@@ -1,0 +1,75 @@
+# LabSSO desired state. Mounted read-only at /etc/labsso/config.yaml.
+# lab-owned copy; do not recopy from the upstream examples tree without
+# reviewing issuer, clients, and secret refs. Pin is vendor tag
+# v1.0.0-rc.1. allowLegacyClients is on so MCPJungle can register without
+# a LabSSO patch. Bind-mounted secret files must be 0o644 (UID 65532).
+# Reload: `make reload APP=labsso` (drops in-memory sessions). Reload
+# does not re-register — gateway SQLite is tmpfs (make up / make register
+# / mcpjungle reload).
+#
+# spec.issuer must equal the derived issuer for LAB_PUBLIC_HOST +
+# LABSSO_HTTPS_PORT (https://localhost when both are the default-profile
+# values). Changing either requires editing this field. Do not write
+# allowedOrigins — it is not in the appliance schema yet (KnownFields).
+apiVersion: labsso.dev/v1alpha1
+kind: LabSSO
+metadata:
+  name: lab
+spec:
+  listeners:
+    https:
+      address: ":10443"
+      certRef: /run/secrets/labsso-tls/tls.crt
+      keyRef: /run/secrets/labsso-tls/tls.key
+    management:
+      address: ":8080"
+      restPath: /v1
+      mcpPath: /mcp
+      mcp:
+        allowLegacyClients: true
+  issuer: "https://localhost"
+  profile:
+    vendor: generic
+  protocols:
+    oidc:
+      enabled: true
+    saml:
+      enabled: true
+    wsfed:
+      enabled: false
+  signing:
+    keyRef: /run/secrets/labsso-oidc/signing.pem
+  clients:
+    - id: lab-app
+      clientId: lab-app
+      public: true
+      preConsent: true
+      scopes: [openid, profile, groups]
+      redirectURIs:
+        - http://localhost/callback
+        - http://127.0.0.1/callback
+      saml:
+        entityID: urn:lab:lab-app
+        acsURLs:
+          - http://localhost/acs
+          - http://127.0.0.1/acs
+  users:
+    - id: alice
+      username: alice
+      passwordRef: /run/secrets/labsso-users/alice.password
+      groupIds: [staff]
+  groups:
+    - id: staff
+      name: staff
+  auth:
+    sessionTTL: 1h
+    mfa:
+      mode: never
+  groupOverage:
+    entraGraphStub: true
+    oktaFailAt: 100
+    genericCap: 200
+  ui:
+    enabled: true
+  access:
+    tokenRef: /run/secrets/labsso-token

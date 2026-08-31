@@ -245,7 +245,7 @@ func TestDefaultCatalogLabmitm(t *testing.T) {
 		t.Fatalf("tls parameter missing intercept-:443 / CONNECT-tunnel sentence: %q", tls)
 	}
 	hosts := svc.Connection.Parameters["hosts"]
-	for _, name := range []string{"*.lab", "labdns", "labinfo", "maildev", "mcpjungle", "control", "taclab"} {
+	for _, name := range []string{"*.lab", "labdns", "labinfo", "maildev", "mcpjungle", "control", "taclab", "labsso"} {
 		if !strings.Contains(hosts, name) {
 			t.Fatalf("hosts = %q, missing %q", hosts, name)
 		}
@@ -301,6 +301,49 @@ func TestDefaultCatalogLabntp(t *testing.T) {
 	dest := svc.Connection.Parameters["dest_port"]
 	if !strings.Contains(dest, "10123") || !strings.Contains(dest, "123") {
 		t.Fatalf("dest_port parameter missing 10123 / 123 opt-in: %q", dest)
+	}
+}
+
+func TestDefaultCatalogLabsso(t *testing.T) {
+	root := filepath.Join("..", "..")
+	cat, err := Load(filepath.Join(root, "profiles", "default", "labinfo", "services.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var svc *Service
+	for i := range cat.Services {
+		if cat.Services[i].ID == "labsso" {
+			svc = &cat.Services[i]
+			break
+		}
+	}
+	if svc == nil {
+		t.Fatal("default catalog missing labsso")
+	}
+	if svc.Connection == nil || len(svc.Connection.Endpoints) == 0 {
+		t.Fatal("labsso must have a connection block")
+	}
+	if svc.Credential == nil || svc.Credential.File != "/run/lab-secrets/labsso-token" {
+		t.Fatalf("credential file = %#v, want /run/lab-secrets/labsso-token", svc.Credential)
+	}
+	foundIssuer, foundJWKS, foundSAML := false, false, false
+	for _, e := range svc.Connection.Endpoints {
+		if e.Protocol == "https" && e.Address == "https://${LAB_PUBLIC_HOST}" {
+			foundIssuer = true
+		}
+		if e.Protocol == "jwks" && strings.Contains(e.Address, "/oauth2/jwks") && !strings.Contains(e.Address, ":443") {
+			foundJWKS = true
+		}
+		if e.Protocol == "saml-metadata" && strings.Contains(e.Address, "/saml/metadata") {
+			foundSAML = true
+		}
+	}
+	if !foundIssuer || !foundJWKS || !foundSAML {
+		t.Fatalf("labsso endpoints missing issuer/jwks/saml: %+v", svc.Connection.Endpoints)
+	}
+	dest := svc.Connection.Parameters["dest_port"]
+	if !strings.Contains(dest, "443") || !strings.Contains(dest, "LABSSO_HTTPS_PORT") {
+		t.Fatalf("dest_port missing 443 / escape: %q", dest)
 	}
 }
 
@@ -401,6 +444,11 @@ func TestDefaultCatalogConnectionCredentialsRedactOutsideDev(t *testing.T) {
 		},
 		"labntp": {
 			"labntp-token",
+		},
+		"labsso": {
+			"labsso-token",
+			"labsso-alice",
+			"labsso-ca.crt",
 		},
 		"nfs": nil,
 	}

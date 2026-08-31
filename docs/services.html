@@ -38,7 +38,7 @@
         <div class="sec-head">
           <div class="eyebrow">Catalog</div>
           <h1>Services and how they attach</h1>
-          <p>Each appliance is independently useful. The lab’s job is to wire them, publish them, and tell a client how to reach them. Default-profile dests 10053, 3389/3636, 1025, and 20490 are residual (policy is IANA 53, 389/636, 25, 2049). TacLab is already native. LabMITM is a forward proxy, not dest 443.</p>
+          <p>Each appliance is independently useful. The lab’s job is to wire them, publish them, and tell a client how to reach them. Default-profile dests 10053, 3389/3636, 1025, and 20490 are residual (policy is IANA 53, 389/636, 25, 2049, HTTPS 443 for LabSSO). TacLab is already native. LabSSO is dest-443. LabMITM is a forward proxy, not dest 443.</p>
         </div>
         <div class="cards stack">
           <article class="card">
@@ -106,6 +106,17 @@
             <p><strong>Configure.</strong> <code>profiles/&lt;name&gt;/labntp/bootstrap.yaml</code>. <code>allowedOrigins</code> deny-all (no <code>"*"</code>). Reload: <code>make reload APP=labntp</code> (does not re-register).</p>
             <p><strong>Auth.</strong> Management bearer in <code>secrets/labntp-token</code> (0o644). NTP data plane has no secret.</p>
             <div class="meta"><span>10123 · 18123</span><a href="https://github.com/hilather/go-lab-ntp">go-lab-ntp</a></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>LabSSO</h3>
+              <span class="ver">v1.0.0-rc.1</span>
+            </header>
+            <p>Laboratory OIDC/OAuth2 and SAML IdP (generic clothes). Dedicated CA under <code>secrets/labsso-tls/</code>. SAML-on requires the RSA signing key. Loopback management is unauthenticated admin; remote peers need the bearer. No <code>allowedOrigins</code> yet. No labgraph fan-out.</p>
+            <p><strong>Connect.</strong> HTTPS dest-443 issuer <code>https://&lt;lab-host&gt;</code> (no <code>:443</code> in catalog URLs). Operator console / <code>/v1</code> / MCP at <code>&lt;lab-host&gt;:18443</code>.</p>
+            <p><strong>Configure.</strong> <code>profiles/&lt;name&gt;/labsso/bootstrap.yaml</code>. Issuer must match the derived issuer. Reload: <code>make reload APP=labsso</code> (does not re-register).</p>
+            <p><strong>Auth.</strong> Management bearer in <code>secrets/labsso-token</code> (0o644). Alice password in <code>secrets/labsso-users/alice.password</code>. Trust <code>secrets/labsso-tls/ca.crt</code>.</p>
+            <div class="meta"><span>443 · 18443</span><a href="https://github.com/hilather/go-lab-sso">go-lab-sso</a></div>
           </article>
           <article class="card">
             <header>
