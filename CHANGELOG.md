@@ -48,6 +48,12 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- LabGraph operator console is the Mira-approved split inspector
+  (scenario list | five-node order; JSON stays in the request log).
+  Reset asks first (Cancel, then `Reset all five`) and names the walk
+  `labdns → labmitm → maildev → labldap → labtacacs`. Empty `spec: {}`
+  still skips validate/plan/apply; Reset stays lab-wide. Mutate waits
+  for CSRF in memory; sign-out no longer dumps a 204 body into the log.
 - Native host-port policy is written down (AGENTS.md rule 15,
   architecture, configuration, Pages). Protocol data planes use IANA
   dests on the host; today's default-profile numbers (DNS 10053, LDAP

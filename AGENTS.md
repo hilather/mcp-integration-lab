@@ -441,8 +441,12 @@ PR. Keystone runs a Thursday drift check.
   `make reload APP=labgraph` drops it. Origin allowlist is exact
   Origins (loopback implicit; no `"*"`). Preflight warns when
   `LAB_PUBLIC_HOST` is not loopback and the list is empty. Jenkins
-  is not in the integrator. Mira review of the SPA is scheduled via
-  Keystone after merge.
+  is not in the integrator. The operator console is REST-only (cookie
+  `labgraph_session` + memory CSRF after `POST /v1/session`; token never
+  in web storage). Split inspector: scenario list | five-node order
+  (skipped/failed/stopped); JSON is the request log. Reset confirm
+  names the walk and states that empty spec does not skip Reset
+  (Cancel first, danger last). Mutate is gated until CSRF is in memory.
 - Individual reload is `mcplab reload <app>` / `make reload APP=<app>`
   (labdns, maildev, nfs, labinfo, mcpjungle, labldap, labtacacs, labmitm, labgraph, labntp, labsso). It is
   not `make up`: no vendor/secrets/fixtures, `--no-deps` on the main
