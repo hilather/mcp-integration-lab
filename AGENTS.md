@@ -226,8 +226,8 @@ machinery.
 Do not git clone `origin.cursor.com` from a GitHub cloud VM (401
 git-keeper).
 
-Canonical source remains Origin `matt-brewer/agent-skills` @ `77c4644`
-(`77c4644a616a86a74219adb5bc31976a5636f6cb`). Helm merges this vendor
+Canonical source remains Origin `matt-brewer/agent-skills` @ `7e37c3f`
+(`7e37c3f58f54d5c34e1363aa7c8a3b225bff0ffa`). Helm merges this vendor
 PR. Keystone runs a Thursday drift check.
 
 

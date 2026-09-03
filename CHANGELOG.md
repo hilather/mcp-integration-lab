@@ -27,7 +27,7 @@ changes since the previous one (AGENTS.md rule 13).
   leaf material (no private keys). Empty default stays a no-op; `make
   reset` / labgraph reset restore bootstraps. Jenkins stays out.
 - Cloud-agent review skills from Origin `matt-brewer/agent-skills` @
-  `77c4644` live under `.cursor/skills/` (four skills plus
+  `7e37c3f` live under `.cursor/skills/` (four skills plus
   `.cursor/skills/knowledge/`). `AGENTS.md` has a Cloud section for this
   checkout only: do not clone `origin.cursor.com` from a GitHub cloud
   VM; Helm merges; Keystone drift-checks on Thursday. Exclusive product

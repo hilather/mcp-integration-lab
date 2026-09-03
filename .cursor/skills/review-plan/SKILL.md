@@ -1,36 +1,10 @@
 ---
 name: review-plan
-description: Review an implementation plan before any code is written. Use after a plan file exists and before implement. Checks investigation, scope, repo rules, and missing steps. Do not use for code review (review-pr / skeptic-code-review) or to replace skeptic-plan-review.
+description: Review a Cursor plan or goal by gathering the plan text, then running skeptic-plan-review. Use when asked to review a plan, a goal, or a Plan-mode draft that is not already loaded into a skeptic pass.
 ---
 
-# Review plan
+# Review Plan
 
-Read the plan. Open the files it cites. Do not implement.
-
-## When to use
-
-- A plan file (or Plan-mode write-up) exists and implementation has not started.
-- Always run this **before** `skeptic-plan-review`. Skeptic is a second, fresh pass.
-
-## Procedure
-
-1. Read the plan end to end.
-2. Open every path the plan treats as known (`AGENTS.md`, gitignore, existing
-   dirs, pins). If the plan cites a file you did not open, that claim is
-   ungrounded.
-3. Score the plan against:
-   - **Investigation first** — facts before prescriptions.
-   - **Scope** — in-repo only; no drive-by vendor pins, `third_party/` edits,
-     or product work the user forbade.
-   - **Repo rules** — this checkout’s `AGENTS.md` / changelog / docs-ship-with-change.
-   - **Acceptance** — what must be green, and what must not run.
-4. List concrete fixes (file + change). Do not rewrite the plan unless the
-   author asks.
-
-## Output
-
-- Verdict: **READY** or **REVISE**.
-- Findings (blocking vs note).
-- What you opened.
-
-Do not start implementation from this skill.
+1. Obtain the plan or goal text: open the plan file, read the Cursor goal, or use the user's paste. If none is available, stop and ask — do not invent a plan.
+2. Run the `skeptic-plan-review` skill with that text, the original user request, and the workspace path.
+3. Stop-the-line, effectiveness, and `capture-lesson` rules from that skill apply. After the loop, run `record-hint-outcome` if there is signal; otherwise say `no effectiveness signal`. Product-lab / hilather plans are covered by `skeptic-plan-review`’s gated hilather invariants (skip this hints repo).
