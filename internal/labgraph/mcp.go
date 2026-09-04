@@ -14,7 +14,7 @@ func MCPServer(svc *Service) *server.MCPServer {
 	s := server.NewMCPServer("labgraph", "0.1.0",
 		server.WithToolCapabilities(false),
 		server.WithResourceCapabilities(false, false),
-		server.WithInstructions("LabScenario orchestrator. list/get/validate/plan/apply/reset/status plus fixture.apply. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; flatten (users/groups/suffix) and TacLab apply fail closed. Load packs at labgraph://fixtures/{id} or scenario_get (includes spec)."),
+		server.WithInstructions("LabScenario orchestrator. list/get/validate/plan/apply/reset/status plus fixture.apply. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; any labldap key besides operations/reason/expectedRevision (including nested spec/metadata) and TacLab apply fail closed. Load packs at labgraph://fixtures/{id} or scenario_get (includes spec)."),
 	)
 	add := func(name, desc string, fn func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error), opts ...mcp.ToolOption) {
 		opts = append([]mcp.ToolOption{mcp.WithDescription(desc)}, opts...)
@@ -40,7 +40,7 @@ func MCPServer(svc *Service) *server.MCPServer {
 			}
 			return marshalTool(view)
 		}, mcp.WithString("name", mcp.Description("Scenario metadata.name")), mcp.WithReadOnlyHintAnnotation(true))
-	add("scenario_validate", "Validate a LabScenario. Family sections call native POST /v1/state:validate. LabLDAP control-plane disableUser is allowed; flatten (users/groups/suffix) and TacLab sections fail closed.",
+	add("scenario_validate", "Validate a LabScenario. Family sections call native POST /v1/state:validate. LabLDAP control-plane disableUser is allowed; any labldap key besides operations/reason/expectedRevision (including nested spec/metadata) and TacLab sections fail closed.",
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			res, err := svc.Validate(ctx, req.GetString("name", "default"))
 			if err != nil {

@@ -5,7 +5,9 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +32,25 @@ type SessionStore struct {
 
 func NewSessionStore(token string) *SessionStore {
 	return &SessionStore{token: token, m: map[string]session{}}
+}
+
+// LoadRequiredToken reads a bearer token file. An empty path or
+// whitespace-only file is an error — empty used to disable auth on the
+// published management port (Docker bind-mount of a missing file creates
+// an empty host path; writeTokenIfMissing then only chmods it).
+func LoadRequiredToken(path string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("token-file is required")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	tok := strings.TrimSpace(string(b))
+	if tok == "" {
+		return "", fmt.Errorf("token-file %s is empty", path)
+	}
+	return tok, nil
 }
 
 func (s *SessionStore) BearerOK(r *http.Request) bool {

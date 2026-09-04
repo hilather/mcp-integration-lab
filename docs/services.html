@@ -133,7 +133,7 @@
             <header>
               <h3>labgraph</h3>
             </header>
-            <p>First-party LabScenario orchestrator. Applies profile YAML across appliances via native plan/apply/reset. Named packs: broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port (<code>labgraph://fixtures/{id}</code>, <code>fixture.apply</code>). Empty default scenario is a no-op. LabLDAP control-plane disableUser is allowed; flatten and TacLab apply fail closed.</p>
+            <p>First-party LabScenario orchestrator. Applies profile YAML across appliances via native plan/apply/reset. Named packs: broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port (<code>labgraph://fixtures/{id}</code>, <code>fixture.apply</code>). Empty default scenario is a no-op. LabLDAP control-plane disableUser is allowed; any labldap key besides operations/reason/expectedRevision and TacLab apply fail closed.</p>
             <p><strong>Connect.</strong> Operator console / REST / MCP at <code>&lt;lab-host&gt;:18091</code>.</p>
             <p><strong>Configure.</strong> <code>profiles/&lt;name&gt;/labgraph/bootstrap.yaml</code> and <code>scenarios/*.yaml</code>. Reload: <code>make reload APP=labgraph</code> (drops the journal).</p>
             <p><strong>Auth.</strong> Bearer in <code>secrets/labgraph-token</code> (0o644). SPA uses cookie + CSRF after <code>POST /v1/session</code>.</p>

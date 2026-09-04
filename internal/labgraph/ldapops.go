@@ -14,8 +14,13 @@ type ldapControlOp struct {
 }
 
 func parseLDAPControlOps(m map[string]any) ([]ldapControlOp, error) {
-	for _, flatten := range []string{"users", "groups", "suffix", "apiVersion", "kind"} {
-		if _, ok := m[flatten]; ok {
+	// Allowlist only. A LabLDAP document nests flatten data under spec;
+	// a denylist of top-level users/groups/suffix misses that shape and
+	// would apply disableUser while reporting success.
+	for k := range m {
+		switch k {
+		case "operations", "reason", "expectedRevision":
+		default:
 			return nil, fmt.Errorf("%s", errNoLDAPApply)
 		}
 	}
