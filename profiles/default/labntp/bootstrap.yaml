@@ -1,6 +1,6 @@
 # LabNTP desired state. Mounted read-only at /etc/labntp/config.yaml.
 # lab-owned copy; do not recopy from the upstream examples tree without
-# reviewing allowClientCidrs/Origins. Pin is vendor tag v1.0.0-rc.2.
+# reviewing allowClientCidrs/Origins. Pin is vendor tag v1.0.0-rc.3.
 # allowLegacyClients is on so MCPJungle can register without a LabNTP
 # patch. Bind-mounted secret files must be 0o644 (UID 65532).
 # Reload: `make reload APP=labntp`. Reload does not re-register —
