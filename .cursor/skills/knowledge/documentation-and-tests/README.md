@@ -1,29 +1,23 @@
-# Documentation and tests
+# Documentation and Tests
 
-## Docs ship with the change
+**Hint:** All documentation must always be kept up to date with the changes you make. Add regression tests when appropriate.
 
-This repo’s `AGENTS.md` rule 12: every surface the change **touches**
-updates in the same change. Rule 13: user-visible work gets a
-`CHANGELOG.md` `[Unreleased]` entry.
+## Documentation is part of the change
 
-A Cloud-only vendor **touches**:
+A change is not complete until every document it invalidates has been updated. Before finishing any task:
 
-- `AGENTS.md` (Cloud section + Layout bullet)
-- `CHANGELOG.md`
+1. Search the repository for documentation that references what you changed: READMEs, docs/ directories, inline usage examples, architecture notes, CHANGELOGs, API references, configuration samples, and comments that describe behavior (not just code).
+2. Update anything now inaccurate — renamed commands, changed defaults, removed flags, new required steps, altered behavior.
+3. If the change introduces something a future reader needs to know (new setup step, new environment variable, new workflow), add documentation for it in the place a reader would look first.
 
-It does **not** flatten into `README.md` or `docs/architecture.md`.
-`CONTRIBUTING.md` keeps those as human lab docs. Do not put git-keeper
-or Origin SHA notes on the Pages site.
+Stale documentation is treated as a bug introduced by the change that made it stale.
 
-## Tests
+## Regression tests
 
-- Logic / CLI / compose changes: regression test next to the logic;
-  `make test` and (if lifecycle) `make up && make smoke`.
-- Docs-only: no new Go tests required. `make test` must still be green.
-- Do not mark a PR ready if CI is red for a regression **you**
-  introduced. Docs-only should not fail `test`.
+Add a regression test when appropriate, which means:
 
-## Voice
+- **Always** when fixing a bug: write a test that fails on the old code and passes on the fix, so the bug cannot silently return.
+- **Usually** when changing behavior that other code or users depend on: pin the new contract with a test.
+- **Not required** for pure documentation changes, formatting, or code with no observable behavior (though existing tests must still pass).
 
-Do not flatten product logic. Do not describe this vendor as a lab
-service or a compose pin.
+Regression tests should target the observable behavior that broke, not implementation details, so they survive refactors. Name or comment them clearly enough that a future reader knows which failure they guard against.
