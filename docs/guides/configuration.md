@@ -466,7 +466,7 @@ recopy from the upstream examples tree.
 
 ## LabNTP
 
-Laboratory NTPv3/v4 unicast (catalog id `labntp`, pin **v1.0.0-rc.2**).
+Laboratory NTPv3/v4 unicast (catalog id `labntp`, pin **v1.0.0-rc.3**).
 Desired state is `labntp/bootstrap.yaml` (`labntp.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree
 without reviewing `allowClientCidrs` / Origins. `allowLegacyClients:

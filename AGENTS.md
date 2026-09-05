@@ -198,7 +198,7 @@ we work by.
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.0`,
   LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.0`,
-  LabNTP `v1.0.0-rc.2`, LabSSO `v1.0.0-rc.1`).
+  LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.1`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.28`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -388,7 +388,7 @@ PR. Keystone runs a Thursday drift check.
   `make up` / `make register` refresh the tool list). Preflight warns
   (never errors) when `LAB_PUBLIC_HOST` is not loopback and
   `originAllowlist` is empty.
-- LabNTP is pinned to **v1.0.0-rc.2** (`89841a6`). Do **not** patch it:
+- LabNTP is pinned to **v1.0.0-rc.3** (`83d568a`). Do **not** patch it:
   the profile bootstrap sets `spec.management.mcp.allowLegacyClients:
   true`. Compose must pass `--management-listen=:8088` (binary default
   is off). `--ntp-listen` empty uses YAML `:123`. UID 65532 needs

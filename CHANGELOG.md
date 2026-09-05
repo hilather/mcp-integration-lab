@@ -32,7 +32,7 @@ changes since the previous one (AGENTS.md rule 13).
   checkout only: do not clone `origin.cursor.com` from a GitHub cloud
   VM; Helm merges; Keystone drift-checks on Thursday. Exclusive product
   repos stay unvendored.
-- **LabNTP** integrator pin (`go-lab-ntp` **v1.0.0-rc.2**, catalog id
+- **LabNTP** integrator pin (`go-lab-ntp` **v1.0.0-rc.3**, catalog id
   `labntp`): UDP data plane on host 10123 (FR / ADR 0014 default;
   privileged 123 is opt-in), management 18123, token 0o644,
   `allowLegacyClients`. SPA Origins are deny-all. Docker
@@ -71,6 +71,9 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: LabMITM **v1.6.0** (tag; commit ffb220b; Status
   live-apply + notes). Overlay knobs already landed in #16.
   Checkout is the release tag, not a SHA.
+- Vendor pin: LabNTP **v1.0.0-rc.3** (tag; commit 83d568a; ViewSpec
+  omit-to-zero / MCP replaceFilters). Checkout is the release tag,
+  not a SHA.
 
 ### Fixed
 
