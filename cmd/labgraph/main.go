@@ -47,7 +47,7 @@ func serve(args []string) int {
 		fmt.Fprintf(os.Stderr, "labgraph: %v\n", err)
 		return 1
 	}
-	token, err := readToken(*tokenFile)
+	token, err := labgraph.LoadRequiredToken(*tokenFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "labgraph: token: %v\n", err)
 		return 1
@@ -128,17 +128,6 @@ func bearerOnly(token string, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func readToken(path string) (string, error) {
-	if path == "" {
-		return "", nil
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(b)), nil
 }
 
 func healthcheck(args []string) int {

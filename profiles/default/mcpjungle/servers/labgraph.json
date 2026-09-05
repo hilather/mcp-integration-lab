@@ -1,7 +1,7 @@
 {
   "name": "labgraph",
   "transport": "streamable_http",
-  "description": "LabScenario orchestrator: list/get/validate/plan/apply/reset/status plus fixture.apply. Named packs broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port at labgraph://fixtures/{id}. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; flatten and TacLab apply fail closed.",
+  "description": "LabScenario orchestrator: list/get/validate/plan/apply/reset/status plus fixture.apply. Named packs broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port at labgraph://fixtures/{id}. Apply is sequential DNS→MITM→mail→LDAP→TacLab; partial failure is honest; omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; any labldap key besides operations/reason/expectedRevision (including nested spec/metadata) and TacLab apply fail closed.",
   "url": "http://labgraph:8080/mcp",
   "bearer_token": "${LABGRAPH_TOKEN}"
 }

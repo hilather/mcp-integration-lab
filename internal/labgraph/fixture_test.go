@@ -151,6 +151,59 @@ spec:
 	if len(ldap.Calls) != 0 {
 		t.Fatalf("ops+users must not call ldap %v", ldap.Calls)
 	}
+
+	// LabLDAP documents nest flatten data under spec. operations+spec
+	// must not classify as control-only and report applied.
+	ldap = &fakeLDAP{}
+	s = testService(t, "nested.yaml", `
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: nested
+spec:
+  labldap:
+    operations:
+      - op: disableUser
+        id: alice
+    spec:
+      users:
+        - id: bob
+          cn: Bob
+`, nil, ldap, nil)
+	res, err = s.Apply(context.Background(), "nested", ApplyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.OK || !strings.Contains(res.Results[3].Detail, "no native file-level") {
+		t.Fatalf("ops+spec must fail closed: %+v", res)
+	}
+	if len(ldap.Calls) != 0 {
+		t.Fatalf("ops+spec must not call ldap %v", ldap.Calls)
+	}
+
+	ldap = &fakeLDAP{}
+	s = testService(t, "meta.yaml", `
+apiVersion: mcplab.dev/v1alpha1
+kind: LabScenario
+metadata:
+  name: meta
+spec:
+  labldap:
+    metadata: {name: mcp-integration-lab}
+    operations:
+      - op: disableUser
+        id: alice
+`, nil, ldap, nil)
+	res, err = s.Apply(context.Background(), "meta", ApplyRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.OK || !strings.Contains(res.Results[3].Detail, "no native file-level") {
+		t.Fatalf("ops+metadata must fail closed: %+v", res)
+	}
+	if len(ldap.Calls) != 0 {
+		t.Fatalf("ops+metadata must not call ldap %v", ldap.Calls)
+	}
 }
 
 func TestSplitHorizonAndMITMPackEnvelopes(t *testing.T) {

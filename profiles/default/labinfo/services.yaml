@@ -269,7 +269,7 @@ services:
 
   - id: labgraph
     name: LabScenario orchestrator (labgraph)
-    description: Applies LabScenario YAML across appliances via native plan/apply/reset. Named fixture packs (broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port) load at labgraph://fixtures/{id} and apply via fixture.apply. Operator console at /, REST under /v1, MCP under /mcp. Omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; flatten and TacLab apply fail closed.
+    description: Applies LabScenario YAML across appliances via native plan/apply/reset. Named fixture packs (broken-bind, expired-cert, split-horizon-dns, mitm-intercept-extra-port) load at labgraph://fixtures/{id} and apply via fixture.apply. Operator console at /, REST under /v1, MCP under /mcp. Omitted appliances are left alone. LabLDAP control-plane disableUser is allowed; any labldap key besides operations/reason/expectedRevision (including nested spec/metadata) and TacLab apply fail closed.
     urls:
       - name: Operator console
         url: http://${LAB_PUBLIC_HOST}:${LABGRAPH_PORT}/

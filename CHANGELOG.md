@@ -7,6 +7,18 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Fixed
+
+- labgraph fail-closes LabLDAP apply when `operations` is mixed with
+  nested `spec`/`metadata` (or any key besides `operations` /
+  `reason` / `expectedRevision`). The previous denylist only caught
+  top-level `users`/`groups`/`suffix`, so a copied LabLDAP document
+  skeleton still ran `disableUser` and reported success.
+- labgraph serve refuses a missing or empty `--token-file`. An empty
+  token previously disabled bearer/CSRF on the published management
+  port (Docker bind-mount of a missing file creates an empty host
+  path).
+
 ### Added
 
 - **LabSSO** integrator pin (`go-lab-sso` **v1.0.0-rc.1**, catalog id

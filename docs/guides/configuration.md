@@ -532,8 +532,10 @@ certs. NFS `make fixtures` is a different thing (empty-root `.tar.zst`).
 labgraph fans out to native appliance APIs in order DNS → MITM → mail →
 LDAP → TacLab. Family sections use native validate/plan/apply envelopes
 (`expectedRevision` from `GET /v1/state` when omitted). LabLDAP
-control-plane `disableUser` is allowed; flatten (`users` / suffix) and
-`spec.labtacacs` fail closed. Reset calls native reset only (LabLDAP OCC is
+control-plane `disableUser` is allowed; any `labldap` key besides
+`operations` / `reason` / `expectedRevision` (including nested `spec` /
+`metadata`) and `spec.labtacacs` fail closed. Serve requires a non-empty
+token file. Reset calls native reset only (LabLDAP OCC is
 `baseline.expectedRevision`). Partial apply stops; no auto-rollback.
 
 `mcplab scenario validate|plan|apply|reset [name]` and `mcplab fixture apply <id>`
