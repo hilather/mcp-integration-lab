@@ -239,8 +239,10 @@ Internal hops always use static bearer tokens on an isolated docker network.
 
 - Hardened (`LAB_DEV_MODE=false` → gateway `enterprise`): clients must present
   the token in `secrets/mcp-client-token`; per-client server allow-lists
-  apply. labinfo redacts credentials and only describes auth. Secret files
-  are random-if-missing. Leaving dev mode (marker `secrets/.lab-dev-mode`)
+  apply. labinfo redacts credentials and only describes auth. labinfo
+  serve fail-closes on a missing or empty token file (empty used to
+  disable bearer). Secret files
+  are random-if-missing (empty leftover files are reminted). Leaving dev mode (marker `secrets/.lab-dev-mode`)
   unlinks and remints orchestrator tokens, runs LabLDAP `setupsecrets --force`,
   and `labgen -force`. LabLDAP and LabSSO CAs are not rotated (extra SANs
   are mode-independent); leaves may still be re-signed if `LAB_PUBLIC_HOST`

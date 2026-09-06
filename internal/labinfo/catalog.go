@@ -292,3 +292,21 @@ func ReadSecretFile(path string) (string, error) {
 	}
 	return strings.TrimSpace(string(b)), nil
 }
+
+// LoadRequiredToken reads a bearer token file. An empty path or
+// whitespace-only file is an error — empty used to disable auth on the
+// published labinfo port (Docker bind-mount of a missing file creates
+// an empty host path; writeTokenIfMissing then remints it).
+func LoadRequiredToken(path string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("token-file is required")
+	}
+	tok, err := ReadSecretFile(path)
+	if err != nil {
+		return "", err
+	}
+	if tok == "" {
+		return "", fmt.Errorf("token-file %s is empty", path)
+	}
+	return tok, nil
+}

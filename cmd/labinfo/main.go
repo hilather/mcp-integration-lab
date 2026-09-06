@@ -49,7 +49,7 @@ func serve(args []string) int {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	configPath := fs.String("config", "/etc/labinfo/services.yaml", "endpoint catalog YAML")
 	listen := fs.String("listen", ":8080", "listen address")
-	tokenFile := fs.String("token-file", "", "bearer token required on /mcp (empty disables auth)")
+	tokenFile := fs.String("token-file", "", "bearer token file (required)")
 	_ = fs.Parse(args)
 
 	catalog, err := labinfo.Load(*configPath)
@@ -59,13 +59,10 @@ func serve(args []string) int {
 	}
 	devMode := profile.IsTrue(os.Getenv("LAB_DEV_MODE"))
 
-	var token string
-	if *tokenFile != "" {
-		token, err = labinfo.ReadSecretFile(*tokenFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "labinfo: token file: %v\n", err)
-			return 1
-		}
+	token, err := labinfo.LoadRequiredToken(*tokenFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "labinfo: token: %v\n", err)
+		return 1
 	}
 
 	mcpSrv := server.NewMCPServer("labinfo", "0.2.0",
@@ -127,11 +124,9 @@ func marshalResult(v any) (*mcp.CallToolResult, error) {
 	return mcp.NewToolResultText(string(b)), nil
 }
 
-// bearerAuth requires "Authorization: Bearer <token>" when token is set.
+// bearerAuth requires "Authorization: Bearer <token>". Callers must pass a
+// non-empty token (LoadRequiredToken); an empty token used to skip the check.
 func bearerAuth(token string, next http.Handler) http.Handler {
-	if token == "" {
-		return next
-	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if subtle.ConstantTimeCompare([]byte(got), []byte(token)) != 1 {

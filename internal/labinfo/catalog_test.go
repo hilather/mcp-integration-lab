@@ -600,3 +600,25 @@ func TestLoadRejectsInvalid(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadRequiredTokenRejectsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := LoadRequiredToken(""); err == nil || !strings.Contains(err.Error(), "required") {
+		t.Fatalf("empty path: %v", err)
+	}
+	empty := filepath.Join(dir, "empty")
+	if err := os.WriteFile(empty, []byte("\n  \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadRequiredToken(empty); err == nil || !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("whitespace file: %v", err)
+	}
+	ok := filepath.Join(dir, "ok")
+	if err := os.WriteFile(ok, []byte("lab-dev-labinfo-token\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadRequiredToken(ok)
+	if err != nil || got != "lab-dev-labinfo-token" {
+		t.Fatalf("got %q %v", got, err)
+	}
+}

@@ -589,7 +589,8 @@ Credentials point at staged copies under `secrets/labinfo-creds/` and
 are revealed only when `LAB_DEV_MODE=true`. The default catalog includes
 the LabLDAP CA PEM, LabSSO CA PEM, IdP Alice password, TacLab lab-user passwords, the TACACS+ shared secret,
 and optional TacLab client certs. There is no labinfo catalog service for
-the inbound `labinfo-token`. `mcplab creds` / `make creds` prints the same
+the inbound `labinfo-token`. Serve requires a non-empty token file
+(empty used to disable bearer on the published port). `mcplab creds` / `make creds` prints the same
 sheet from those staged files (dev mode only).
 
 A single service, trimmed from the default catalog:
