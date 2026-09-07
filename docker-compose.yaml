@@ -23,7 +23,7 @@ networks:
 
 services:
   # ------------------------------------------------------------------ LabDNS
-  # Pinned go-lab-dns v1.3.0 (operator console on GET /; allowLegacyClients in profile YAML). YAML edits:
+  # Pinned go-lab-dns v1.3.1 (operator console on GET /; allowLegacyClients in profile YAML). YAML edits:
   # `make reload APP=labdns` — not a full `make up`.
   labdns:
     build:
@@ -54,7 +54,7 @@ services:
       start_period: 3s
 
   # ------------------------------------------- ratarmount-rs NFS export (POC)
-  # Userspace NFSv3 server (ratarmount-rs v0.1.28): no FUSE device, no
+  # Userspace NFSv3 server (ratarmount-rs v0.1.31): no FUSE device, no
   # privileges. Data plane only for now; an MCP wrapper around its control
   # socket is a phase-1 item. NFSv4.1 (`--nfs-vers 4`) is in the .deb but
   # this lab stays on v3 (`nolock`). Reload: `make reload APP=nfs`.
@@ -136,7 +136,7 @@ services:
       start_period: 3s
 
   # LabMITM intercepting HTTP(S) forward proxy.
-  # Pinned go-lab-mitmproxy v1.6.0 (1.2–1.4 knobs present and off in the lab-owned overlay).
+  # Pinned go-lab-mitmproxy v1.6.1 (1.2–1.4 knobs present and off in the lab-owned overlay).
   # Binary --management-listen defaults to off (unlike LabDNS, whose YAML
   # bind is enough). Do not copy LabDNS command: ["serve", "--config=..."]
   # or HEALTHCHECK fails closed.
@@ -199,7 +199,7 @@ services:
       retries: 12
       start_period: 3s
 
-  # LabSSO laboratory IdP (OIDC + SAML). Pinned go-lab-sso v1.0.0-rc.1.
+  # LabSSO laboratory IdP (OIDC + SAML). Pinned go-lab-sso v1.0.0-rc.3.
   # Host TCP 443 -> container :10443 (dest-443). Management 18443 -> :8080.
   # No NET_BIND_SERVICE (container listen is unprivileged). Reload:
   # `make reload APP=labsso`. Does not re-register.

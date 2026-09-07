@@ -18,20 +18,20 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	if got["third_party/go-lab-tacacs-mcp"] != "v1.5.0" {
 		t.Fatalf("taclab pin = %q, want v1.5.0", got["third_party/go-lab-tacacs-mcp"])
 	}
-	if got["third_party/go-lab-dns"] != "v1.3.0" {
-		t.Fatalf("labdns pin = %q, want v1.3.0", got["third_party/go-lab-dns"])
+	if got["third_party/go-lab-dns"] != "v1.3.1" {
+		t.Fatalf("labdns pin = %q, want v1.3.1", got["third_party/go-lab-dns"])
 	}
 	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.4" {
 		t.Fatalf("labmail pin = %q, want v1.0.0-rc.4", got["third_party/go-lab-maildev"])
 	}
-	if got["third_party/go-lab-mitmproxy"] != "v1.6.0" {
-		t.Fatalf("labmitm pin = %q, want v1.6.0", got["third_party/go-lab-mitmproxy"])
+	if got["third_party/go-lab-mitmproxy"] != "v1.6.1" {
+		t.Fatalf("labmitm pin = %q, want v1.6.1", got["third_party/go-lab-mitmproxy"])
 	}
 	if got["third_party/go-lab-ntp"] != "v1.0.0-rc.3" {
 		t.Fatalf("labntp pin = %q, want v1.0.0-rc.3", got["third_party/go-lab-ntp"])
 	}
-	if got["third_party/go-lab-sso"] != "v1.0.0-rc.1" {
-		t.Fatalf("labsso pin = %q, want v1.0.0-rc.1", got["third_party/go-lab-sso"])
+	if got["third_party/go-lab-sso"] != "v1.0.0-rc.3" {
+		t.Fatalf("labsso pin = %q, want v1.0.0-rc.3", got["third_party/go-lab-sso"])
 	}
 }
 
@@ -40,8 +40,8 @@ func TestRatarmountDebPin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), "ARG RATARMOUNT_VERSION=0.1.28") {
-		t.Fatalf("ratarmount Dockerfile pin is not 0.1.28:\n%s", b)
+	if !strings.Contains(string(b), "ARG RATARMOUNT_VERSION=0.1.31") {
+		t.Fatalf("ratarmount Dockerfile pin is not 0.1.31:\n%s", b)
 	}
 }
 
