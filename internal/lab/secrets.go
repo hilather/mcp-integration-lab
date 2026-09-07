@@ -760,8 +760,16 @@ func parseLabgenPasswords(b []byte) map[string]string {
 }
 
 func writeTokenIfMissing(path string, mode os.FileMode) error {
-	if _, err := os.Stat(path); err == nil {
+	b, err := os.ReadFile(path)
+	switch {
+	case err == nil && strings.TrimSpace(string(b)) != "":
 		return os.Chmod(path, mode)
+	case err == nil:
+		// Empty or whitespace: Docker bind-mount of a missing file creates
+		// an empty host path. Treat as missing so labinfo/labgraph cannot
+		// start with a disabled bearer, and Register cannot pin "".
+	case !os.IsNotExist(err):
+		return err
 	}
 	return mintTokenFile(path, mode, "wrote %s\n")
 }

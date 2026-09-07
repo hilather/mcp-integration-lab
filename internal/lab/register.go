@@ -84,7 +84,11 @@ func (r *Runner) loadTokens() (map[string]string, error) {
 		if err != nil {
 			return "", fmt.Errorf("missing secret (run `mcplab secrets` first): %w", err)
 		}
-		return strings.TrimSpace(string(b)), nil
+		s := strings.TrimSpace(string(b))
+		if s == "" {
+			return "", fmt.Errorf("empty secret %s (run `mcplab secrets` first)", rel)
+		}
+		return s, nil
 	}
 	out := map[string]string{}
 	var err error

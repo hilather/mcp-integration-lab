@@ -37,7 +37,7 @@ func NewSessionStore(token string) *SessionStore {
 // LoadRequiredToken reads a bearer token file. An empty path or
 // whitespace-only file is an error — empty used to disable auth on the
 // published management port (Docker bind-mount of a missing file creates
-// an empty host path; writeTokenIfMissing then only chmods it).
+// an empty host path; writeTokenIfMissing remints empty files).
 func LoadRequiredToken(path string) (string, error) {
 	if strings.TrimSpace(path) == "" {
 		return "", fmt.Errorf("token-file is required")

@@ -183,3 +183,33 @@ func TestLoadTokensRequiresLabmitm(t *testing.T) {
 		t.Fatalf("error = %v, want missing labmitm-token", err)
 	}
 }
+
+func TestLoadTokensRejectsEmptyClientToken(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"secrets/labdns-token":                                                      "dns-tok",
+		"third_party/go-lab-ldap-mcp/secrets/token-admin":                           "ldap-tok",
+		"third_party/go-lab-tacacs-mcp/deployments/compose/secrets/api_admin_token": "tac-tok",
+		"secrets/labinfo-token":                                                     "info-tok",
+		"secrets/labmail-token":                                                     "mail-tok",
+		"secrets/labmitm-token":                                                     "mitm-tok",
+		"secrets/labgraph-token":                                                    "graph-tok",
+		"secrets/labntp-token":                                                      "ntp-tok",
+		"secrets/labsso-token":                                                      "sso-tok",
+		"secrets/mcp-client-token":                                                  "\n",
+	}
+	for rel, body := range files {
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := &Runner{Root: root}
+	_, err := r.loadTokens()
+	if err == nil || !strings.Contains(err.Error(), "empty secret") || !strings.Contains(err.Error(), "mcp-client-token") {
+		t.Fatalf("error = %v, want empty mcp-client-token", err)
+	}
+}

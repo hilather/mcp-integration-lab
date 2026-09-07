@@ -434,7 +434,10 @@ PR. Keystone runs a Thursday drift check.
   `labldap/scenario.yaml`). LabLDAP control keys are allowlisted
   (`operations`, `reason`, `expectedRevision`); nested `spec` /
   `metadata` fail closed. Serve fail-closes on a missing or empty
-  `--token-file` (empty used to disable auth). `expired-cert` returns a public expired leaf
+  `--token-file` (empty used to disable auth). labinfo does the same
+  for its published `/mcp` (empty used to skip bearer). `writeTokenIfMissing`
+  remints empty host files (Docker bind-mount leftover) instead of
+  chmod-only. `expired-cert` returns a public expired leaf
   only — never a private key, and apply does not resign `directory.crt`.
   Do **not** smoke apply those packs or reset-all (omit appliances =
   all five). CLI `mcplab scenario` / `mcplab fixture apply` are HTTP

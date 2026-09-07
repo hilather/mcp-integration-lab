@@ -20,6 +20,12 @@ changes since the previous one (AGENTS.md rule 13).
   token previously disabled bearer/CSRF on the published management
   port (Docker bind-mount of a missing file creates an empty host
   path).
+- labinfo serve refuses a missing or empty `--token-file` the same
+  way. An empty token previously disabled bearer on the published
+  service-directory port, so `connections_list` was reachable without
+  auth (credential reveal when `LAB_DEV_MODE=true`). `writeTokenIfMissing`
+  remints empty/whitespace files instead of only chmod, and `Register`
+  fail-closes on an empty `mcp-client-token`.
 
 ### Added
 

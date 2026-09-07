@@ -1278,6 +1278,24 @@ func TestWriteTokenIfMissingCreates0644(t *testing.T) {
 	}
 }
 
+func TestWriteTokenIfMissingRemintsEmpty(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "labinfo-token")
+	if err := os.WriteFile(path, []byte("\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTokenIfMissing(path, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	raw := strings.TrimSpace(string(mustRead(t, path)))
+	decoded, err := hex.DecodeString(raw)
+	if err != nil {
+		t.Fatalf("reminted token is not hex: %v", err)
+	}
+	if len(decoded) != 32 {
+		t.Fatalf("token length = %d, want 32 bytes", len(decoded))
+	}
+}
+
 func TestWriteTokenIfMissingChmodsExistingTo0644(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "labmitm-token")
 	const body = "keep-me\n"
