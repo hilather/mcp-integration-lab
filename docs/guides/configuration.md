@@ -227,7 +227,7 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|l
 `make reload APP=labdns` recreates only LabDNS. Non-loopback peers
 present the bearer in `secrets/labdns-token`.
 
-LabDNS **v1.3.0** serves an operator console at `GET /` on
+LabDNS **v1.3.1** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
 the login screen. Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
@@ -437,7 +437,7 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.6.0**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.6.1**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
@@ -494,7 +494,7 @@ Point systems under test at `<lab-host>:10123` (UDP). Operator console
 ## LabSSO
 
 Laboratory OIDC/OAuth2 + SAML IdP (catalog id `labsso`, pin
-**v1.0.0-rc.1**). Desired state is `labsso/bootstrap.yaml`
+**v1.0.0-rc.3**). Desired state is `labsso/bootstrap.yaml`
 (`labsso.dev/v1alpha1`), a lab-owned overlay copy. `allowLegacyClients:
 true` lives under `spec.listeners.management.mcp`. Compose must pass
 `--management-listen=:8080`. No `NET_BIND_SERVICE`. Token, Alice
@@ -574,7 +574,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
 
 `20490` is residual; native dest is 2049.
 
-AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.28**
+AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.31**
 also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After a zstd
 overlay commit, remount patches the SQLite sidecar instead of reindexing
 the whole TAR. After changing the interval or the image pin,

@@ -1,7 +1,7 @@
 # LabSSO desired state. Mounted read-only at /etc/labsso/config.yaml.
 # lab-owned copy; do not recopy from the upstream examples tree without
 # reviewing issuer, clients, and secret refs. Pin is vendor tag
-# v1.0.0-rc.1. allowLegacyClients is on so MCPJungle can register without
+# v1.0.0-rc.3. allowLegacyClients is on so MCPJungle can register without
 # a LabSSO patch. Bind-mounted secret files must be 0o644 (UID 65532).
 # Reload: `make reload APP=labsso` (drops in-memory sessions). Reload
 # does not re-register — gateway SQLite is tmpfs (make up / make register

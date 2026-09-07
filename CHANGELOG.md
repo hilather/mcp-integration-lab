@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-07
+
 ### Fixed
 
 - labgraph fail-closes LabLDAP apply when `operations` is mixed with
@@ -86,6 +88,10 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: LabNTP **v1.0.0-rc.3** (tag; commit 83d568a; ViewSpec
   omit-to-zero / MCP replaceFilters). Checkout is the release tag,
   not a SHA.
+- Vendor pin: LabDNS **v1.3.1**. Checkout is the release tag, not a SHA.
+- Vendor pin: LabMITM **v1.6.1**. Checkout is the release tag, not a SHA.
+- Vendor pin: LabSSO **v1.0.0-rc.3**. Checkout is the release tag, not a SHA.
+- NFS pin: ratarmount-rs **v0.1.31**. Checkout is the release tag, not a SHA.
 
 ### Fixed
 
