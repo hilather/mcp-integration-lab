@@ -10,7 +10,7 @@ The full workflow is implemented as the `skeptic-plan-review` skill (`.cursor/sk
 2. **Spawn a skeptic subagent** whose only job is to attack the plan. Give it the complete plan text plus enough repository context to check claims. It must not rubber-stamp: it returns concrete findings, each classified as **blocking** (the plan will fail, produce wrong results, or has a gap that prevents implementation) or **non-blocking** (improvement, risk worth noting).
 3. **Resolve every blocking finding** by revising the plan. Resolve them yourself when the fix is clear; only escalate to the user for genuine scope or product decisions.
 4. **Repeat with a fresh skeptic sweep** against the revised plan. A sweep that returns zero blocking findings ends the loop.
-5. **Cap at 3 sweeps.** If blocking findings remain, present the plan labeled **BLOCKED**. Do not implement and do not present it as final unless the user explicitly overrides.
+5. **Cap at 3 sweeps.** If blocking findings remain, present the plan labeled **BLOCKED**. Do not implement and do not present it as final unless the user explicitly overrides. A successor plan for the same task must include a failed-sweep autopsy (quoted blockers, what was never probed, cheapest experiment, what the next plan may not guess). Do not invent a fourth numbered sweep.
 6. After the loop: effectiveness check (`record-hint-outcome` or `no effectiveness signal`); reusable cross-repo findings go to `capture-lesson`.
 
 ## What the skeptic looks for

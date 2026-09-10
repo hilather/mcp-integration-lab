@@ -13,7 +13,7 @@ After a plan or goal is put together, it must survive skeptic review before it i
 2. **Spawn a skeptic subagent** (a general-purpose subagent via the Task tool). Give it, verbatim: the full plan text, the user's original request, and the repository/workspace paths it needs to verify claims. Use the prompt template below.
 3. **Triage the findings.** For each **blocking** finding, revise the plan: fix wrong steps, add missing ones, verify or remove unverified assumptions. Resolve findings yourself when the fix is clear; escalate to the user only for genuine scope or product decisions. Apply **non-blocking** findings at your discretion.
 4. **Run another sweep** with a fresh skeptic subagent against the revised plan. Do not reuse the previous subagent — a fresh skeptic has no attachment to earlier feedback.
-5. **Stop when a sweep returns zero blocking findings**, or after **3 sweeps**. If blocking findings remain after the third sweep, present the plan labeled **BLOCKED**. Do **not** implement and do not present it as final unless the user explicitly overrides.
+5. **Stop when a sweep returns zero blocking findings**, or after **3 sweeps**. If blocking findings remain after the third sweep, present the plan labeled **BLOCKED**. Do **not** implement and do not present it as final unless the user explicitly overrides. A successor plan for the same task must include a failed-sweep autopsy (quoted blockers, what was never probed, cheapest experiment, what the next plan may not guess).
 6. When updating a Cursor goal, write the revised plan back to the goal after each sweep so the goal always reflects the current state.
 
 ## Skeptic prompt template
@@ -84,7 +84,7 @@ to break the plan, say exactly: NO BLOCKING FINDINGS.
 
 - Never skip the first sweep, even for plans that look obviously fine — obvious plans hide assumption gaps.
 - Do not implement, and do not present the plan as final, while any blocking finding remains.
-- After 3 sweeps still blocking: present **BLOCKED**; do not implement unless the user explicitly overrides.
+- After 3 sweeps still blocking: present **BLOCKED**; do not implement unless the user explicitly overrides. A successor plan for the same task must include a failed-sweep autopsy (quoted blockers, what was never probed, cheapest experiment, what the next plan may not guess). Do not invent a fourth numbered sweep.
 - A finding is only resolved by changing the plan or by concrete evidence that the skeptic is wrong; "the skeptic is being pedantic" is not a resolution.
 - Report to the user how many sweeps ran and what changed as a result.
 - After every finished loop (clean or BLOCKED): run `record-hint-outcome` if a hint clearly helped or missed; otherwise say `no effectiveness signal`.
