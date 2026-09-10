@@ -11,9 +11,9 @@ Every code review includes a skeptic pass. The normal review checks that the cha
 
 1. **Do the normal review first** so you understand the change's intent and structure.
 2. **Spawn a skeptic subagent** (general-purpose subagent via the Task tool). Give it, verbatim: the full diff (or how to obtain it, e.g. `git diff main...HEAD`), the stated intent of the change (PR description, commit messages, or user request), and the workspace path. Use the prompt template below.
-3. **Triage the findings.** First decide (A) ordinary findings, proceed with fixes, or (B) KICK BACK AND REPLAN. On (B): do not fix this PR/branch, do not list a long patch plan, and do not run further sweeps. If the changes are yours, emit the short replan and abandon or close this attempt. If reviewing someone else's work, report the kick-back and replan — do not close their PR and do not patch it. On (A): for each **blocking** finding, fix the code when the changes are yours to edit, or report it as a required change when reviewing someone else's work. Apply **non-blocking** findings at your discretion and mention the worthwhile ones in the review.
+3. **Triage the findings.** First decide (A) ordinary findings, proceed with fixes, or (B) KICK BACK AND REPLAN. On (B): do not fix this PR/branch, do not list a long patch plan, and do not run further sweeps. If the changes are yours, emit the short replan with a failed-sweep autopsy (quoted blockers, what was never probed, cheapest experiment, what the next plan may not guess) and abandon or close this attempt. If reviewing someone else's work, report the kick-back and replan — do not close their PR and do not patch it. On (A): for each **blocking** finding, fix the code when the changes are yours to edit, or report it as a required change when reviewing someone else's work. Apply **non-blocking** findings at your discretion and mention the worthwhile ones in the review.
 4. **If this was (A) and code changed as a result, run a fresh sweep** with a new skeptic subagent over the updated diff. Do not reuse the previous subagent. Do not re-sweep a kicked-back attempt.
-5. **Stop when a sweep returns zero blocking findings**, or after **3 sweeps**, or immediately on (B). If blocking findings remain, do not LGTM, approve, or say the change looks good. After 3 sweeps still blocking, present the review labeled **BLOCKED**. A kick-back is **BLOCKED** with the replan, not a rewrite-in-place.
+5. **Stop when a sweep returns zero blocking findings**, or after **3 sweeps**, or immediately on (B). If blocking findings remain, do not LGTM, approve, or say the change looks good. After 3 sweeps still blocking, present the review labeled **BLOCKED**. A kick-back is **BLOCKED** with the replan and failed-sweep autopsy, not a rewrite-in-place. Do not invent a fourth numbered sweep.
 6. Include in the final review output how many skeptic sweeps ran and what they caught.
 
 ## Skeptic prompt template
@@ -45,18 +45,20 @@ SHAPE / DIRECTION
   correct without rewriting most of the diff): do NOT attempt to fix it
   in this PR/branch. Do NOT list a long patch plan. Kick it back.
 - Kick-back means BLOCKING: reject this implementation. Produce a short
-  replan: what the failed attempt taught (what broke, which assumption
-  was wrong), new implementation/design notes, and an instruction to
-  start that change again from scratch on a fresh branch. Report the
-  kick-back; close or abandon only when the changes are yours — do not
-  close someone else's PR.
+  replan with a failed-sweep autopsy: quoted blockers, what was never
+  probed, the cheapest experiment that would have shown it, what the next
+  plan may not guess, which assumption was wrong, new implementation/design
+  notes, and an instruction to start that change again from scratch on a
+  fresh branch. A reusable process mistake is one separate paragraph, not a
+  workflow rewrite in the same packet. Report the kick-back; close or
+  abandon only when the changes are yours — do not close someone else's PR.
 - Threshold for “too big”: more than a handful of local fixes;
   architectural mismatch; compensatory complexity; or the reviewer
   cannot honestly LGTM even after imagined patches. When in doubt on
   shape vs nits, kick back rather than rubber-stamp a rewrite-in-place.
 - Output must make the decision obvious: either (A) ordinary findings,
-  proceed with fixes, or (B) KICK BACK AND REPLAN with the design notes.
-  Never mix “LGTM after you also rewrite the architecture”.
+  proceed with fixes, or (B) KICK BACK AND REPLAN with the autopsy and
+  design notes. Never mix “LGTM after you also rewrite the architecture”.
 
 INTENT VS IMPLEMENTATION
 - Does the code actually do what the description claims? Diff the claims
@@ -147,14 +149,15 @@ diff violates any of these unless Matt explicitly overrode them.
   satisfies this; do not require it to already be complete.
 
 First state (A) ordinary findings, proceed with fixes, or (B) KICK BACK
-AND REPLAN. If (B), do not also list a long in-place patch plan. Then
-return a list of findings. Classify each as BLOCKING (bug, security issue,
-data loss, broken contract, wrong shape / kick-back, or a gap that makes
-the change wrong or incomplete) or NON-BLOCKING (improvement or
-noteworthy risk). For each finding give: file and line, the concrete
-problem, the evidence from the code, and a suggested fix (ordinary) or
-the short replan (kick-back). If (A) and you find no blocking problems
-after genuinely attempting to break the change, say exactly: NO BLOCKING
+AND REPLAN. If (B), do not also list a long in-place patch plan; include
+the failed-sweep autopsy in the short replan. Then return a list of
+findings. Classify each as BLOCKING (bug, security issue, data loss,
+broken contract, wrong shape / kick-back, or a gap that makes the change
+wrong or incomplete) or NON-BLOCKING (improvement or noteworthy risk).
+For each finding give: file and line, the concrete problem, the evidence
+from the code, and a suggested fix (ordinary) or the short replan with
+autopsy (kick-back). If (A) and you find no blocking problems after
+genuinely attempting to break the change, say exactly: NO BLOCKING
 FINDINGS.
 ```
 
@@ -162,10 +165,10 @@ FINDINGS.
 
 - Never skip the skeptic pass, even for small or "obvious" diffs — small diffs with unexamined blast radius are where regressions live.
 - Do not LGTM, approve, or say the change looks good while any blocking finding remains.
-- Do not LGTM a wrong-shape change. Kick back and replan instead of patching it into shape.
+- Do not LGTM a wrong-shape change. Kick back and replan (with autopsy) instead of patching it into shape.
 - Do not LGTM/merge a hilather product change that violates the invariants.
 - Follow repo AGENTS.md; do not merge without the release manager.
-- A finding is only resolved by changing the code, requesting the change, or concrete evidence that the skeptic is wrong; "seems unlikely" is not a resolution. A kick-back is resolved by a fresh branch from the replan, not by editing this one.
+- A finding is only resolved by changing the code, requesting the change, or concrete evidence that the skeptic is wrong; "seems unlikely" is not a resolution. A kick-back is resolved by a fresh branch from the replan that used the autopsy, not by editing this one.
 - After every finished loop (clean or BLOCKED): run `record-hint-outcome` if a hint clearly helped or missed; otherwise say `no effectiveness signal`.
 - After every finished loop: if a finding is reusable across repos, use `capture-lesson`.
 - For large diffs, split the work across multiple skeptic subagents by area (e.g. per package or per concern) in a single sweep, then merge their findings.

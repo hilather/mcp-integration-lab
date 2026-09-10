@@ -8,9 +8,9 @@ The full workflow is implemented as the `skeptic-code-review` skill (`.cursor/sk
 
 1. **Perform the normal review** of the diff already in hand.
 2. **Spawn a skeptic subagent** whose only job is to attack the implementation. Give it the diff, the change's stated intent, and the workspace path so it can read surrounding code — a diff hunk alone hides most bugs. It returns concrete findings classified as **blocking** or **non-blocking**.
-3. **Triage (A) vs (B) first.** Ordinary blocking findings: fix the code when reviewing your own changes, or report them as required changes when reviewing someone else's. A SHAPE / DIRECTION kick-back is not fixed on this PR/branch — stop the line and emit the short replan. If the changes are yours, abandon or close this attempt. If reviewing someone else's work, report the kick-back; do not close their PR and do not patch it.
+3. **Triage (A) vs (B) first.** Ordinary blocking findings: fix the code when reviewing your own changes, or report them as required changes when reviewing someone else's. A SHAPE / DIRECTION kick-back is not fixed on this PR/branch — stop the line and emit the short replan with a failed-sweep autopsy. If the changes are yours, abandon or close this attempt. If reviewing someone else's work, report the kick-back; do not close their PR and do not patch it.
 4. **If this was (A) and code was changed as a result, run a fresh skeptic sweep** over the updated diff. Do not re-sweep a kicked-back attempt.
-5. **Stop when a sweep returns zero blocking findings, or after 3 sweeps, or immediately on (B).** Do not LGTM, approve, or say the change looks good while blocking remain. After 3 sweeps still blocking, present the review labeled **BLOCKED**. A kick-back is **BLOCKED** with the replan, not a rewrite-in-place.
+5. **Stop when a sweep returns zero blocking findings, or after 3 sweeps, or immediately on (B).** Do not LGTM, approve, or say the change looks good while blocking remain. After 3 sweeps still blocking, present the review labeled **BLOCKED**. A kick-back is **BLOCKED** with the replan and autopsy, not a rewrite-in-place. Do not invent a fourth numbered sweep.
 6. After the loop: effectiveness check (`record-hint-outcome` or `no effectiveness signal`); reusable cross-repo findings go to `capture-lesson`.
 
 ## What the skeptic looks for
@@ -32,10 +32,10 @@ Analyze the *shape* of the change before line-level nits: does this diff impleme
 
 - Local, bounded defects (wrong name, missing test, off-by-one, incomplete but same design) stay as ordinary findings. The implementer may fix those in place.
 - If the problems are too big to patch, **or** the change itself is the wrong direction (fights the existing design, would need a pile of compensatory edits, wrong layer, scope explosion, cannot be made correct without rewriting most of the diff): do **not** attempt to fix it in this PR/branch. Do **not** list a long patch plan. Kick it back.
-- Kick-back is **blocking**: reject this implementation. Produce a short replan — what the failed attempt taught (what broke, which assumption was wrong), new implementation/design notes, and an instruction to start that change again from scratch on a fresh branch. Report the kick-back; close or abandon only when the changes are yours — do not close someone else's PR. A kick-back is resolved by that fresh branch, not by editing this one.
+- Kick-back is **blocking**: reject this implementation. Produce a short replan that includes a failed-sweep autopsy — quoted blockers, what was never probed, the cheapest experiment that would have shown it, what the next plan may not guess, and which assumption was wrong — plus new implementation/design notes, and an instruction to start that change again from scratch on a fresh branch. A reusable process mistake is one separate paragraph, not a workflow rewrite inside the same packet. Report the kick-back; close or abandon only when the changes are yours — do not close someone else's PR. A kick-back is resolved by that fresh branch, not by editing this one.
 - Threshold for “too big”: more than a handful of local fixes; architectural mismatch; compensatory complexity; or the reviewer cannot honestly LGTM even after imagined patches. When in doubt on shape vs nits, kick back rather than rubber-stamp a rewrite-in-place.
-- Output must make the decision obvious: (A) ordinary findings, proceed with fixes, or (B) KICK BACK AND REPLAN with the design notes.
-- Do not LGTM a wrong-shape change. Kick back and replan instead of patching it into shape. `review-pr` remains the gatherer; a kick-back stops the line (no “just fix it”).
+- Output must make the decision obvious: (A) ordinary findings, proceed with fixes, or (B) KICK BACK AND REPLAN with the autopsy and design notes.
+- Do not LGTM a wrong-shape change. Kick back and replan (with autopsy) instead of patching it into shape. `review-pr` remains the gatherer; a kick-back stops the line (no “just fix it”).
 
 ## Hilather product invariants (gated)
 
