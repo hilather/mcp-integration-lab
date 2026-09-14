@@ -7,6 +7,27 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-09-14
+
+### Fixed
+
+- labinfo serve refuses a missing or empty `--token-file` the same
+  way. An empty token previously disabled bearer on the published
+  service-directory port, so `connections_list` was reachable without
+  auth (credential reveal when `LAB_DEV_MODE=true`). `writeTokenIfMissing`
+  remints empty/whitespace files instead of only chmod, and `Register`
+  fail-closes on an empty `mcp-client-token`.
+
+### Changed
+
+- Cloud-agent review skills from Origin `matt-brewer/agent-skills`
+  refreshed to `@6cc9a40` under `.cursor/skills/` (review/skeptic packs
+  and plan/code-review skepticism knowledge). `knowledge/dependencies`
+  and `knowledge/documentation-and-tests` left alone.
+- Vendor pin: LabMITM **v1.6.2**. Checkout is the release tag, not a SHA.
+- Vendor pin: TacLab **v1.5.1**. Checkout is the release tag, not a SHA.
+- NFS pin: ratarmount-rs **v0.1.32**. Checkout is the release tag, not a SHA.
+
 ## [0.12.0] - 2026-09-07
 
 ### Fixed
@@ -20,12 +41,6 @@ changes since the previous one (AGENTS.md rule 13).
   token previously disabled bearer/CSRF on the published management
   port (Docker bind-mount of a missing file creates an empty host
   path).
-- labinfo serve refuses a missing or empty `--token-file` the same
-  way. An empty token previously disabled bearer on the published
-  service-directory port, so `connections_list` was reachable without
-  auth (credential reveal when `LAB_DEV_MODE=true`). `writeTokenIfMissing`
-  remints empty/whitespace files instead of only chmod, and `Register`
-  fail-closes on an empty `mcp-client-token`.
 
 ### Added
 

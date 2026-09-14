@@ -197,10 +197,10 @@ we work by.
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.1`,
-  LabLDAP `v0.5.0`, TacLab `v1.5.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.1`,
+  LabLDAP `v0.5.0`, TacLab `v1.5.1`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.2`,
   LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.3`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
-  (`0.1.31`). TacLab's generated lab baseline also lives under its checkout
+  (`0.1.32`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
 - `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
@@ -281,7 +281,7 @@ PR. Keystone runs a Thursday drift check.
   names answer on management `resolve` / `explain` only — do not add them
   to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.
-- TacLab (pinned `v1.5.0`) still pins `2026-07-28` by default. Do **not**
+- TacLab (pinned `v1.5.1`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
@@ -353,12 +353,12 @@ PR. Keystone runs a Thursday drift check.
   `-w` dir (not `:temp:`). The fixture is an empty-root `.tar.zst` (`./`
   only). Zstd commit rewrites the last frame and still copies the compressed
   file; the archive bind mount must be writable (plan 2× compressed headroom).
-  Pinned **0.1.31**: remount patches the SQLite sidecar after that splice
+  Pinned **0.1.32**: remount patches the SQLite sidecar after that splice
   (F-2) and does not rescan prefix frames. `:memory:` / a discarded sidecar
   still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.6.1**. Desired state is
+- LabMITM is pinned to **v1.6.2**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
   **lab-owned overlay copy** — do not recopy from the upstream examples
   tree without reviewing `allowHosts`/Origins. Do **not** patch it:

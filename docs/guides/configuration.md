@@ -437,7 +437,7 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.6.1**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.6.2**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
@@ -574,7 +574,7 @@ mount -t nfs -o vers=3,tcp,nolock,port=20490,mountport=20490 \
 
 `20490` is residual; native dest is 2049.
 
-AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.31**
+AUTH_SYS only. No MCP wrapper yet (phase 1). ratarmount-rs **v0.1.32**
 also ships NFSv4.1 (`--nfs-vers 4`); this lab stays on v3. After a zstd
 overlay commit, remount patches the SQLite sidecar instead of reindexing
 the whole TAR. After changing the interval or the image pin,
