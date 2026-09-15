@@ -76,6 +76,36 @@ func TestLabssoSigningKeyPKCS8(t *testing.T) {
 	if err := r.ensureLabssoSigningKey(); err != nil {
 		t.Fatal(err)
 	}
+	b := mustLabssoSigningPEM(t, r)
+	if err := r.ensureLabssoSigningKey(); err != nil {
+		t.Fatal(err)
+	}
+	again, err := os.ReadFile(r.path(labssoSigningRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(again) != string(b) {
+		t.Fatal("mint-if-missing must not rotate a good signing key")
+	}
+}
+
+func TestLabssoSigningKeyRemintsEmpty(t *testing.T) {
+	r := &Runner{Root: t.TempDir()}
+	path := r.path(labssoSigningRel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.ensureLabssoSigningKey(); err != nil {
+		t.Fatal(err)
+	}
+	mustLabssoSigningPEM(t, r)
+}
+
+func mustLabssoSigningPEM(t *testing.T, r *Runner) []byte {
+	t.Helper()
 	b, err := os.ReadFile(r.path(labssoSigningRel))
 	if err != nil {
 		t.Fatal(err)
@@ -91,14 +121,5 @@ func TestLabssoSigningKeyPKCS8(t *testing.T) {
 	if _, ok := key.(*rsa.PrivateKey); !ok {
 		t.Fatalf("signing key type %T, want *rsa.PrivateKey", key)
 	}
-	if err := r.ensureLabssoSigningKey(); err != nil {
-		t.Fatal(err)
-	}
-	again, err := os.ReadFile(r.path(labssoSigningRel))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(again) != string(b) {
-		t.Fatal("mint-if-missing must not rotate a good signing key")
-	}
+	return b
 }

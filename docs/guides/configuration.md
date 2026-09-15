@@ -499,7 +499,8 @@ Laboratory OIDC/OAuth2 + SAML IdP (catalog id `labsso`, pin
 true` lives under `spec.listeners.management.mcp`. Compose must pass
 `--management-listen=:8080`. No `NET_BIND_SERVICE`. Token, Alice
 password, TLS files, and the PKCS#8 signing PEM are 0o644 (TLS dir
-0o755). Dedicated LabSSO CA — do not reuse the LabLDAP CA.
+0o755). Signing key mint remints an empty leftover (Docker bind-mount
+of a missing file). Dedicated LabSSO CA — do not reuse the LabLDAP CA.
 
 Host HTTPS default is **443** (dest-443). Management is `:18443`.
 `spec.issuer` must equal the derived issuer (`https://$LAB_PUBLIC_HOST`

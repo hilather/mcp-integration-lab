@@ -7,6 +7,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Fixed
+
+- LabSSO PKCS#8 signing-key mint treats empty/whitespace leftovers as
+  missing. A Docker bind-mount of a missing
+  `secrets/labsso-oidc/signing.pem` previously left an empty file that
+  `ensureLabssoSigningKey` skipped, so LabSSO crash-looped (SAML/OIDC
+  cannot load the key).
+
 ## [0.12.1] - 2026-09-14
 
 ### Fixed
