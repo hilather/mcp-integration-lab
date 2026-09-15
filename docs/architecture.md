@@ -407,8 +407,8 @@ per-persona tool groups and OTel metrics scraping.
   in the profile bootstrap (no LabSSO patch). Compose must pass
   `--management-listen=:8080`. No `NET_BIND_SERVICE`. Host HTTPS is
   dest-443; management is 18443. Dedicated CA under `secrets/labsso-tls/`
-  (dir 0o755, keys 0o644). PKCS#8 signing key mint-if-missing, out of
-  catalog. `spec.issuer` must equal the derived issuer; catalog issuer
+  (dir 0o755, keys 0o644). PKCS#8 signing key mint-if-missing (empty
+  leftover reminted), out of catalog. `spec.issuer` must equal the derived issuer; catalog issuer
   URLs omit `:443`. SAML on, generic clothes. Do not write
   `allowedOrigins`. Loopback management is unauthenticated admin.
   `make reload APP=labsso` does not re-register. No labgraph SSO fan-out.

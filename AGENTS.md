@@ -413,7 +413,9 @@ PR. Keystone runs a Thursday drift check.
   **18443**. Bind-mounted `secrets/labsso-token`, Alice password, TLS
   dir, and PKCS#8 signing PEM are **0o644** (dir **0o755**). Dedicated
   LabSSO CA under `secrets/labsso-tls/` — do not reuse the LabLDAP CA.
-  Signing key is mint-if-missing and **out of the catalog**.
+  Signing key is mint-if-missing and **out of the catalog** — empty/whitespace
+  leftovers (Docker bind-mount of a missing file) are reminted, same as
+  `writeTokenIfMissing`.
   `spec.issuer` must equal the derived issuer (`https://$LAB_PUBLIC_HOST`
   when `LABSSO_HTTPS_PORT` is empty or 443). Catalog issuer URLs omit
   `:443`. SAML is on (needs the RSA signing key); clothes are generic.

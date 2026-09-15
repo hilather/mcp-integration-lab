@@ -219,9 +219,15 @@ func writeLabssoPEM(path, typ string, der []byte, mode os.FileMode) error {
 
 func (r *Runner) ensureLabssoSigningKey() error {
 	path := r.path(labssoSigningRel)
-	if _, err := os.Stat(path); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
+	b, err := os.ReadFile(path)
+	switch {
+	case err == nil && strings.TrimSpace(string(b)) != "":
+		return os.Chmod(path, 0o644)
+	case err == nil:
+		// Empty or whitespace: Docker bind-mount of a missing file creates
+		// an empty host path. Treat as missing so LabSSO cannot start with
+		// an unreadable PKCS#8 key (SAML/OIDC signing crash-loop).
+	case !os.IsNotExist(err):
 		return err
 	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
