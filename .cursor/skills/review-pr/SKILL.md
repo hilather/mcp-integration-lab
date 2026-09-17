@@ -1,9 +1,11 @@
 ---
 name: review-pr
-description: Review a GitHub or Origin pull request by gathering origin pr view/diff or gh pr view/diff (detect forge from the git remote or URL), then running skeptic-code-review. Use when asked to review a PR, pull request, or GitHub or Origin review.
+description: Review a GitHub or Origin pull request by gathering origin pr view/diff or gh pr view/diff (detect forge from the git remote or URL), then running skeptic-code-review. Use when asked to review a PR, pull request, or GitHub or Origin review. Do not use from Grok Build or Codex.
 ---
 
 # Review PR
+
+**Do not use from Grok Build or Codex.** Grok uses bundled `/review`. Codex is paused from this repository. If the current client is Grok or Codex, stop here.
 
 1. Gather the PR. Detect forge from **either** a user-supplied URL **or** the git remote — never mix a number from one forge into the other.
    - If the user gave a URL, classify **only** that URL (parse the host; do not substring-match `github.com` / `cursor.com` inside a path or credential):

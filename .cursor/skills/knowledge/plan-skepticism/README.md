@@ -9,8 +9,8 @@ The full workflow is implemented as the `skeptic-plan-review` skill (`.cursor/sk
 1. **Draft the plan** as usual (Plan mode, goal, or ad hoc).
 2. **Spawn a skeptic subagent** whose only job is to attack the plan. Give it the complete plan text plus enough repository context to check claims. It must not rubber-stamp: it returns concrete findings, each classified as **blocking** (the plan will fail, produce wrong results, or has a gap that prevents implementation) or **non-blocking** (improvement, risk worth noting).
 3. **Resolve every blocking finding** by revising the plan. Resolve them yourself when the fix is clear; only escalate to the user for genuine scope or product decisions.
-4. **Repeat with a fresh skeptic sweep** against the revised plan. A sweep that returns zero blocking findings ends the loop.
-5. **Cap at 3 sweeps.** If blocking findings remain, present the plan labeled **BLOCKED**. Do not implement and do not present it as final unless the user explicitly overrides. A successor plan for the same task must include a failed-sweep autopsy (quoted blockers, what was never probed, cheapest experiment, what the next plan may not guess). Do not invent a fourth numbered sweep.
+4. **Verify each resolution yourself** against the finding's evidence — a resolved blocker does not require another sweep. Run a fresh skeptic sweep only when you cannot verify a resolution, the revision materially changes scope, approach, contract or validation, or the plan was replanned after a kick-back.
+5. **Stop when a sweep returns zero blocking findings or every blocker is resolved and verified; cap at 3 full sweeps** (initial plus reopen/replan sweeps — verified resolutions do not consume them). If blocking findings remain, present the plan labeled **BLOCKED**. Do not implement and do not present it as final unless the user explicitly overrides. A successor plan for the same task must include a failed-sweep autopsy (quoted blockers, what was never probed, cheapest experiment, what the next plan may not guess). Do not invent a fourth numbered sweep.
 6. After the loop: effectiveness check (`record-hint-outcome` or `no effectiveness signal`); reusable cross-repo findings go to `capture-lesson`.
 
 ## What the skeptic looks for
@@ -23,16 +23,6 @@ The full workflow is implemented as the `skeptic-plan-review` skill (`.cursor/sk
 - Unjustified new dependencies (see [dependencies](../dependencies/README.md))
 - Scope gaps between what the user asked for and what the plan delivers
 
-## Hilather product invariants (gated)
+## Repository rules
 
-Apply only when the workspace is a hilather product (labs, Helm charts, mcp-integration-lab, LabLDAP, LabMITM, or a repo whose AGENTS.md / existing design already describes these systems). Skip for unrelated repos, including this agent-skills hints repo. Never treat this hints repo as hilather even though these skills name those systems. Violations are **blocking** unless the user (Matt) explicitly overrode them. On a hilather product, these are blocking even if the rest of the plan looks implementable. Follow the target repo AGENTS.md. Do not merge without the release manager. Do not instruct anyone to sign as Keystone.
-
-- **Architecture** — original designs already live in the repos. Do not invent a new architecture. A plan that replaces an existing design is blocking unless Matt asked for a redesign.
-- **Labs YAML** — fail-closed: unknown fields must reject. Secrets are file references, never inline.
-- **REST and MCP** — adapters over one operation registry. Never implement MCP by proxying REST. Web UI / REST / MCP must stay at feature parity; a capability on one surface only is blocking.
-- **Language** — default Rust or Go. Any other language is a suggestion to Matt, not a silent pick.
-- **Merge/release** — follow the target repo AGENTS.md. Helm merges and tags. Keystone does not merge unless Matt says so. Do not merge without the release manager.
-- **LabLDAP** — three processes (engine, bootstrap, control). Do not flatten onto plan/apply.
-- **LabMITM** — never wrap, vendor, or exec Python mitmproxy. Overlay must expose all knobs (1.1–1.4). Intercept ports are a pin, not an appliance limit.
-- **Integrator** — mcp-integration-lab is orchestration only and always last in the Helm process. No product logic in the integrator; do not schedule it earlier.
-- **Mira** — new product UIs get a Mira review after first implementation. Plans that add UI without that step are blocking.
+Product-specific invariants (architecture, language, merge, review gates) live in the target repository's AGENTS.md and design docs. This playbook does not carry project workflow. A plan that replaces an existing in-repo design without the user asking for a redesign is still blocking.
