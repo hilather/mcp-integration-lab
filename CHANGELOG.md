@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-04
+
 ### Fixed
 
 - LabSSO PKCS#8 signing-key mint treats empty/whitespace leftovers as
@@ -14,6 +16,25 @@ changes since the previous one (AGENTS.md rule 13).
   `secrets/labsso-oidc/signing.pem` previously left an empty file that
   `ensureLabssoSigningKey` skipped, so LabSSO crash-looped (SAML/OIDC
   cannot load the key).
+
+### Changed
+
+- Cloud-agent review skills from Origin `matt-brewer/agent-skills`
+  refreshed to `@35253e8` under `.cursor/skills/` (#32).
+- Vendor pin: LabDNS **v1.4.0**. Checkout is the release tag, not a SHA.
+- Vendor pin: LabLDAP **v0.6.0**. Checkout is the release tag, not a SHA.
+  Upgrade risks (native engine, parity with 389): an unknown attribute
+  name in LabLDAP config now fails startup (a raw ACI `targetattr` stops
+  `labldapd`; a DSL ACL `attributes.allow`/`deny` fails validation with
+  `unknown_attribute`), and an ACI with no `targetattr` no longer grants
+  (or denies) attribute access; add `(targetattr="*")` to keep the old
+  meaning. User attribute writes also reject alias/option spellings of
+  `uid`/`cn`/`sn`. The default profile uses DSL ACLs with explicit
+  attributes and `allowRawACI: false`, so it is unaffected.
+- Vendor pin: TacLab **v1.6.0**. Checkout is the release tag, not a SHA.
+- Vendor pin: LabMITM **v1.7.0**. Checkout is the release tag, not a SHA.
+- Vendor pin: LabSSO **v1.0.0-rc.4**. Checkout is the release tag, not a SHA.
+- NFS pin: ratarmount-rs **v0.1.34**. Checkout is the release tag, not a SHA.
 
 ## [0.12.1] - 2026-09-14
 

@@ -196,11 +196,11 @@ we work by.
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.3.1`,
-  LabLDAP `v0.5.0`, TacLab `v1.5.1`, LabMail `v1.0.0-rc.4`, LabMITM `v1.6.2`,
-  LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.3`).
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.0`,
+  LabLDAP `v0.6.0`, TacLab `v1.6.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.0`,
+  LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.4`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
-  (`0.1.32`). TacLab's generated lab baseline also lives under its checkout
+  (`0.1.34`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
 - `docs/architecture.md` — design, security model, phase-1 plan
 - `docs/guides/` — human quick start and configuration (mirrored on the Pages site)
@@ -271,7 +271,7 @@ PR. Keystone runs a Thursday drift check.
   classic `No such network` or Engine `network NAME not found` — both
   mean create; do not fail-close on the latter. Do not leave compose
   `default:` unconfigured.
-- LabDNS is pinned to **v1.3.1**. MCP is wired into `serve` upstream. Do
+- LabDNS is pinned to **v1.4.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
   register (default pin is still `2026-07-28`). Operator console is
@@ -281,7 +281,7 @@ PR. Keystone runs a Thursday drift check.
   names answer on management `resolve` / `explain` only — do not add them
   to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.
-- TacLab (pinned `v1.5.1`) still pins `2026-07-28` by default. Do **not**
+- TacLab (pinned `v1.6.0`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
@@ -323,7 +323,7 @@ PR. Keystone runs a Thursday drift check.
   committed. A failed directory recreate after a leaf rewrite leaves
   `.reload-pending` in that tls dir so the next `mcplab secrets` still
   reloads LabLDAP (SANs already matching is not enough).
-- LabLDAP is pinned to **v0.5.0**. Upstream `compose.yaml` is already
+- LabLDAP is pinned to **v0.6.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2
   `compose.native.yaml` alias. The overlay uses compose `!override` for
@@ -353,12 +353,12 @@ PR. Keystone runs a Thursday drift check.
   `-w` dir (not `:temp:`). The fixture is an empty-root `.tar.zst` (`./`
   only). Zstd commit rewrites the last frame and still copies the compressed
   file; the archive bind mount must be writable (plan 2× compressed headroom).
-  Pinned **0.1.32**: remount patches the SQLite sidecar after that splice
+  Pinned **0.1.34**: remount patches the SQLite sidecar after that splice
   (F-2) and does not rescan prefix frames. `:memory:` / a discarded sidecar
   still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.6.2**. Desired state is
+- LabMITM is pinned to **v1.7.0**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
   **lab-owned overlay copy** — do not recopy from the upstream examples
   tree without reviewing `allowHosts`/Origins. Do **not** patch it:
@@ -404,7 +404,7 @@ PR. Keystone runs a Thursday drift check.
   `ntp_views_preview` stay reliable. No Go `userland-proxy` probe.
   `make reload APP=labntp` recreates only that container and does
   **not** re-register. No labgraph NTP fan-out in this pin.
-- LabSSO is pinned to **v1.0.0-rc.3**. Do **not** patch it:
+- LabSSO is pinned to **v1.0.0-rc.4**. Do **not** patch it:
   the profile bootstrap sets `spec.listeners.management.mcp.allowLegacyClients:
   true` (a key on `management` itself is a KnownFields reject). Compose
   must pass `--management-listen=:8080`. Container listen is unprivileged
