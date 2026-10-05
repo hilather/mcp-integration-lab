@@ -51,8 +51,8 @@ spec:
       saml:
         entityID: urn:lab:lab-app
         acsURLs:
-          - http://localhost/acs
-          - http://127.0.0.1/acs
+          - https://localhost/acs
+          - https://127.0.0.1/acs
   users:
     - id: alice
       username: alice

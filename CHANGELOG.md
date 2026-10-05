@@ -57,7 +57,12 @@ changes since the previous one (AGENTS.md rule 13).
   `operations`, `reason`, `expectedRevision` and `state`, so it is
   unaffected.
 - Vendor pin: LabSSO **v1.0.0-rc.4**. Checkout is the release tag, not a SHA.
-  Tag at `8e936528`.
+  Tag at `8e936528`. rc.4 validates SAML ACS URLs as HTTPS-only, so the
+  default profile's `lab-app` `saml.acsURLs` move from `http://` to
+  `https://localhost/acs` and `https://127.0.0.1/acs` (with the old
+  URLs LabSSO refused the config and stayed unhealthy). rc.4 reset also
+  requires `expectedRevision`; `mcplab smoke` now passes the runtime
+  revision from `sso_state_get` to `sso_state_reset`.
 - NFS pin: ratarmount-rs **v0.1.34**. Checkout is the release tag, not a SHA.
   Tag at `acec114989f4`.
 

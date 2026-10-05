@@ -700,14 +700,30 @@ func (s *smokeState) labssoScenario() {
 	}
 	s.check(err == nil && metaResp != nil && metaResp.StatusCode == http.StatusOK, "SAML metadata 200")
 
-	stateOut, err := s.invoke("labsso__sso_state_get", "{}")
-	s.check(err == nil && stateOut != "", "labsso__sso_state_get")
+	stateOut, stateErr := s.invoke("labsso__sso_state_get", "{}")
+	s.check(stateErr == nil && stateOut != "", "labsso__sso_state_get")
 
 	clientsOut, err := s.invoke("labsso__sso_clients_list", "{}")
 	s.check(err == nil && strings.Contains(clientsOut, "lab-app"), "labsso__sso_clients_list sees lab-app")
 
-	_, err = s.invoke("labsso__sso_state_reset", `{"reason":"smoke"}`)
-	s.check(err == nil, "labsso__sso_state_reset")
+	// LabSSO v1.0.0-rc.4 reset requires expectedRevision (the runtime
+	// revision from sso_state_get) as well as a reason.
+	var ssoState struct {
+		RuntimeRevision string `json:"runtimeRevision"`
+	}
+	if stateErr == nil {
+		stateErr = json.Unmarshal([]byte(stateOut), &ssoState)
+	}
+	if !s.check(stateErr == nil && ssoState.RuntimeRevision != "",
+		fmt.Sprintf("labsso__sso_state_get has runtimeRevision (err=%v)", stateErr)) {
+		return
+	}
+	resetIn, _ := json.Marshal(map[string]string{
+		"reason":           "smoke",
+		"expectedRevision": ssoState.RuntimeRevision,
+	})
+	_, err = s.invoke("labsso__sso_state_reset", string(resetIn))
+	s.check(err == nil, fmt.Sprintf("labsso__sso_state_reset (err=%v)", err))
 }
 
 func (s *smokeState) labssoHTTPSClient() (*http.Client, error) {
