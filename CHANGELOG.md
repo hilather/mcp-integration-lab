@@ -24,20 +24,38 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: LabDNS **v1.4.0**. Checkout is the release tag, not a SHA.
   Tag expected at `36be79be08d3`.
 - Vendor pin: LabLDAP **v0.6.0**. Checkout is the release tag, not a SHA.
-  Tag expected at `0782aa64`.
+  Tag expected at the squash of the release-notes PR (TBD). v0.6.0 also
+  takes in go-lab-ldap-mcp #31: native parity with 389 for same-parent
+  ModRDN gates and result codes, `*` in `targetattr` lists, `(&)`/`(|)`
+  filters (now protocolError, or a `filter` field error on REST/MCP),
+  and DSL `attributes.allow`/`deny` lists compiled to real 389 lists
+  with alias names canonicalised (CAND-36/37/38).
   Upgrade risks (native engine, parity with 389): an unknown attribute
   name in LabLDAP config now fails startup (a raw ACI `targetattr` stops
   `labldapd`; a DSL ACL `attributes.allow`/`deny` fails validation with
   `unknown_attribute`), and an ACI with no `targetattr` no longer grants
   (or denies) attribute access; add `(targetattr="*")` to keep the old
   meaning. User attribute writes also reject alias/option spellings of
-  `uid`/`cn`/`sn`. The default profile uses DSL ACLs with explicit
-  attributes and `allowRawACI: false`, so it is unaffected.
+  `uid`/`cn`/`sn`. From #31: DSL ACLs that list more than one attribute
+  name (or an alias name) get a new compiled revision, so the next
+  write-mode bootstrap rewrites their ACIs, and clients that used `(&)`
+  as "match everything" must switch to `(objectClass=*)`. The default
+  profile (`allow: ["*"]`, `deny: [userPassword]`, `allowRawACI: false`)
+  compiles to the same ACI, and the lab sends no `(&)` filters, so it is
+  unaffected.
 - Vendor pin: TacLab **v1.6.0**. Checkout is the release tag, not a SHA.
   Tag expected at `23c3745e`; the catch-up tag v1.5.2 at `1a94f18`
   is pushed first.
 - Vendor pin: LabMITM **v1.7.0**. Checkout is the release tag, not a SHA.
-  Tag expected at `d6794d228db0`.
+  Tag expected at the squash of the release-notes PR (TBD); the catch-up
+  tag v1.6.3 at `6c5729888bc1` is pushed first. The inspector at
+  `LABMITM_WEB_PORT` gets the new operator UI (go-lab-mitmproxy #83/#85):
+  full REST/MCP parity (flow resume/drop/replay, all eight live verbs
+  with plan review), in-page confirms instead of browser dialogs, Flows
+  status chips and filter popover, Diagnostics tiles and Audit split
+  view. REST now rejects unknown request fields; labgraph sends only
+  `operations`, `reason`, `expectedRevision` and `state`, so it is
+  unaffected.
 - Vendor pin: LabSSO **v1.0.0-rc.4**. Checkout is the release tag, not a SHA.
   Tag expected at `8e936528`.
 - NFS pin: ratarmount-rs **v0.1.34**. Checkout is the release tag, not a SHA.
