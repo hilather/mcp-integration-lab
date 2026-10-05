@@ -7,18 +7,22 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
-## [0.13.1] - 2026-10-04
+## [0.13.1] - 2026-10-05
 
 ### Changed
 
 - Vendor pin: LabDNS **v1.4.1** (was v1.4.0). Checkout is the release tag,
-  not a SHA. Tag at `TBD` (the squash of go-lab-dns #54). v1.4.1 is a
-  notes-only patch. The go-lab-dns Release `tag-gate` on v1.4.0 failed
-  because `docs/releases/v1.4.0.md` did not exist at the tag, so v1.4.1
-  carries those notes and the frozen v1.4.0 CHANGELOG. Code, generated
-  API surfaces and behaviour are identical to v1.4.0 (`git diff
-  v1.4.0..v1.4.1` touches only `CHANGELOG.md` and `docs/releases/`). No
-  profile, compose or smoke change. Other pins are unchanged from 0.13.0.
+  not a SHA. Tag at `e709f509bca0d7db50c2477c6e2773700cb43364` (the
+  squash of go-lab-dns #54). v1.4.1 is a notes-only patch. The
+  go-lab-dns Release `tag-gate` on v1.4.0 failed because
+  `docs/releases/v1.4.0.md` did not exist at the tag, so v1.4.1 carries
+  those notes, its own `docs/releases/v1.4.1.md`, and the frozen v1.4.0
+  CHANGELOG. The v1.4.1 tag-gate passed. `git diff v1.4.0..v1.4.1`
+  touches only `CHANGELOG.md`, `MANIFEST.md`, `docs/README.md` and
+  `docs/releases/` (v1.4.0.md and v1.4.1.md). Code, generated API
+  surfaces and behaviour are identical to v1.4.0. Profiles and smoke
+  are unchanged; the only compose change is a version comment. Other
+  pins are unchanged from 0.13.0.
 
 ## [0.13.0] - 2026-10-04
 
