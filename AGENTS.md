@@ -196,7 +196,7 @@ we work by.
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.0`,
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.1`,
   LabLDAP `v0.6.0`, TacLab `v1.6.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.0`,
   LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.4`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
@@ -271,7 +271,7 @@ PR. Keystone runs a Thursday drift check.
   classic `No such network` or Engine `network NAME not found` — both
   mean create; do not fail-close on the latter. Do not leave compose
   `default:` unconfigured.
-- LabDNS is pinned to **v1.4.0**. MCP is wired into `serve` upstream. Do
+- LabDNS is pinned to **v1.4.1**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
   register (default pin is still `2026-07-28`). Operator console is

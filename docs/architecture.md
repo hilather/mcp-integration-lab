@@ -13,7 +13,7 @@ secrets layout, and gateway policy.
 
 | Service | Role | MCP | External host ports (default profile) |
 | --- | --- | --- | --- |
-| LabDNS (`go-lab-dns` **v1.4.0**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053† (UDP/TCP), REST/MCP/UI 18080 |
+| LabDNS (`go-lab-dns` **v1.4.1**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053† (UDP/TCP), REST/MCP/UI 18080 |
 | LabLDAP (`go-lab-ldap-mcp` **v0.6.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.6.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
@@ -320,7 +320,7 @@ per-persona tool groups and OTel metrics scraping.
   (informational; the tag is the lock). `SERVER_MODE` still follows
   `MCPJUNGLE_MODE` / `LAB_DEV_MODE`; SQLite stays tmpfs; `OTEL_ENABLED`
   stays `"false"`. Appliances still use `allowLegacyClients`.
-- LabDNS is pinned to **v1.4.0**. MCP Streamable HTTP is wired into `serve`
+- LabDNS is pinned to **v1.4.1**. MCP Streamable HTTP is wired into `serve`
   upstream. MCPJungle compatibility uses
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (no LabDNS patch). 1.1.0 added the embedded operator console (`GET /` on
