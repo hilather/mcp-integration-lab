@@ -15,7 +15,7 @@ var vendorRepos = []struct{ URL, Dest, Ref string }{
 	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.7.0"},
 	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.6.0"},
 	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.4"},
-	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.7.0"},
+	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.7.2"},
 	{"https://github.com/hilather/go-lab-ntp", "third_party/go-lab-ntp", "v1.0.0-rc.3"},
 	{"https://github.com/hilather/go-lab-sso", "third_party/go-lab-sso", "v1.0.0-rc.4"},
 }

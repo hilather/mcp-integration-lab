@@ -40,6 +40,28 @@ changes since the previous one (AGENTS.md rule 13).
   the runtime credential (`labldap-runtime`) can now move entries under
   people and groups over raw LDAP, including a whole subtree. Smoke does
   not move entries.
+- Vendor pin: LabMITM **v1.7.2** (was v1.7.0). Checkout is the release
+  tag, not a SHA. Tag at `TBD (v1.7.2 not tagged yet)`. v1.7.2 is
+  planned as an off-cycle patch on top of v1.7.1 (tag
+  `dd2b0e49f485a5d84d3ba2f9d7552adfdc0a8bec`, the release-notes squash,
+  go-lab-mitmproxy #90; never pinned here), which takes in
+  go-lab-mitmproxy #87 and #89: operator UI polish of the inspector at
+  `LABMITM_WEB_PORT` only (danger-fill contrast, Clear/Reset confirm
+  wording, a Reset count snapshot with **Refresh count**, Filters popover
+  focus, narrow and mid-width layout, `<time>` tooltips, a confirm focus
+  fallback, `for`/`id` labels on the generation fields, and an inline
+  icon so browsers stop requesting `/favicon.ico`). v1.7.1 changes no Go
+  code, `api/`, Dockerfile, compose, schema or metrics; the rest is the
+  SPA bundle, web sources and tests, a CI-only browser-test target and
+  docs. v1.7.2 is expected to add a further Filters focus fix from
+  go-lab-mitmproxy `TBD (focus-fix PR not merged yet)`; `TBD (at tag
+  time, confirm git diff v1.7.1 v1.7.2 has no Go, api/, Dockerfile,
+  compose, schema or metrics change, else update this note, the overlay
+  test, profile, smoke and the docs catalog counts (31 / 11-row))`. The
+  only profile and compose changes here are version comments; smoke is
+  unchanged here. Other pins are unchanged from
+  0.13.1 (LabDNS v1.4.1, TacLab v1.6.0, LabMail v1.0.0-rc.4, LabNTP
+  v1.0.0-rc.3, LabSSO v1.0.0-rc.4, ratarmount-rs 0.1.34).
 
 ## [0.13.1] - 2026-10-05
 

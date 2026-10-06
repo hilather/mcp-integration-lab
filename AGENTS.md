@@ -197,7 +197,7 @@ we work by.
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.1`,
-  LabLDAP `v0.7.0`, TacLab `v1.6.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.0`,
+  LabLDAP `v0.7.0`, TacLab `v1.6.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.2`,
   LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.4`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.34`). TacLab's generated lab baseline also lives under its checkout
@@ -358,7 +358,7 @@ PR. Keystone runs a Thursday drift check.
   still full-rebuilds. Stay NFSv3; do not add `--nfs-vers 4`.
 - `mcpjungle invoke` output is human-oriented; parse it only through
   `internal/mcpout` (regression-tested against the pinned CLI framing).
-- LabMITM is pinned to **v1.7.0**. Desired state is
+- LabMITM is pinned to **v1.7.2**. Desired state is
   `profiles/<name>/labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
   **lab-owned overlay copy** — do not recopy from the upstream examples
   tree without reviewing `allowHosts`/Origins. Do **not** patch it:
