@@ -14,7 +14,7 @@ secrets layout, and gateway policy.
 | Service | Role | MCP | External host ports (default profile) |
 | --- | --- | --- | --- |
 | LabDNS (`go-lab-dns` **v1.4.1**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053† (UDP/TCP), REST/MCP/UI 18080 |
-| LabLDAP (`go-lab-ldap-mcp` **v0.6.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
+| LabLDAP (`go-lab-ldap-mcp` **v0.7.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.6.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
 | LabMITM (`go-lab-mitmproxy` **v1.7.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
@@ -346,7 +346,7 @@ per-persona tool groups and OTel metrics scraping.
   does not replace `EnableLegacyClientsDir`. Dev mode does not patch the
   vendor. v1.5.0 is operator SPA chrome plus cookie restore via
   `GET /api/v1/session` (labgen and the AAA data plane are unchanged).
-- LabLDAP is pinned to release **v0.6.0**. Native is now the default
+- LabLDAP is pinned to release **v0.7.0**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
   + `compose.ephemeral.yaml` plus `compose/labldap.overlay.yaml`. The

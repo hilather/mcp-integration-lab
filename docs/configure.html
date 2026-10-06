@@ -181,7 +181,7 @@ spec:
         <p>Add a zone or a record here and <code>make reload APP=labdns</code>. Runtime records added through MCP vanish on <code>dns_state_reset</code>.</p>
 
         <h2 id="labldap">LabLDAP</h2>
-        <p><code>labldap/scenario.yaml</code> is a LabScenario. LabLDAP <strong>v0.6.0</strong> defaults to native <code>labldapd</code>; this lab still sets <code>directory.engine: native</code>. Management TLS from lab-CA files, mutation and password MCP tools enabled. After editing, <code>make reload APP=labldap</code> re-seeds ephemeral <code>/data</code>.</p>
+        <p><code>labldap/scenario.yaml</code> is a LabScenario. LabLDAP <strong>v0.7.0</strong> defaults to native <code>labldapd</code>; this lab still sets <code>directory.engine: native</code>. Management TLS from lab-CA files, mutation and password MCP tools enabled. After editing, <code>make reload APP=labldap</code> re-seeds ephemeral <code>/data</code>.</p>
         <pre><code>apiVersion: labldap.dev/v1alpha1
 kind: LabScenario
 metadata:

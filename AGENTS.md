@@ -197,7 +197,7 @@ we work by.
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.1`,
-  LabLDAP `v0.6.0`, TacLab `v1.6.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.0`,
+  LabLDAP `v0.7.0`, TacLab `v1.6.0`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.0`,
   LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.4`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.34`). TacLab's generated lab baseline also lives under its checkout
@@ -323,7 +323,7 @@ PR. Keystone runs a Thursday drift check.
   committed. A failed directory recreate after a leaf rewrite leaves
   `.reload-pending` in that tls dir so the next `mcplab secrets` still
   reloads LabLDAP (SANs already matching is not enough).
-- LabLDAP is pinned to **v0.6.0**. Upstream `compose.yaml` is already
+- LabLDAP is pinned to **v0.7.0**. Upstream `compose.yaml` is already
   native `labldapd`; this lab stacks `compose.ephemeral.yaml` plus
   `compose/labldap.overlay.yaml`. Do not stack the v0.2
   `compose.native.yaml` alias. The overlay uses compose `!override` for

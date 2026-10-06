@@ -282,7 +282,7 @@ records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.6.0** defaults to
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.7.0** defaults to
 the native engine (omitted `engine` compiles as `native`); this lab still
 sets `directory.engine: native` explicitly. Management TLS comes from
 lab-CA files, and `registerMutations` / `registerPassword` keep

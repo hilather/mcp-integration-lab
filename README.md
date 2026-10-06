@@ -220,7 +220,7 @@ This repository owns orchestration, profiles, secrets layout, and gateway policy
 | Project | What it is |
 | --- | --- |
 | [hilather/go-lab-dns](https://github.com/hilather/go-lab-dns) | Laboratory DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an embedded operator console. YAML desired state, REST + MCP. Pinned **v1.4.1**. |
-| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned **v0.6.0**. |
+| [hilather/go-lab-ldap-mcp](https://github.com/hilather/go-lab-ldap-mcp) ([site](https://hilather.github.io/go-lab-ldap-mcp/)) | Disposable directory laboratory. Native Go engine (default as of v0.3), REST, MCP, and a browser UI. Pinned **v0.7.0**. |
 | [hilather/go-lab-tacacs-mcp](https://github.com/hilather/go-lab-tacacs-mcp) ([site](https://hilather.github.io/go-lab-tacacs-mcp/)) | TacLab: TACACS+ (RFC 8907 + RFC 9887 TLS 1.3), RADIUS, REST/MCP, embedded operator UI. Pinned **v1.6.0**. |
 | [hilather/go-lab-maildev](https://github.com/hilather/go-lab-maildev) | LabMail: receive-only SMTP sink, inbox UI, `/email` compat, `/v1`, MCP. Pinned **v1.0.0-rc.4**. Compose service name stays `maildev`. |
 | [hilather/go-lab-mitmproxy](https://github.com/hilather/go-lab-mitmproxy) | LabMITM: laboratory HTTP(S) intercepting forward proxy, flow-inspector UI, `/v1`, MCP. Pinned **v1.7.0**. Data plane is unauthenticated; intercept is :443 only. |

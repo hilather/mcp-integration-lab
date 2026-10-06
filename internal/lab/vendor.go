@@ -12,7 +12,7 @@ import (
 // checked out on every `mcplab vendor`.
 var vendorRepos = []struct{ URL, Dest, Ref string }{
 	{"https://github.com/hilather/go-lab-dns", "third_party/go-lab-dns", "v1.4.1"},
-	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.6.0"},
+	{"https://github.com/hilather/go-lab-ldap-mcp", "third_party/go-lab-ldap-mcp", "v0.7.0"},
 	{"https://github.com/hilather/go-lab-tacacs-mcp", "third_party/go-lab-tacacs-mcp", "v1.6.0"},
 	{"https://github.com/hilather/go-lab-maildev", "third_party/go-lab-maildev", "v1.0.0-rc.4"},
 	{"https://github.com/hilather/go-lab-mitmproxy", "third_party/go-lab-mitmproxy", "v1.7.0"},

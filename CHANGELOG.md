@@ -7,6 +7,40 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-10-06
+
+### Changed
+
+- Vendor pin: LabLDAP **v0.7.0** (was v0.6.0). Checkout is the release tag,
+  not a SHA. Tag at `ee7f1b8d31afcd660f384bcf3b2144dac4e57190` (the
+  release-notes squash, go-lab-ldap-mcp #34); v0.7.0 takes in
+  go-lab-ldap-mcp #33. Native implements 389's `moddn` permission, and
+  the runtime ACIs `runtime-people-write`, `runtime-groups-write` and
+  `runtime-addsuffix-N-write` now grant it, so REST, MCP and the console
+  can move entries within and between people and groups (and within each
+  additional suffix) on both engines (CAND-39). Moves between managed
+  suffixes are affectsMultipleDSAs(71), and REST/MCP refuse them up front
+  with a `newDN` / `forbidden` field error. Case-only renames respell the
+  DN on native (CAND-30; DNs differing only in internal spaces stay open
+  as CAND-40). MCP tool names and schemas are unchanged; only the
+  move/rename description text now says the new DN must stay under the
+  same managed suffix as the entry, picked up on the next `make up` /
+  `make reload APP=labldap` (both rebuild the control image).
+  Lab impact: every scenario gets a new directory revision because the
+  runtime ACI text changed. The default profile is ephemeral with
+  `startupMode: merge`, so the bootstrap writes the new marker and ACIs on
+  every `make up` / `make reload APP=labldap`; no action needed.
+  `LabLDAPUp` and the labldap reload rebuild the labldapd, bootstrap and
+  control images together from the pinned checkout, so upstream's
+  mismatched-versions risk does not arise through mcplab. DSL ACLs can no
+  longer allow moves on native (the DSL cannot express `moddn`); the
+  default profile's only ACL (`staff-read`: read/search/compare) allows
+  none, so it is unaffected. A profile whose raw ACIs relied on write +
+  add for native moves must grant `moddn` on the destination. Security:
+  the runtime credential (`labldap-runtime`) can now move entries under
+  people and groups over raw LDAP, including a whole subtree. Smoke does
+  not move entries.
+
 ## [0.13.1] - 2026-10-05
 
 ### Changed
