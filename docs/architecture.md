@@ -14,10 +14,10 @@ secrets layout, and gateway policy.
 | Service | Role | MCP | External host ports (default profile) |
 | --- | --- | --- | --- |
 | LabDNS (`go-lab-dns` **v1.4.1**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053† (UDP/TCP), REST/MCP/UI 18080 |
-| LabLDAP (`go-lab-ldap-mcp` **v0.6.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
+| LabLDAP (`go-lab-ldap-mcp` **v0.7.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
 | TacLab (`go-lab-tacacs-mcp` **v1.6.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
-| LabMITM (`go-lab-mitmproxy` **v1.7.0**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
+| LabMITM (`go-lab-mitmproxy` **v1.7.2**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
 | LabNTP (`go-lab-ntp` **v1.0.0-rc.3**) | Laboratory NTPv3/v4 unicast with per-IP virtual clocks, operator console, `/v1`, MCP | `http://labntp:8088/mcp` (bearer; `allowLegacyClients: true`) | NTP 10123 (UDP; ADR 0014 default, not residual), REST/MCP/UI 18123 |
 | LabSSO (`go-lab-sso` **v1.0.0-rc.4**) | Laboratory OIDC/OAuth2 + SAML IdP with vendor clothes, operator console, `/v1`, MCP | `http://labsso:8080/mcp` (bearer; `allowLegacyClients: true`) | HTTPS 443 (dest-443), REST/MCP/UI 18443 |
 | ratarmount-rs **v0.1.34** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490† |
@@ -346,7 +346,7 @@ per-persona tool groups and OTel metrics scraping.
   does not replace `EnableLegacyClientsDir`. Dev mode does not patch the
   vendor. v1.5.0 is operator SPA chrome plus cookie restore via
   `GET /api/v1/session` (labgen and the AAA data plane are unchanged).
-- LabLDAP is pinned to release **v0.6.0**. Native is now the default
+- LabLDAP is pinned to release **v0.7.0**. Native is now the default
   engine (omitted `spec.directory.engine` compiles as `native`); this lab
   still sets `engine: native` explicitly. Compose is upstream `compose.yaml`
   + `compose.ephemeral.yaml` plus `compose/labldap.overlay.yaml`. The
@@ -371,7 +371,7 @@ per-persona tool groups and OTel metrics scraping.
   loads (bearer + Basic still required; CORS stays off). rc.4 adds dark
   inbox chrome and additive `POST /v1/messages/{id}:read` /
   MCP `mail_message_read`.
-- LabMITM is pinned to **v1.7.0**. MCP pin is relaxed with
+- LabMITM is pinned to **v1.7.2**. MCP pin is relaxed with
   `spec.management.mcp.allowLegacyClients: true` in the profile bootstrap
   (no LabMITM patch). Compose must pass `--management-listen=:8088`
   (binary default is off). The HTTP/1.1 data plane is unauthenticated;

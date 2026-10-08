@@ -7,6 +7,71 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-10-08
+
+### Changed
+
+- Vendor pin: LabLDAP **v0.7.0** (was v0.6.0). Checkout is the release tag,
+  not a SHA. Tag at `ee7f1b8d31afcd660f384bcf3b2144dac4e57190` (the
+  release-notes squash, go-lab-ldap-mcp #34); v0.7.0 takes in
+  go-lab-ldap-mcp #33. Native implements 389's `moddn` permission, and
+  the runtime ACIs `runtime-people-write`, `runtime-groups-write` and
+  `runtime-addsuffix-N-write` now grant it, so REST, MCP and the console
+  can move entries within and between people and groups (and within each
+  additional suffix) on both engines (CAND-39). Moves between managed
+  suffixes are affectsMultipleDSAs(71), and REST/MCP refuse them up front
+  with a `newDN` / `forbidden` field error. Case-only renames respell the
+  DN on native (CAND-30; DNs differing only in internal spaces stay open
+  as CAND-40). MCP tool names and schemas are unchanged; only the
+  move/rename description text now says the new DN must stay under the
+  same managed suffix as the entry, picked up on the next `make up` /
+  `make reload APP=labldap` (both rebuild the control image).
+  Lab impact: every scenario gets a new directory revision because the
+  runtime ACI text changed. The default profile is ephemeral with
+  `startupMode: merge`, so the bootstrap writes the new marker and ACIs on
+  every `make up` / `make reload APP=labldap`; no action needed.
+  `LabLDAPUp` and the labldap reload rebuild the labldapd, bootstrap and
+  control images together from the pinned checkout, so upstream's
+  mismatched-versions risk does not arise through mcplab. DSL ACLs can no
+  longer allow moves on native (the DSL cannot express `moddn`); the
+  default profile's only ACL (`staff-read`: read/search/compare) allows
+  none, so it is unaffected. A profile whose raw ACIs relied on write +
+  add for native moves must grant `moddn` on the destination. Security:
+  the runtime credential (`labldap-runtime`) can now move entries under
+  people and groups over raw LDAP, including a whole subtree. Smoke does
+  not move entries.
+- Vendor pin: LabMITM **v1.7.2** (was v1.7.0). Checkout is the release
+  tag, not a SHA. Tag at `662538740c4b35360a48ebc029782202f0273d8b` (the
+  release-notes squash, go-lab-mitmproxy #93). v1.7.2 was an off-cycle
+  patch on top of v1.7.1 (tag `dd2b0e49f485a5d84d3ba2f9d7552adfdc0a8bec`,
+  the release-notes squash, go-lab-mitmproxy #90; never pinned here),
+  which took in go-lab-mitmproxy #87 and #89: operator UI polish of the
+  inspector at `LABMITM_WEB_PORT` only (danger-fill contrast, Clear/Reset
+  confirm wording, a Reset count snapshot with **Refresh count**, Filters
+  popover focus, narrow and mid-width layout, `<time>` tooltips, a
+  confirm focus fallback, `for`/`id` labels on the generation fields,
+  and an inline icon so browsers stop requesting `/favicon.ico`). v1.7.2
+  then fixed inspector focus restore (go-lab-mitmproxy #91): Status plan
+  review captures the opener at click time, so Escape, **Discard plan**,
+  **Apply reviewed changes** or a drawer backdrop click land on the main
+  content (`#app-main`) instead of the page body; confirms and the plan
+  drawer share one fallback (the opener while it is still usable,
+  otherwise `#app-main`); and a confirm backdrop click no longer drops
+  focus to the page body. It also raised the operator-console build
+  floor to Node 22.22.2+ with CI on Node 22.23.3 (go-lab-mitmproxy #92;
+  build toolchain and CI only). `git diff v1.7.0 v1.7.2` changes no Go
+  code, `api/`, Dockerfile, compose, `go.mod`/`go.sum`, schema or
+  metrics; the rest is the rebuilt embedded SPA bundle
+  (`internal/web/dist`, which the labmitm image picks up through
+  `go build`), web sources and tests, CI, the Makefile (Node help text
+  and a CI-only browser-test target), `.gitignore` and docs. The `/v1`
+  catalog stayed 31 rows and `features.get` 11, so the overlay test,
+  profile, smoke and the docs catalog counts needed no change. The only
+  profile and compose changes here are version comments; smoke is
+  unchanged here. Other pins are unchanged from 0.13.1 (LabDNS v1.4.1,
+  TacLab v1.6.0, LabMail v1.0.0-rc.4, LabNTP v1.0.0-rc.3, LabSSO
+  v1.0.0-rc.4, ratarmount-rs 0.1.34).
+
 ## [0.13.1] - 2026-10-05
 
 ### Changed
