@@ -7,7 +7,7 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
-## [0.13.2] - 2026-10-06
+## [0.13.2] - 2026-10-08
 
 ### Changed
 
