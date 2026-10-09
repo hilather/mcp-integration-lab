@@ -2,6 +2,8 @@ module github.com/hilather/mcp-integration-lab
 
 go 1.26
 
+toolchain go1.26.9
+
 require (
 	github.com/klauspost/compress v1.19.2
 	github.com/mark3labs/mcp-go v0.58.0
