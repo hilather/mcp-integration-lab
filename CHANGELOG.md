@@ -7,6 +7,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Go toolchain pinned to go1.26.9: `go.mod` gains `toolchain go1.26.9`
+  (CI `setup-go` reads it through `go-version-file`), and the labgraph and
+  labinfo build images move from floating `golang:1.26-alpine` to
+  `golang:1.26.9-alpine`. 1.26.0–1.26.8 lack the stdlib fixes for
+  GO-2026-6603..6617.
+
 ## [0.13.2] - 2026-10-08
 
 ### Changed
