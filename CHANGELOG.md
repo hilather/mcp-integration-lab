@@ -59,6 +59,25 @@ changes since the previous one (AGENTS.md rule 13).
   false`, so the CONNECT-407 close does not apply here. The overlay
   test, profile, smoke, and the docs catalog counts need no change.
   The only profile and compose changes here are version comments.
+- Vendor pin: LabLDAP **v0.7.1** (was v0.7.0). Checkout is the release tag,
+  not a SHA. Tag at `1574d5d5339282ead896a93a0d01f849ef3cad1b` (the
+  release-notes squash, go-lab-ldap-mcp #37). v0.7.1 takes in
+  go-lab-ldap-mcp #36 (Go toolchain and builder images 1.26.8 → 1.26.9;
+  1.26.0–1.26.8 lack the stdlib fixes for GO-2026-6603..6617) and #35
+  (frontend `source-map-js` 1.2.1 → 1.2.2 in `frontend/pnpm-lock.yaml`
+  only; production build output is unchanged). No behavior change and
+  no new directory revision for a deployment already on v0.7.0. The
+  v0.7.0 runtime-ACI revision bump does not repeat. `apiVersion` stays
+  `labldap.dev/v1alpha1`. `git diff v0.7.0 v0.7.1` changes no product
+  Go under `internal/` or `cmd/`, no `api/`, compose, schema, or MCP
+  catalog. The Go files that do change are toolchain pins in `tools/`
+  and one integration-test `GOTOOLCHAIN`. Dockerfiles and
+  `deploy/docker/golang.digest` move to `golang:1.26.9`. `LabLDAPUp`
+  and the labldap reload rebuild labldapd, bootstrap, and control from
+  those files, so the image picks up 1.26.9 with no lab Dockerfile
+  edit. The default profile stays ephemeral with `startupMode: merge`;
+  no new bootstrap. Overlays, smoke, and the docs catalog counts need
+  no change. The only lab edits for this pin are the version strings.
 
 ## [0.13.2] - 2026-10-08
 
