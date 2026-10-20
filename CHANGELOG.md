@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-10-19
+
 ### Changed
 
 - Go toolchain pinned to go1.26.9: `go.mod` gains `toolchain go1.26.9`,
@@ -15,6 +17,26 @@ changes since the previous one (AGENTS.md rule 13).
   build images move from floating `golang:1.26-alpine` to
   `golang:1.26.9-alpine`. 1.26.0–1.26.8 lack the stdlib fixes for
   GO-2026-6603–6605, GO-2026-6607–6613 and GO-2026-6617.
+- Vendor pin: TacLab **v1.6.1** (was v1.6.0). Checkout is the release tag,
+  not a SHA. Tag at `408d1dda6c927916f6c044ec3b01b9381fd07e8d` (the
+  release-notes squash, go-lab-tacacs-mcp #139). v1.6.1 takes in
+  go-lab-tacacs-mcp #116–#138: CI and release-workflow hardening
+  (#124–#130), the Go toolchain move to 1.26.9 (#123), frontend
+  security lockfile bumps (#116, #117), Dependabot refreshes
+  (#118–#122, #131, #133–#138), and `golang.org/x/crypto` 0.57.0 →
+  0.58.0 (#131, which also moves x/text, x/sys, and x/sync). This is
+  not a RADIUS completeness release; `system.build.get` RADIUS
+  `conformance_status` stays `partial`. `git diff v1.6.0 v1.6.1`
+  changes no product Go under `internal/`, `cmd/`, or `api/`, no
+  schema, config apiVersion, metrics, or MCP catalog, and no compose
+  other than the smoke image's Go base. Dockerfile `GO_VERSION` and
+  that smoke image move 1.26.8 → 1.26.9. Built UI assets stay
+  byte-identical (web lockfile only). The lab image picks up the
+  toolchain and x/crypto bump on the next `make up` / `make reload
+  APP=labtacacs` (a pin bump still re-runs `labgen -force`).
+  Overlays, bootstrap, smoke, allowlists, and the docs catalog counts
+  need no change. The only lab edits for this pin are the version
+  strings.
 
 ## [0.13.2] - 2026-10-08
 

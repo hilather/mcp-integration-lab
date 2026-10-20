@@ -15,8 +15,8 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	if got["third_party/go-lab-ldap-mcp"] != "v0.7.0" {
 		t.Fatalf("labldap pin = %q, want v0.7.0", got["third_party/go-lab-ldap-mcp"])
 	}
-	if got["third_party/go-lab-tacacs-mcp"] != "v1.6.0" {
-		t.Fatalf("taclab pin = %q, want v1.6.0", got["third_party/go-lab-tacacs-mcp"])
+	if got["third_party/go-lab-tacacs-mcp"] != "v1.6.1" {
+		t.Fatalf("taclab pin = %q, want v1.6.1", got["third_party/go-lab-tacacs-mcp"])
 	}
 	if got["third_party/go-lab-dns"] != "v1.4.1" {
 		t.Fatalf("labdns pin = %q, want v1.4.1", got["third_party/go-lab-dns"])

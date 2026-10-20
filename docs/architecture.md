@@ -15,7 +15,7 @@ secrets layout, and gateway policy.
 | --- | --- | --- | --- |
 | LabDNS (`go-lab-dns` **v1.4.1**) | Lab DNS: overrides, wildcards, forwarding, chaos, operator console | `http://labdns:8080/mcp` (bearer; `allowLegacyClients: true`) | DNS 10053† (UDP/TCP), REST/MCP/UI 18080 |
 | LabLDAP (`go-lab-ldap-mcp` **v0.7.0**) | Native Go directory (`labldapd`) with control plane | `https://control:8443/mcp` (bearer, lab CA) | LDAP 3389† / LDAPS 3636†, control HTTPS 8443 |
-| TacLab (`go-lab-tacacs-mcp` **v1.6.0**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
+| TacLab (`go-lab-tacacs-mcp` **v1.6.1**) | TACACS+ (legacy + TLS 1.3) and RADIUS lab appliance | `http://taclab:8080/mcp` (bearer) | TACACS+ 49/300, RADIUS 1812/1813 (UDP), RadSec 2083 / DAS 3799 (default off), control HTTP 18049 |
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
 | LabMITM (`go-lab-mitmproxy` **v1.7.2**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
 | LabNTP (`go-lab-ntp` **v1.0.0-rc.3**) | Laboratory NTPv3/v4 unicast with per-IP virtual clocks, operator console, `/v1`, MCP | `http://labntp:8088/mcp` (bearer; `allowLegacyClients: true`) | NTP 10123 (UDP; ADR 0014 default, not residual), REST/MCP/UI 18123 |
@@ -333,7 +333,7 @@ per-persona tool groups and OTel metrics scraping.
   1.1.1; they still differ vs 1.0.0-rc.* because omitted `spec.ui` is
   materialized. 1.3.0 is operator-console chrome only (DNS/MCP/schema
   unchanged).
-- TacLab is pinned to release **v1.6.0**. Its MCP pin is relaxed with the
+- TacLab is pinned to release **v1.6.1**. Its MCP pin is relaxed with the
   upstream `api.mcp.allow_legacy_clients` knob (default `false`; this lab
   turns it on after `labgen`). There is no TacLab patch in `patches/`.
   1.2.0 also added must-change flags on `taclab.users.*`; 1.3.0 added
