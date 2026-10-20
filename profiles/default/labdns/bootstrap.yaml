@@ -25,7 +25,9 @@ spec:
     enabled: true
   management:
     auth:
-      # Non-loopback peers (the MCP gateway) must present this bearer token.
+      # v1.5.0 profile bearer: every management peer, including
+      # loopback, sends Authorization: Bearer. Health live/ready stay
+      # open. Do not switch this profile to dev-loopback-unauth.
       profile: bearer
       secretRef: /etc/labdns/token
     # Exact http(s)://host[:port] Origins for a remote browser console.

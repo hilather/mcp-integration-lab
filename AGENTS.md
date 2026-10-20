@@ -196,7 +196,7 @@ we work by.
   registrar). `compose/*.overlay.yaml` — overlays merging the vendored
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
-  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.1`,
+  release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.5.0`,
   LabLDAP `v0.7.1`, TacLab `v1.6.1`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.3`,
   LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.5`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
@@ -271,13 +271,23 @@ PR. Keystone runs a Thursday drift check.
   classic `No such network` or Engine `network NAME not found` — both
   mean create; do not fail-close on the latter. Do not leave compose
   `default:` unconfigured.
-- LabDNS is pinned to **v1.4.1**. MCP is wired into `serve` upstream. Do
+- LabDNS is pinned to **v1.5.0**. MCP is wired into `serve` upstream. Do
   **not** patch it: the profile bootstrap sets
   `spec.management.mcp.allowLegacyClients: true` so MCPJungle can
-  register (default pin is still `2026-07-28`). Operator console is
+  register (default pin is still `2026-07-28`). The same file sets
+  `spec.management.auth.profile: bearer` and `secretRef: /etc/labdns/token`.
+  Compose mounts `secrets/labdns-token` there. Under `bearer`, loopback
+  is not administrator: REST, MCP, the console, and any other non-probe
+  caller send `Authorization: Bearer`. Health live/ready stay open. Do
+  not switch the profile to `dev-loopback-unauth`. An omitted profile
+  would also become `bearer` and would change the canonical `sha256:`
+  revision; this document sets `profile`, so the revision stays put.
+  The dev-catalog token `lab-dev-labdns-token` is 20 bytes. v1.5.0 still
+  loads it; v1.6.0 will refuse a token shorter than 32 bytes. Random
+  mints are already 64 hex characters. Operator console is
   `GET /` on the management listener (`spec.ui.enabled`, default true).
   Remote browsers need exact Origins in `spec.management.allowedOrigins`
-  (no `"*"` sentinel; loopback is already allowed). Over-length desired-state
+  (no `"*"` sentinel; loopback Origins are already allowed). Over-length desired-state
   names answer on management `resolve` / `explain` only — do not add them
   to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.

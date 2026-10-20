@@ -44,12 +44,12 @@
           <article class="card">
             <header>
               <h3>LabDNS</h3>
-              <span class="ver">v1.4.1</span>
+              <span class="ver">v1.5.0</span>
             </header>
             <p>Authoritative lab DNS with overrides, wildcards, suffix forwarding, bounded chaos, and an operator console. Over-length names answer on management resolve/explain only; do not add them to <code>lab.test.</code>.</p>
             <p><strong>Connect.</strong> <code>dig @&lt;lab-host&gt; -p 10053 ns1.lab.test</code> (residual dest; native policy is 53) — console at :18080/, REST at :18080/v1, MCP at :18080/mcp.</p>
             <p><strong>Configure.</strong> <code>profiles/&lt;name&gt;/labdns/bootstrap.yaml</code>. Mutations via MCP are ephemeral; <code>dns_state_reset</code> restores the file. Reload: <code>make reload APP=labdns</code>. Remote console Origins go in <code>spec.management.allowedOrigins</code>.</p>
-            <p><strong>Auth.</strong> Bearer in <code>secrets/labdns-token</code> for the management plane. Data plane is plain DNS.</p>
+            <p><strong>Auth.</strong> Bearer in <code>secrets/labdns-token</code> for the management plane, including loopback. Health live/ready stay open. Data plane is plain DNS.</p>
             <div class="meta"><span>10053 residual · 18080</span><a href="https://github.com/hilather/go-lab-dns">go-lab-dns</a></div>
           </article>
           <article class="card">

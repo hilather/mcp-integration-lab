@@ -91,9 +91,58 @@ changes since the previous one (AGENTS.md rule 13).
   `golang:1.26.9-alpine`; the lab compose build picks that up from the
   pinned checkout. Reset still requires `expectedRevision` (unchanged
   since rc.4); smoke is unchanged here. The only profile and compose
-  changes here are version comments. Other pins are unchanged from
-  0.13.2 (LabDNS v1.4.1, LabMail v1.0.0-rc.4, LabNTP v1.0.0-rc.3,
-  ratarmount-rs 0.1.34).
+  changes here are version comments. Other pins still at their 0.13.2
+  tags are LabMail v1.0.0-rc.4, LabNTP v1.0.0-rc.3, and ratarmount-rs
+  0.1.34.
+- Vendor pin: LabDNS **v1.5.0** (was v1.4.1). Checkout is the release tag,
+  not a SHA. Tag at `cd51866aa5f40b70e73a051126552fdf8163bad9` (the
+  release-notes squash, go-lab-dns #70). v1.5.0 takes in go-lab-dns
+  #55, #56, #58–#63, and #66–#69 (#57 is not in the range; #64 and #65
+  are the inflight-slot fix folded into #67). Breaking, on purpose
+  (ADR 0010 and ADR 0011): an omitted
+  `spec.management.auth.profile` normalizes to `bearer`. With management
+  bound and no usable token, `labdns serve` exits 1 before it listens
+  (`validation_failed: bearer profile has no usable token; set
+  spec.management.auth.secretRef to a token file, or set profile:
+  dev-loopback-unauth`). `labdns validate` fails only when that
+  `secretRef` is empty; it does not open the token file. Under
+  `profile: bearer`, loopback (`127.0.0.0/8`, `::1`, and IPv4-mapped
+  `127/8`) is no longer administrator. REST, MCP, the console, and any
+  other non-probe caller, including in-container localhost, must send
+  `Authorization: Bearer` (REST may use a live `labdns_session` cookie;
+  MCP ignores cookies). Health `/v1/health/live` and `/v1/health/ready`
+  stay unauthenticated. Canonical `sha256:` revisions change only for
+  documents that omitted `profile` (v1.4.1 materialized
+  `dev-loopback-unauth`; v1.5.0 materializes `bearer`). Documents that
+  already set `profile` keep the same revision. `hash-v1` does not hash
+  the profile. Opt out by setting `profile: dev-loopback-unauth` before
+  restart. This lab does not opt out. The default profile already sets
+  `profile: bearer` and `secretRef: /etc/labdns/token`
+  (`profiles/default/labdns/bootstrap.yaml`). Compose mounts
+  `secrets/labdns-token` at that path (0o644, UID 65532). `mcplab
+  secrets` writes the file: the dev catalog value
+  `lab-dev-labdns-token`, or a random 64-hex mint outside dev. Registrar
+  MCP (`profiles/default/mcpjungle/servers/labdns.json`
+  `bearer_token`), smoke `labdns__dns_*` through that registrar, and
+  labgraph `HTTPFamily` (`/run/lab-secrets/labdns-token` from
+  `stageLabgraphCreds`) already send the bearer. The compose
+  healthcheck calls `labdns healthcheck` on `/v1/health/ready` and
+  stays unauthenticated. No lab fixture stores a labdns `sha256:` or
+  `expectedRevision`; smoke and labgraph read the live
+  `runtimeRevision`. Because the profile sets `profile`, the canonical
+  revision does not change. The dev-catalog token is 20 bytes. v1.5.0
+  still loads a token shorter than 32 bytes; v1.6.0 will refuse it.
+  Random mints are already 64 hex characters. Also in this tag: a UDP
+  query that arrives while every `MaxInflight` slot is taken gets a
+  rate-capped SERVFAIL (default 64/s, burst 16) instead of a silent
+  drop, and the inflight slot is released before the UDP write. The Go
+  toolchain is go1.26.9 and `golang.org/x/net` is v0.60.0 (Dockerfile
+  `golang:1.26.6-alpine` → `golang:1.26.9-alpine`, picked up by the
+  compose build of `third_party/go-lab-dns`). `web/dist` is
+  byte-identical (`source-map-js` 1.2.2 is lockfile-only). OpenAPI
+  changes only the `bearerAuth` description. The MCP manifest is
+  unchanged. No lab caller change. The next `make up` / `make reload
+  APP=labdns` rebuilds the image.
 
 ## [0.13.2] - 2026-10-08
 

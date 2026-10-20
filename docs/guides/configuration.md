@@ -224,12 +224,17 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|l
 
 `labdns/bootstrap.yaml` is the desired state, mounted read-only. MCP
 `dns_state_reset` returns the service to this file. After editing the file,
-`make reload APP=labdns` recreates only LabDNS. Non-loopback peers
-present the bearer in `secrets/labdns-token`.
+`make reload APP=labdns` recreates only LabDNS. The default profile
+sets `profile: bearer` and `secretRef: /etc/labdns/token` (the
+`secrets/labdns-token` mount). Every management peer, including
+loopback, sends `Authorization: Bearer`. Health `/v1/health/live` and
+`/v1/health/ready` stay open. `profile: dev-loopback-unauth` is the
+opt-out; this profile does not use it. An omitted `profile` also
+becomes `bearer` and changes the canonical `sha256:` revision.
 
-LabDNS **v1.4.1** serves an operator console at `GET /` on
+LabDNS **v1.5.0** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
-the login screen. Loopback Origins are allowed. A remote browser must list
+the login screen (loopback is not an administrator). Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
 `http(s)://host[:port]` string (no `"*"` sentinel). `spec.ui.enabled:
 false` 404s the SPA only; REST and MCP stay. Over-length desired-state
