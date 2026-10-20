@@ -199,7 +199,7 @@ services:
       retries: 12
       start_period: 3s
 
-  # LabSSO laboratory IdP (OIDC + SAML). Pinned go-lab-sso v1.0.0-rc.4.
+  # LabSSO laboratory IdP (OIDC + SAML). Pinned go-lab-sso v1.0.0-rc.5.
   # Host TCP 443 -> container :10443 (dest-443). Management 18443 -> :8080.
   # No NET_BIND_SERVICE (container listen is unprivileged). Reload:
   # `make reload APP=labsso`. Does not re-register.

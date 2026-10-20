@@ -78,6 +78,21 @@ changes since the previous one (AGENTS.md rule 13).
   edit. The default profile stays ephemeral with `startupMode: merge`;
   no new bootstrap. Overlays, smoke, and the docs catalog counts need
   no change. The only lab edits for this pin are the version strings.
+- Vendor pin: LabSSO **v1.0.0-rc.5** (was v1.0.0-rc.4). Checkout is the
+  release tag, not a SHA. Tag at
+  `a7bded7cd4981aac6ecaf6b924bfdeb2df120a9d` (the release-notes squash,
+  go-lab-sso #11). rc.5 takes in go-lab-sso #9 (an intermediate toolchain
+  pin to go1.26.8) and #10 (go1.26.9, which supersedes #9, plus
+  `golang.org/x/crypto` v0.47.0 → v0.56.0 and `golang.org/x/sys`
+  v0.41.0 → v0.47.0). `git diff v1.0.0-rc.4 v1.0.0-rc.5` changes no Go
+  source, `api/`, compose, schema, metrics, or MCP catalog. The image
+  build stage moves from floating `golang:1.26-alpine` to
+  `golang:1.26.9-alpine`; the lab compose build picks that up from the
+  pinned checkout. Reset still requires `expectedRevision` (unchanged
+  since rc.4); smoke is unchanged here. The only profile and compose
+  changes here are version comments. Other pins are unchanged from
+  0.13.2 (LabDNS v1.4.1, LabMail v1.0.0-rc.4, LabNTP v1.0.0-rc.3,
+  ratarmount-rs 0.1.34).
 
 ## [0.13.2] - 2026-10-08
 

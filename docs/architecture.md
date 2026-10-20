@@ -19,7 +19,7 @@ secrets layout, and gateway policy.
 | LabMail (`go-lab-maildev` **v1.0.0-rc.4**, compose service `maildev`) | Receive-only SMTP sink with inbox UI, `/email` compat, `/v1`, MCP | `http://maildev:1080/mcp` (bearer; `allowLegacyClients: true`) | SMTP 1025†, web 1080 |
 | LabMITM (`go-lab-mitmproxy` **v1.7.3**) | HTTP(S) intercepting forward proxy with flow-inspector UI, `/v1`, MCP | `http://labmitm:8088/mcp` (bearer; `allowLegacyClients: true`) | proxy 18888 (unauthenticated; not dest 443), inspector 18088 |
 | LabNTP (`go-lab-ntp` **v1.0.0-rc.3**) | Laboratory NTPv3/v4 unicast with per-IP virtual clocks, operator console, `/v1`, MCP | `http://labntp:8088/mcp` (bearer; `allowLegacyClients: true`) | NTP 10123 (UDP; ADR 0014 default, not residual), REST/MCP/UI 18123 |
-| LabSSO (`go-lab-sso` **v1.0.0-rc.4**) | Laboratory OIDC/OAuth2 + SAML IdP with vendor clothes, operator console, `/v1`, MCP | `http://labsso:8080/mcp` (bearer; `allowLegacyClients: true`) | HTTPS 443 (dest-443), REST/MCP/UI 18443 |
+| LabSSO (`go-lab-sso` **v1.0.0-rc.5**) | Laboratory OIDC/OAuth2 + SAML IdP with vendor clothes, operator console, `/v1`, MCP | `http://labsso:8080/mcp` (bearer; `allowLegacyClients: true`) | HTTPS 443 (dest-443), REST/MCP/UI 18443 |
 | ratarmount-rs **v0.1.34** | Archive-backed userspace NFSv3 export with write overlay + 15m live commit | none yet (phase 1 wrapper) | NFS 20490† |
 | labinfo (first-party) | Service directory: user-facing URLs + protocol connection details (+credentials in dev mode) | `http://labinfo:8080/mcp` (bearer) | 18090 |
 | labgraph (first-party) | LabScenario orchestrator: native plan/apply/reset fan-out, REST + MCP + SPA | `http://labgraph:8080/mcp` (bearer; `allowLegacyClients: true`) | 18091 |
@@ -402,7 +402,7 @@ per-persona tool groups and OTel metrics scraping.
   0o644. Host-published UDP is SNAT'd (NAT collision); there is no Go
   `userland-proxy` probe. `make reload APP=labntp` does not re-register.
   No labgraph NTP fan-out in this pin.
-- LabSSO is pinned to **v1.0.0-rc.4**. MCP pin
+- LabSSO is pinned to **v1.0.0-rc.5**. MCP pin
   is relaxed with `spec.listeners.management.mcp.allowLegacyClients: true`
   in the profile bootstrap (no LabSSO patch). Compose must pass
   `--management-listen=:8080`. No `NET_BIND_SERVICE`. Host HTTPS is

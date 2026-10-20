@@ -494,7 +494,7 @@ Point systems under test at `<lab-host>:10123` (UDP). Operator console
 ## LabSSO
 
 Laboratory OIDC/OAuth2 + SAML IdP (catalog id `labsso`, pin
-**v1.0.0-rc.4**). Desired state is `labsso/bootstrap.yaml`
+**v1.0.0-rc.5**). Desired state is `labsso/bootstrap.yaml`
 (`labsso.dev/v1alpha1`), a lab-owned overlay copy. `allowLegacyClients:
 true` lives under `spec.listeners.management.mcp`. Compose must pass
 `--management-listen=:8080`. No `NET_BIND_SERVICE`. Token, Alice

@@ -198,7 +198,7 @@ we work by.
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.4.1`,
   LabLDAP `v0.7.1`, TacLab `v1.6.1`, LabMail `v1.0.0-rc.4`, LabMITM `v1.7.3`,
-  LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.4`).
+  LabNTP `v1.0.0-rc.3`, LabSSO `v1.0.0-rc.5`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.34`). TacLab's generated lab baseline also lives under its checkout
 - `patches/` — local patches to vendored repos (rule 7)
@@ -404,7 +404,7 @@ PR. Keystone runs a Thursday drift check.
   `ntp_views_preview` stay reliable. No Go `userland-proxy` probe.
   `make reload APP=labntp` recreates only that container and does
   **not** re-register. No labgraph NTP fan-out in this pin.
-- LabSSO is pinned to **v1.0.0-rc.4**. Do **not** patch it:
+- LabSSO is pinned to **v1.0.0-rc.5**. Do **not** patch it:
   the profile bootstrap sets `spec.listeners.management.mcp.allowLegacyClients:
   true` (a key on `management` itself is a KnownFields reject). Compose
   must pass `--management-listen=:8080`. Container listen is unprivileged
