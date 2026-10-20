@@ -20,7 +20,7 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: TacLab **v1.6.1** (was v1.6.0). Checkout is the release tag,
   not a SHA. Tag at `408d1dda6c927916f6c044ec3b01b9381fd07e8d` (the
   release-notes squash, go-lab-tacacs-mcp #139). v1.6.1 takes in
-  go-lab-tacacs-mcp #116–#138: CI and release-workflow hardening
+  go-lab-tacacs-mcp #116–#131 and #133–#138 (#132 is not in the range): CI and release-workflow hardening
   (#124–#130), the Go toolchain move to 1.26.9 (#123), frontend
   security lockfile bumps (#116, #117), Dependabot refreshes
   (#118–#122, #131, #133–#138), and `golang.org/x/crypto` 0.57.0 →
@@ -30,8 +30,10 @@ changes since the previous one (AGENTS.md rule 13).
   changes no product Go under `internal/`, `cmd/`, or `api/`, no
   schema, config apiVersion, metrics, or MCP catalog, and no compose
   other than the smoke image's Go base. Dockerfile `GO_VERSION` and
-  that smoke image move 1.26.8 → 1.26.9. Built UI assets stay
-  byte-identical (web lockfile only). The lab image picks up the
+  that smoke image move 1.26.8 → 1.26.9. The web changes are lockfile bumps plus direct `web/package.json` bumps (including
+  `@tanstack/react-query` 5.104.0 → 5.104.2 and `zod` 4.6.5 → 4.6.6), so the
+  built UI bundle can differ; the upstream Dockerfile rebuilds it with `npm ci`
+  and `npm run build`. The lab image picks up the
   toolchain and x/crypto bump on the next `make up` / `make reload
   APP=labtacacs` (a pin bump still re-runs `labgen -force`).
   Overlays, bootstrap, smoke, allowlists, and the docs catalog counts
@@ -40,12 +42,12 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: LabMITM **v1.7.3** (was v1.7.2). Checkout is the release
   tag, not a SHA. Tag at `bc9e38e47430278b701622706f05f4db799d6ded` (the
   release-notes squash, go-lab-mitmproxy #103). v1.7.3 takes in
-  go-lab-mitmproxy #94–#102. The Go toolchain moves to go1.26.9 and
+  go-lab-mitmproxy #94–#98 and #100–#102. The Go toolchain moves to go1.26.9 and
   `golang.org/x/net` to v0.60.0 (#97; the go1.26.8 pin in #94 is
   superseded). With opt-in HTTP proxy auth (D76, default off), a 407
   to CONNECT now carries `Connection: close` and the proxy closes that
-  TCP connection (#98; Go 1.26.9 `net/http` adds the header — absolute-form
-  407 still retries on the same connection). Web lockfile only:
+  TCP connection (#97, the Go 1.26.9 `net/http` behavior; #98 adds the
+  EOF assertion; absolute-form 407 still retries on the same connection). Web lockfile only:
   `source-map-js`, `undici`, and `vitest` (#95, #96); the embedded SPA
   (`internal/web/dist`) is byte-identical. The image build context
   gains a `.dockerignore` that excludes `.git`, `.github`, `docs`, and
@@ -81,10 +83,9 @@ changes since the previous one (AGENTS.md rule 13).
 - Vendor pin: LabSSO **v1.0.0-rc.5** (was v1.0.0-rc.4). Checkout is the
   release tag, not a SHA. Tag at
   `a7bded7cd4981aac6ecaf6b924bfdeb2df120a9d` (the release-notes squash,
-  go-lab-sso #11). rc.5 takes in go-lab-sso #9 (an intermediate toolchain
-  pin to go1.26.8) and #10 (go1.26.9, which supersedes #9, plus
-  `golang.org/x/crypto` v0.47.0 → v0.56.0 and `golang.org/x/sys`
-  v0.41.0 → v0.47.0). `git diff v1.0.0-rc.4 v1.0.0-rc.5` changes no Go
+  go-lab-sso #11). rc.5 takes in go-lab-sso #9 (an intermediate toolchain pin to go1.26.8, plus `golang.org/x/crypto`
+  v0.47.0 → v0.56.0 and `golang.org/x/sys` v0.41.0 → v0.47.0) and #10
+  (go1.26.9, which supersedes #9's toolchain pin). `git diff v1.0.0-rc.4 v1.0.0-rc.5` changes no Go
   source, `api/`, compose, schema, metrics, or MCP catalog. The image
   build stage moves from floating `golang:1.26-alpine` to
   `golang:1.26.9-alpine`; the lab compose build picks that up from the
