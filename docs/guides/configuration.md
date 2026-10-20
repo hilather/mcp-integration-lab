@@ -224,12 +224,17 @@ make reload APP=labdns|maildev|nfs|labinfo|mcpjungle|labldap|labtacacs|labmitm|l
 
 `labdns/bootstrap.yaml` is the desired state, mounted read-only. MCP
 `dns_state_reset` returns the service to this file. After editing the file,
-`make reload APP=labdns` recreates only LabDNS. Non-loopback peers
-present the bearer in `secrets/labdns-token`.
+`make reload APP=labdns` recreates only LabDNS. The default profile
+sets `profile: bearer` and `secretRef: /etc/labdns/token` (the
+`secrets/labdns-token` mount). Every management peer, including
+loopback, sends `Authorization: Bearer`. Health `/v1/health/live` and
+`/v1/health/ready` stay open. `profile: dev-loopback-unauth` is the
+opt-out; this profile does not use it. An omitted `profile` also
+becomes `bearer` and changes the canonical `sha256:` revision.
 
-LabDNS **v1.4.1** serves an operator console at `GET /` on
+LabDNS **v1.5.0** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
-the login screen. Loopback Origins are allowed. A remote browser must list
+the login screen (loopback is not an administrator). Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
 `http(s)://host[:port]` string (no `"*"` sentinel). `spec.ui.enabled:
 false` 404s the SPA only; REST and MCP stay. Over-length desired-state
@@ -282,7 +287,7 @@ records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.7.0** defaults to
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.7.1** defaults to
 the native engine (omitted `engine` compiles as `native`); this lab still
 sets `directory.engine: native` explicitly. Management TLS comes from
 lab-CA files, and `registerMutations` / `registerPassword` keep
@@ -437,7 +442,7 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.7.2**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.7.3**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
@@ -494,7 +499,7 @@ Point systems under test at `<lab-host>:10123` (UDP). Operator console
 ## LabSSO
 
 Laboratory OIDC/OAuth2 + SAML IdP (catalog id `labsso`, pin
-**v1.0.0-rc.4**). Desired state is `labsso/bootstrap.yaml`
+**v1.0.0-rc.5**). Desired state is `labsso/bootstrap.yaml`
 (`labsso.dev/v1alpha1`), a lab-owned overlay copy. `allowLegacyClients:
 true` lives under `spec.listeners.management.mcp`. Compose must pass
 `--management-listen=:8080`. No `NET_BIND_SERVICE`. Token, Alice

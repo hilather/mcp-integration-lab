@@ -7,6 +7,8 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.13.3] - 2026-10-19
+
 ### Changed
 
 - Go toolchain pinned to go1.26.9: `go.mod` gains `toolchain go1.26.9`,
@@ -15,6 +17,133 @@ changes since the previous one (AGENTS.md rule 13).
   build images move from floating `golang:1.26-alpine` to
   `golang:1.26.9-alpine`. 1.26.0–1.26.8 lack the stdlib fixes for
   GO-2026-6603–6605, GO-2026-6607–6613 and GO-2026-6617.
+- Vendor pin: TacLab **v1.6.1** (was v1.6.0). Checkout is the release tag,
+  not a SHA. Tag at `408d1dda6c927916f6c044ec3b01b9381fd07e8d` (the
+  release-notes squash, go-lab-tacacs-mcp #139). v1.6.1 takes in
+  go-lab-tacacs-mcp #116–#131 and #133–#138 (#132 is not in the range): CI and release-workflow hardening
+  (#124–#130), the Go toolchain move to 1.26.9 (#123), frontend
+  security lockfile bumps (#116, #117), Dependabot refreshes
+  (#118–#122, #131, #133–#138), and `golang.org/x/crypto` 0.57.0 →
+  0.58.0 (#131, which also moves x/text, x/sys, and x/sync). This is
+  not a RADIUS completeness release; `system.build.get` RADIUS
+  `conformance_status` stays `partial`. `git diff v1.6.0 v1.6.1`
+  changes no product Go under `internal/`, `cmd/`, or `api/`, no
+  schema, config apiVersion, metrics, or MCP catalog, and no compose
+  other than the smoke image's Go base. Dockerfile `GO_VERSION` and
+  that smoke image move 1.26.8 → 1.26.9. The web changes are lockfile bumps plus direct `web/package.json` bumps (including
+  `@tanstack/react-query` 5.104.0 → 5.104.2 and `zod` 4.6.5 → 4.6.6), so the
+  built UI bundle can differ; the upstream Dockerfile rebuilds it with `npm ci`
+  and `npm run build`. The lab image picks up the
+  toolchain and x/crypto bump on the next `make up` / `make reload
+  APP=labtacacs` (a pin bump still re-runs `labgen -force`).
+  Overlays, bootstrap, smoke, allowlists, and the docs catalog counts
+  need no change. The only lab edits for this pin are the version
+  strings.
+- Vendor pin: LabMITM **v1.7.3** (was v1.7.2). Checkout is the release
+  tag, not a SHA. Tag at `bc9e38e47430278b701622706f05f4db799d6ded` (the
+  release-notes squash, go-lab-mitmproxy #103). v1.7.3 takes in
+  go-lab-mitmproxy #94–#98 and #100–#102. The Go toolchain moves to go1.26.9 and
+  `golang.org/x/net` to v0.60.0 (#97; the go1.26.8 pin in #94 is
+  superseded). With opt-in HTTP proxy auth (D76, default off), a 407
+  to CONNECT now carries `Connection: close` and the proxy closes that
+  TCP connection (#97, the Go 1.26.9 `net/http` behavior; #98 adds the
+  EOF assertion; absolute-form 407 still retries on the same connection). Web lockfile only:
+  `source-map-js`, `undici`, and `vitest` (#95, #96); the embedded SPA
+  (`internal/web/dist`) is byte-identical. The image build context
+  gains a `.dockerignore` that excludes `.git`, `.github`, `docs`, and
+  every `testdata` directory (#100–#102). `COPY . .` still embeds
+  `internal/web/dist`, and this lab's compose build adds no extra
+  context files. `git diff v1.7.2 v1.7.3` changes no product Go (tests
+  and proxy-auth transcripts only), no `api/`, compose, schema,
+  metrics, or MCP catalog. Config stays `labmitm.dev/v1alpha1`. The
+  `/v1` catalog stays 31 rows and `features.get` 11, and MCP stays
+  2026-07-28. The lab overlay keeps `spec.proxy.httpAuth.enabled:
+  false`, so the CONNECT-407 close does not apply here. The overlay
+  test, profile, smoke, and the docs catalog counts need no change.
+  The only profile and compose changes here are version comments.
+- Vendor pin: LabLDAP **v0.7.1** (was v0.7.0). Checkout is the release tag,
+  not a SHA. Tag at `1574d5d5339282ead896a93a0d01f849ef3cad1b` (the
+  release-notes squash, go-lab-ldap-mcp #37). v0.7.1 takes in
+  go-lab-ldap-mcp #36 (Go toolchain and builder images 1.26.8 → 1.26.9;
+  1.26.0–1.26.8 lack the stdlib fixes for GO-2026-6603..6617) and #35
+  (frontend `source-map-js` 1.2.1 → 1.2.2 in `frontend/pnpm-lock.yaml`
+  only; production build output is unchanged). No behavior change and
+  no new directory revision for a deployment already on v0.7.0. The
+  v0.7.0 runtime-ACI revision bump does not repeat. `apiVersion` stays
+  `labldap.dev/v1alpha1`. `git diff v0.7.0 v0.7.1` changes no product
+  Go under `internal/` or `cmd/`, no `api/`, compose, schema, or MCP
+  catalog. The Go files that do change are toolchain pins in `tools/`
+  and one integration-test `GOTOOLCHAIN`. Dockerfiles and
+  `deploy/docker/golang.digest` move to `golang:1.26.9`. `LabLDAPUp`
+  and the labldap reload rebuild labldapd, bootstrap, and control from
+  those files, so the image picks up 1.26.9 with no lab Dockerfile
+  edit. The default profile stays ephemeral with `startupMode: merge`;
+  no new bootstrap. Overlays, smoke, and the docs catalog counts need
+  no change. The only lab edits for this pin are the version strings.
+- Vendor pin: LabSSO **v1.0.0-rc.5** (was v1.0.0-rc.4). Checkout is the
+  release tag, not a SHA. Tag at
+  `a7bded7cd4981aac6ecaf6b924bfdeb2df120a9d` (the release-notes squash,
+  go-lab-sso #11). rc.5 takes in go-lab-sso #9 (an intermediate toolchain pin to go1.26.8, plus `golang.org/x/crypto`
+  v0.47.0 → v0.56.0 and `golang.org/x/sys` v0.41.0 → v0.47.0) and #10
+  (go1.26.9, which supersedes #9's toolchain pin). `git diff v1.0.0-rc.4 v1.0.0-rc.5` changes no Go
+  source, `api/`, compose, schema, metrics, or MCP catalog. The image
+  build stage moves from floating `golang:1.26-alpine` to
+  `golang:1.26.9-alpine`; the lab compose build picks that up from the
+  pinned checkout. Reset still requires `expectedRevision` (unchanged
+  since rc.4); smoke is unchanged here. The only profile and compose
+  changes here are version comments. Other pins still at their 0.13.2
+  tags are LabMail v1.0.0-rc.4, LabNTP v1.0.0-rc.3, and ratarmount-rs
+  0.1.34.
+- Vendor pin: LabDNS **v1.5.0** (was v1.4.1). Checkout is the release tag,
+  not a SHA. Tag at `cd51866aa5f40b70e73a051126552fdf8163bad9` (the
+  release-notes squash, go-lab-dns #70). v1.5.0 takes in go-lab-dns
+  #55, #56, #58–#63, and #66–#69 (#57 is not in the range; #64 and #65
+  are the inflight-slot fix folded into #67). Breaking, on purpose
+  (ADR 0010 and ADR 0011): an omitted
+  `spec.management.auth.profile` normalizes to `bearer`. With management
+  bound and no usable token, `labdns serve` exits 1 before it listens
+  (`validation_failed: bearer profile has no usable token; set
+  spec.management.auth.secretRef to a token file, or set profile:
+  dev-loopback-unauth`). `labdns validate` fails only when that
+  `secretRef` is empty; it does not open the token file. Under
+  `profile: bearer`, loopback (`127.0.0.0/8`, `::1`, and IPv4-mapped
+  `127/8`) is no longer administrator. REST, MCP, the console, and any
+  other non-probe caller, including in-container localhost, must send
+  `Authorization: Bearer` (REST may use a live `labdns_session` cookie;
+  MCP ignores cookies). Health `/v1/health/live` and `/v1/health/ready`
+  stay unauthenticated. Canonical `sha256:` revisions change only for
+  documents that omitted `profile` (v1.4.1 materialized
+  `dev-loopback-unauth`; v1.5.0 materializes `bearer`). Documents that
+  already set `profile` keep the same revision. `hash-v1` does not hash
+  the profile. Opt out by setting `profile: dev-loopback-unauth` before
+  restart. This lab does not opt out. The default profile already sets
+  `profile: bearer` and `secretRef: /etc/labdns/token`
+  (`profiles/default/labdns/bootstrap.yaml`). Compose mounts
+  `secrets/labdns-token` at that path (0o644, UID 65532). `mcplab
+  secrets` writes the file: the dev catalog value
+  `lab-dev-labdns-token`, or a random 64-hex mint outside dev. Registrar
+  MCP (`profiles/default/mcpjungle/servers/labdns.json`
+  `bearer_token`), smoke `labdns__dns_*` through that registrar, and
+  labgraph `HTTPFamily` (`/run/lab-secrets/labdns-token` from
+  `stageLabgraphCreds`) already send the bearer. The compose
+  healthcheck calls `labdns healthcheck` on `/v1/health/ready` and
+  stays unauthenticated. No lab fixture stores a labdns `sha256:` or
+  `expectedRevision`; smoke and labgraph read the live
+  `runtimeRevision`. Because the profile sets `profile`, the canonical
+  revision does not change. The dev-catalog token is 20 bytes. v1.5.0
+  still loads a token shorter than 32 bytes; v1.6.0 will refuse it.
+  Random mints are already 64 hex characters. Also in this tag: a UDP
+  query that arrives while every `MaxInflight` slot is taken gets a
+  rate-capped SERVFAIL (default 64/s, burst 16) instead of a silent
+  drop, and the inflight slot is released before the UDP write. The Go
+  toolchain is go1.26.9 and `golang.org/x/net` is v0.60.0 (Dockerfile
+  `golang:1.26.6-alpine` → `golang:1.26.9-alpine`, picked up by the
+  compose build of `third_party/go-lab-dns`). `web/dist` is
+  byte-identical (`source-map-js` 1.2.2 is lockfile-only). OpenAPI
+  changes only the `bearerAuth` description. The MCP manifest is
+  unchanged. No lab caller change. The next `make up` vendors v1.5.0 and rebuilds the
+  image (`make reload APP=labdns` alone does not re-vendor; run `mcplab
+  vendor` first).
 
 ## [0.13.2] - 2026-10-08
 

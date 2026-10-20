@@ -32,6 +32,10 @@ func TestDefaultLabDNSBootstrapEnablesOperatorConsole(t *testing.T) {
 				Enabled bool `yaml:"enabled"`
 			} `yaml:"ui"`
 			Management struct {
+				Auth struct {
+					Profile   string `yaml:"profile"`
+					SecretRef string `yaml:"secretRef"`
+				} `yaml:"auth"`
 				MCP struct {
 					AllowLegacyClients bool `yaml:"allowLegacyClients"`
 				} `yaml:"mcp"`
@@ -49,6 +53,10 @@ func TestDefaultLabDNSBootstrapEnablesOperatorConsole(t *testing.T) {
 	}
 	if !doc.Spec.Management.MCP.AllowLegacyClients {
 		t.Fatal("profiles/default/labdns/bootstrap.yaml: spec.management.mcp.allowLegacyClients must be true so MCPJungle can register")
+	}
+	if doc.Spec.Management.Auth.Profile != "bearer" || doc.Spec.Management.Auth.SecretRef != "/etc/labdns/token" {
+		t.Fatalf("labdns auth = profile %q secretRef %q, want bearer and /etc/labdns/token (v1.5.0 serve exits without a usable token)",
+			doc.Spec.Management.Auth.Profile, doc.Spec.Management.Auth.SecretRef)
 	}
 }
 
