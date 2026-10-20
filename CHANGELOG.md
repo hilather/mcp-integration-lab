@@ -37,6 +37,28 @@ changes since the previous one (AGENTS.md rule 13).
   Overlays, bootstrap, smoke, allowlists, and the docs catalog counts
   need no change. The only lab edits for this pin are the version
   strings.
+- Vendor pin: LabMITM **v1.7.3** (was v1.7.2). Checkout is the release
+  tag, not a SHA. Tag at `bc9e38e47430278b701622706f05f4db799d6ded` (the
+  release-notes squash, go-lab-mitmproxy #103). v1.7.3 takes in
+  go-lab-mitmproxy #94–#102. The Go toolchain moves to go1.26.9 and
+  `golang.org/x/net` to v0.60.0 (#97; the go1.26.8 pin in #94 is
+  superseded). With opt-in HTTP proxy auth (D76, default off), a 407
+  to CONNECT now carries `Connection: close` and the proxy closes that
+  TCP connection (#98; Go 1.26.9 `net/http` adds the header — absolute-form
+  407 still retries on the same connection). Web lockfile only:
+  `source-map-js`, `undici`, and `vitest` (#95, #96); the embedded SPA
+  (`internal/web/dist`) is byte-identical. The image build context
+  gains a `.dockerignore` that excludes `.git`, `.github`, `docs`, and
+  every `testdata` directory (#100–#102). `COPY . .` still embeds
+  `internal/web/dist`, and this lab's compose build adds no extra
+  context files. `git diff v1.7.2 v1.7.3` changes no product Go (tests
+  and proxy-auth transcripts only), no `api/`, compose, schema,
+  metrics, or MCP catalog. Config stays `labmitm.dev/v1alpha1`. The
+  `/v1` catalog stays 31 rows and `features.get` 11, and MCP stays
+  2026-07-28. The lab overlay keeps `spec.proxy.httpAuth.enabled:
+  false`, so the CONNECT-407 close does not apply here. The overlay
+  test, profile, smoke, and the docs catalog counts need no change.
+  The only profile and compose changes here are version comments.
 
 ## [0.13.2] - 2026-10-08
 
