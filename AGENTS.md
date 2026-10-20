@@ -281,7 +281,7 @@ PR. Keystone runs a Thursday drift check.
   caller send `Authorization: Bearer`. Health live/ready stay open. Do
   not switch the profile to `dev-loopback-unauth`. An omitted profile
   would also become `bearer` and would change the canonical `sha256:`
-  revision; this document sets `profile`, so the revision stays put.
+  revision; `profiles/default/labdns/bootstrap.yaml` sets `profile`, so the revision stays put.
   The dev-catalog token `lab-dev-labdns-token` is 20 bytes. v1.5.0 still
   loads it; v1.6.0 will refuse a token shorter than 32 bytes. Random
   mints are already 64 hex characters. Operator console is

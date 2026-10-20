@@ -141,8 +141,9 @@ changes since the previous one (AGENTS.md rule 13).
   compose build of `third_party/go-lab-dns`). `web/dist` is
   byte-identical (`source-map-js` 1.2.2 is lockfile-only). OpenAPI
   changes only the `bearerAuth` description. The MCP manifest is
-  unchanged. No lab caller change. The next `make up` / `make reload
-  APP=labdns` rebuilds the image.
+  unchanged. No lab caller change. The next `make up` vendors v1.5.0 and rebuilds the
+  image (`make reload APP=labdns` alone does not re-vendor; run `mcplab
+  vendor` first).
 
 ## [0.13.2] - 2026-10-08
 

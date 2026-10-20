@@ -328,7 +328,7 @@ per-persona tool groups and OTel metrics scraping.
   Under `bearer`, loopback is not administrator; non-probe callers send
   `Authorization: Bearer`. Health live/ready stay open. Do not opt out
   with `dev-loopback-unauth`. An omitted `profile` normalizes to
-  `bearer` and changes the canonical `sha256:`; this document sets
+  `bearer` and changes the canonical `sha256:`; `profiles/default/labdns/bootstrap.yaml` sets
   `profile`, so its revision is unchanged. The dev-catalog token is 20
   bytes (`lab-dev-labdns-token`); v1.5.0 still loads it and v1.6.0 will
   refuse tokens shorter than 32 bytes. 1.1.0 added the embedded operator console (`GET /` on
