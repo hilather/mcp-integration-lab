@@ -7,6 +7,14 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Go toolchain 1.26.9 → 1.26.10: `go.mod` `toolchain go1.26.10`, CI
+  `setup-go` `go-version: "1.26.10"` (test and smoke-dev jobs), and the
+  labgraph and labinfo build images `golang:1.26.9-alpine` →
+  `golang:1.26.10-alpine`. 1.26.9 lacks the crypto/x509 fix for
+  GO-2026-6809.
+
 ## [0.13.3] - 2026-10-19
 
 ### Changed
