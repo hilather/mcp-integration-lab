@@ -232,7 +232,7 @@ loopback, sends `Authorization: Bearer`. Health `/v1/health/live` and
 opt-out; this profile does not use it. An omitted `profile` also
 becomes `bearer` and changes the canonical `sha256:` revision.
 
-LabDNS **v1.5.0** serves an operator console at `GET /` on
+LabDNS **v1.5.1** serves an operator console at `GET /` on
 `LABDNS_REST_PORT` (`spec.ui.enabled`, default true). Paste the bearer on
 the login screen (loopback is not an administrator). Loopback Origins are allowed. A remote browser must list
 its Origin in `spec.management.allowedOrigins` as an exact
@@ -287,7 +287,7 @@ records added through MCP vanish on `dns_state_reset`.
 
 ## LabLDAP
 
-`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.7.1** defaults to
+`labldap/scenario.yaml` is a LabScenario. LabLDAP **v0.7.2** defaults to
 the native engine (omitted `engine` compiles as `native`); this lab still
 sets `directory.engine: native` explicitly. Management TLS comes from
 lab-CA files, and `registerMutations` / `registerPassword` keep
@@ -442,7 +442,7 @@ restart.
 
 Desired state is `labmitm/bootstrap.yaml` (`labmitm.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree.
-Pinned **v1.7.3**. `allowLegacyClients: true` is required for MCPJungle.
+Pinned **v1.7.4**. `allowLegacyClients: true` is required for MCPJungle.
 Compose must pass `--management-listen=:8088`. After editing,
 `make reload APP=labmitm` (wipes captured flows; generate-mode CA
 rotates). Reload does **not** re-register the gateway tool list
@@ -471,7 +471,7 @@ recopy from the upstream examples tree.
 
 ## LabNTP
 
-Laboratory NTPv3/v4 unicast (catalog id `labntp`, pin **v1.0.0-rc.3**).
+Laboratory NTPv3/v4 unicast (catalog id `labntp`, pin **v1.0.0-rc.5**).
 Desired state is `labntp/bootstrap.yaml` (`labntp.dev/v1alpha1`), a
 lab-owned overlay copy — do not recopy from the upstream examples tree
 without reviewing `allowClientCidrs` / Origins. `allowLegacyClients:
@@ -499,7 +499,7 @@ Point systems under test at `<lab-host>:10123` (UDP). Operator console
 ## LabSSO
 
 Laboratory OIDC/OAuth2 + SAML IdP (catalog id `labsso`, pin
-**v1.0.0-rc.5**). Desired state is `labsso/bootstrap.yaml`
+**v1.0.0-rc.6**). Desired state is `labsso/bootstrap.yaml`
 (`labsso.dev/v1alpha1`), a lab-owned overlay copy. `allowLegacyClients:
 true` lives under `spec.listeners.management.mcp`. Compose must pass
 `--management-listen=:8080`. No `NET_BIND_SERVICE`. Token, Alice

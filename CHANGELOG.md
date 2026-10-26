@@ -7,8 +7,30 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-10-26
+
 ### Changed
 
+- Vendor pins move to the 2026-10-26 Batch A tags. Each checkout is the
+  release tag, not a SHA; tag commits checked with `git ls-remote`:
+  LabDNS **v1.5.1** (was v1.5.0; `7252d1e990a2d577ab884d5d1ab44be4c6aa8d09`),
+  LabLDAP **v0.7.2** (was v0.7.1; `d4f52ea108fbc06ef8d6a6bdedbcc6b8d071fcba`),
+  TacLab **v1.6.2** (was v1.6.1; `a923386fa6a95238dac083f9c744d6a56e7e5d6b`),
+  LabMITM **v1.7.4** (was v1.7.3; `bd17f0e4421d949bcdeb424b0fe7848098e78821`),
+  LabSSO **v1.0.0-rc.6** (was v1.0.0-rc.5; `379f3cbdf15ae156e00e7e012ea7acd1fb76ca52`),
+  LabMail **v1.0.0-rc.6** (was v1.0.0-rc.4; `b86dadae19a5f9273663e6dc24861171a8e7dd31`),
+  and LabNTP **v1.0.0-rc.5** (was v1.0.0-rc.3; `22df31de93be6d92ab7daf233e2eaa278ce3a1d4`).
+  The DNS, LDAP, TacLab, MITM and SSO tags are the Go 1.26.10
+  (GO-2026-6809) toolchain chore plus dependency bumps (LabDNS undici
+  7.30.1 and vitest; LabLDAP control-placeholder digest pin; TacLab web
+  Dependabot bumps). LabMail and LabNTP skip a candidate, so they also
+  take in rc.5 and rc.4 respectively: auth and reset hardening,
+  `mcp-stdio` actor re-resolution, and REST mutation JSON that now
+  rejects unknown fields (LabMail MCP change tools also reject
+  bare-number durations and sizes). `make up` and smoke exercise these
+  pins in CI. The lab edits are the version strings only.
+  go-lab-controlkit, go-jenkins-mcp and mount-wrapper are not pinned
+  here; netconf, snmp and syslog stay unpinned.
 - Go toolchain 1.26.9 → 1.26.10: `go.mod` `toolchain go1.26.10`, CI
   `setup-go` `go-version: "1.26.10"` (test and smoke-dev jobs), and the
   labgraph and labinfo build images `golang:1.26.9-alpine` →
