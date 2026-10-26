@@ -12,26 +12,26 @@ func TestVendorPinsLatestReleases(t *testing.T) {
 	for _, repo := range vendorRepos {
 		got[repo.Dest] = repo.Ref
 	}
-	if got["third_party/go-lab-ldap-mcp"] != "v0.7.1" {
-		t.Fatalf("labldap pin = %q, want v0.7.1", got["third_party/go-lab-ldap-mcp"])
+	if got["third_party/go-lab-ldap-mcp"] != "v0.7.2" {
+		t.Fatalf("labldap pin = %q, want v0.7.2", got["third_party/go-lab-ldap-mcp"])
 	}
-	if got["third_party/go-lab-tacacs-mcp"] != "v1.6.1" {
-		t.Fatalf("taclab pin = %q, want v1.6.1", got["third_party/go-lab-tacacs-mcp"])
+	if got["third_party/go-lab-tacacs-mcp"] != "v1.6.2" {
+		t.Fatalf("taclab pin = %q, want v1.6.2", got["third_party/go-lab-tacacs-mcp"])
 	}
-	if got["third_party/go-lab-dns"] != "v1.5.0" {
-		t.Fatalf("labdns pin = %q, want v1.5.0", got["third_party/go-lab-dns"])
+	if got["third_party/go-lab-dns"] != "v1.5.1" {
+		t.Fatalf("labdns pin = %q, want v1.5.1", got["third_party/go-lab-dns"])
 	}
-	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.4" {
-		t.Fatalf("labmail pin = %q, want v1.0.0-rc.4", got["third_party/go-lab-maildev"])
+	if got["third_party/go-lab-maildev"] != "v1.0.0-rc.6" {
+		t.Fatalf("labmail pin = %q, want v1.0.0-rc.6", got["third_party/go-lab-maildev"])
 	}
-	if got["third_party/go-lab-mitmproxy"] != "v1.7.3" {
-		t.Fatalf("labmitm pin = %q, want v1.7.3", got["third_party/go-lab-mitmproxy"])
+	if got["third_party/go-lab-mitmproxy"] != "v1.7.4" {
+		t.Fatalf("labmitm pin = %q, want v1.7.4", got["third_party/go-lab-mitmproxy"])
 	}
-	if got["third_party/go-lab-ntp"] != "v1.0.0-rc.3" {
-		t.Fatalf("labntp pin = %q, want v1.0.0-rc.3", got["third_party/go-lab-ntp"])
+	if got["third_party/go-lab-ntp"] != "v1.0.0-rc.5" {
+		t.Fatalf("labntp pin = %q, want v1.0.0-rc.5", got["third_party/go-lab-ntp"])
 	}
-	if got["third_party/go-lab-sso"] != "v1.0.0-rc.5" {
-		t.Fatalf("labsso pin = %q, want v1.0.0-rc.5", got["third_party/go-lab-sso"])
+	if got["third_party/go-lab-sso"] != "v1.0.0-rc.6" {
+		t.Fatalf("labsso pin = %q, want v1.0.0-rc.6", got["third_party/go-lab-sso"])
 	}
 }
 

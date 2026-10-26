@@ -11,8 +11,8 @@ import (
 )
 
 // Allowlists are the v1alpha1 published schema property names
-// (https://raw.githubusercontent.com/hilather/go-lab-mitmproxy/v1.7.3/api/jsonschema/labmitm.dev.v1alpha1.json).
-// Pin is third_party/go-lab-mitmproxy @ v1.7.3 (internal/lab/vendor.go).
+// (https://raw.githubusercontent.com/hilather/go-lab-mitmproxy/v1.7.4/api/jsonschema/labmitm.dev.v1alpha1.json).
+// Pin is third_party/go-lab-mitmproxy @ v1.7.4 (internal/lab/vendor.go).
 var labmitmV15Allow = map[string][]string{
 	"":                    {"apiVersion", "kind", "metadata", "spec"},
 	"metadata":            {"name", "labels"},
