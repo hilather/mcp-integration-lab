@@ -23,7 +23,7 @@ changes since the previous one (AGENTS.md rule 13).
   `internal/`, `cmd/`, or `api/`, and leaves `tools/labgen`,
   `deployments/compose`, and `go.mod`/`go.sum` unchanged. The upstream
   Dockerfile Node pin and web lockfile/package bumps mean the next
-  `make up` / `make reload APP=labtacacs` rebuilds the TacLab image and
+  `make up` rebuilds the TacLab image and
   can change the built UI bundle; a pin bump still re-runs `labgen
   -force`. Overlays, bootstrap, smoke, allowlists, and the docs catalog
   counts need no change. The only lab edits for this pin are the version
