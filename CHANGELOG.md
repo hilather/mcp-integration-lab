@@ -7,6 +7,28 @@ changes since the previous one (AGENTS.md rule 13).
 
 ## [Unreleased]
 
+### Changed
+
+- Vendor pin: TacLab **v1.6.4** (was v1.6.2). Checkout is the release tag,
+  not a SHA. Tag at `a50a5b36f1a9d6977ca3bb65a85067bb485db411` (go-lab-tacacs-mcp
+  #161). This lab never pinned the intermediate v1.6.3 tag
+  (`e051b729d24c932b889f863f8f449b71504fecc6`, docs-only release #153).
+  v1.6.4 takes in go-lab-tacacs-mcp #147–#152 (v1.6.3: Dependabot refreshes
+  and the Node.js pin 22.14.0 → 22.23.4), #155 (closes #154: fix the
+  generated-file drift hook self-test), and #156–#160 (frontend Dependabot:
+  `eslint` 10.14.0, `@vitejs/plugin-react` 6.2.1, `react-router-dom` 7.18.5,
+  `typescript-eslint` 8.72.1, `globals` 17.14.0). This is not a RADIUS
+  completeness release; `system.build.get` RADIUS `conformance_status`
+  stays `partial`. `git diff v1.6.2 v1.6.4` changes no product Go under
+  `internal/`, `cmd/`, or `api/`, and leaves `tools/labgen`,
+  `deployments/compose`, and `go.mod`/`go.sum` unchanged. The upstream
+  Dockerfile Node pin and web lockfile/package bumps mean the next
+  `make up` rebuilds the TacLab image and
+  can change the built UI bundle; a pin bump still re-runs `labgen
+  -force`. Overlays, bootstrap, smoke, allowlists, and the docs catalog
+  counts need no change. The only lab edits for this pin are the version
+  strings (and this CHANGELOG entry).
+
 ## [0.13.4] - 2026-10-26
 
 ### Changed

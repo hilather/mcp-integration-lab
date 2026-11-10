@@ -197,7 +197,7 @@ we work by.
   LabLDAP and TacLab compose projects onto the shared network
 - `third_party/` — vendored service repos, cloned by `mcplab vendor` (rule 7);
   release tags are pinned in `internal/lab/vendor.go` (LabDNS `v1.5.1`,
-  LabLDAP `v0.7.2`, TacLab `v1.6.2`, LabMail `v1.0.0-rc.6`, LabMITM `v1.7.4`,
+  LabLDAP `v0.7.2`, TacLab `v1.6.4`, LabMail `v1.0.0-rc.6`, LabMITM `v1.7.4`,
   LabNTP `v1.0.0-rc.5`, LabSSO `v1.0.0-rc.6`).
   ratarmount-rs is the signed `.deb` in `docker/ratarmount/Dockerfile`
   (`0.1.34`). TacLab's generated lab baseline also lives under its checkout
@@ -291,7 +291,7 @@ PR. Keystone runs a Thursday drift check.
   names answer on management `resolve` / `explain` only — do not add them
   to `lab.test.` (they cannot appear on the DNS wire). `make reload
   APP=labdns` recreates only that container.
-- TacLab (pinned `v1.6.2`) still pins `2026-07-28` by default. Do **not**
+- TacLab (pinned `v1.6.4`) still pins `2026-07-28` by default. Do **not**
   patch it: `mcplab secrets` sets `api.mcp.allow_legacy_clients: true` on
   the labgen YAML (upstream knob from 1.2.0). `subscriptions/listen` stays
   strict. Bumping the vendor pin re-runs `labgen -force`. In
