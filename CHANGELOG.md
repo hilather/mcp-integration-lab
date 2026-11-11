@@ -9,6 +9,10 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- `github.com/klauspost/compress` v1.19.2 → v1.20.2 for GO-2026-6865
+  (zstd panic on two-block frames; the lab reaches it through the
+  `.tar.zst` archive and fixture code in `internal/lab`). Only this module
+  moves in `go.mod`/`go.sum`; nothing else changes.
 - Go toolchain 1.26.10 → 1.26.11 (`go.mod` `toolchain go1.26.11`, CI
   `setup-go` `go-version: "1.26.11"` in the test and smoke-dev jobs, and
   labgraph and labinfo build images `golang:1.26.11-alpine`);
