@@ -9,6 +9,11 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- Go toolchain 1.26.10 → 1.26.11 (`go.mod` `toolchain go1.26.11`, CI
+  `setup-go` `go-version: "1.26.11"` in the test and smoke-dev jobs, and
+  labgraph and labinfo build images `golang:1.26.11-alpine`);
+  go1.26.11 includes security fixes to cgo, the go command, the compiler,
+  the linker and net/http.
 - Vendor pin: TacLab **v1.6.4** (was v1.6.2). Checkout is the release tag,
   not a SHA. Tag at `a50a5b36f1a9d6977ca3bb65a85067bb485db411` (go-lab-tacacs-mcp
   #161). This lab never pinned the intermediate v1.6.3 tag
