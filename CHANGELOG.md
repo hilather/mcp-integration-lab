@@ -9,6 +9,23 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- `golang.org/x/crypto` v0.55.0 → v0.59.0 for GO-2026-5932, GO-2026-6354
+  and GO-2026-6355. v0.56.0 fixes the two ssh channel deadlocks (6354,
+  6355). v0.59.0 is the first tagged release after the openpgp carve-out
+  that closes 5932 (advisory fixed version
+  `v0.58.1-0.20261009181718-2f1f834330b2`). The lab reaches x/crypto
+  only through `argon2` in `internal/taclabcfg`; ssh and openpgp are
+  not called. `go mod tidy` also moves the `go` directive `1.26` →
+  `1.26.0` (required by x/crypto v0.59.0; the `toolchain` stays
+  go1.26.11) and the indirect modules `golang.org/x/sys` v0.47.0 →
+  v0.50.0 and `golang.org/x/text` v0.41.0 → v0.44.0. In the full
+  `go list -m all` graph, x/net v0.57.0 → v0.62.0, x/term v0.45.0 →
+  v0.48.0, x/mod v0.38.0 → v0.42.0, x/sync v0.22.0 → v0.25.0 and
+  x/tools v0.48.0 → v0.52.0 also move; those five are not written
+  into `go.mod`/`go.sum`. `github.com/mark3labs/mcp-go` stays at
+  v0.58.0. GO-2026-6911 remains open at module level and is waiting
+  on an mcp-go tag that contains `2f5b9637`, plus a fixed version in
+  the Go vulnerability database.
 - `github.com/klauspost/compress` v1.19.2 → v1.20.2 for GO-2026-6865
   (zstd panic on two-block frames; the lab reaches it through the
   `.tar.zst` archive and fixture code in `internal/lab`). Only this module
