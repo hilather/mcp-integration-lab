@@ -6,7 +6,7 @@ toolchain go1.26.11
 
 require (
 	github.com/klauspost/compress v1.20.2
-	github.com/mark3labs/mcp-go v0.58.0
+	github.com/mark3labs/mcp-go v1.6.0
 	golang.org/x/crypto v0.59.0
 	gopkg.in/yaml.v3 v3.0.1
 )
