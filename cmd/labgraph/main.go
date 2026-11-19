@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mark3labs/mcp-go/server"
-
 	"github.com/hilather/mcp-integration-lab/internal/labgraph"
 )
 
@@ -66,8 +64,8 @@ func serve(args []string) int {
 
 	mux := http.NewServeMux()
 	labgraph.REST(mux, svc, sess)
-	mcpH := server.NewStreamableHTTPServer(labgraph.MCPServer(svc))
 	allowLegacy := cfg.Spec.Management.MCP.AllowLegacyClients
+	mcpH := labgraph.MCPStreamableServer(svc, allowLegacy)
 	mux.Handle("/mcp", labgraph.MCPVersion(allowLegacy, bearerOnly(token, mcpH)))
 	if cfg.Spec.UI.Enabled {
 		mux.Handle("/", labgraph.SPAOrigins(cfg.Spec.Management.OriginAllowlist, labgraph.SPA()))

@@ -9,6 +9,43 @@ changes since the previous one (AGENTS.md rule 13).
 
 ### Changed
 
+- `github.com/mark3labs/mcp-go` v0.58.0 → v1.6.0 for GO-2026-6911 (SSRF
+  and credential leak through cross-origin redirects in the SDK's
+  default HTTP clients). v1.6.0 is the first tag that contains the fix
+  `2f5b9637` (mcp-go #1192). labgraph and labinfo, the first-party MCP
+  servers, and mcplab import only mcp-go's `mcp` and `server` packages
+  (which pull in `tracing`) and never link the fixed `client/transport`
+  code, so govulncheck symbol scans were already clean; this upgrades
+  the pinned dependency. The MCPJungle gateway and registrar images are
+  third-party builds with their own mcp-go v0.48.0 and do not change.
+  Only mcp-go moves in `go.mod` and in `go list -m all`; `go.sum` also
+  records the `golang.org/x/tools` v0.52.0 checksums (that version was
+  already in the graph). The `go` and `toolchain` lines stay the same.
+  On labgraph and labinfo `/mcp`, the tested exchanges for protocol
+  versions up to 2025-11-25 (the version MCPJungle uses) are unchanged.
+  A request whose `MCP-Protocol-Version` header is `2026-07-28` now
+  selects the stateless 2026-07-28 protocol: `server/discover`,
+  per-request `_meta` and `Mcp-Method`/`Mcp-Name` headers. `initialize`
+  is removed in that version (404) and GET/DELETE answer 405, so a
+  client that pins the header but still uses `initialize` and sessions
+  gets HTTP 400. With `allowLegacyClients: false`, labgraph's
+  `server/discover` now advertises only `2026-07-28`, the one version
+  its pin admits (`labgraph.MCPStreamableServer`). The SDK caps MCP
+  request bodies at 4 MiB (HTTP 413 above that). govulncheck still lists
+  GO-2026-6911 at module level because vuln.go.dev records no fixed
+  version yet (database last modified 2026-11-11).
+- mcp-go v1.6.0 has a known upstream limitation on the 2026-07-28 path,
+  reported privately to the maintainers.
+- Strict-profile limitation (existing pin behaviour, not a bug): with
+  `allowLegacyClients: false`, labgraph's `MCPVersion` middleware
+  answers any `MCP-Protocol-Version` other than `2026-07-28` with a
+  plain-text HTTP 400 before the SDK sees the request. An mcp-go v1.x
+  client that proposes a version above 2026-07-28 therefore never
+  receives the SDK's structured -32022 unsupported-version error and
+  cannot negotiate down to 2026-07-28. The default profile
+  (`allowLegacyClients: true`) is unaffected. Revisit when any lab
+  client proposes a version above 2026-07-28; that gets its own scoped
+  change.
 - `golang.org/x/crypto` v0.55.0 → v0.59.0 for GO-2026-5932, GO-2026-6354
   and GO-2026-6355. v0.56.0 fixes the two ssh channel deadlocks (6354,
   6355). v0.59.0 is the first tagged release after the openpgp carve-out
@@ -21,11 +58,10 @@ changes since the previous one (AGENTS.md rule 13).
   v0.50.0 and `golang.org/x/text` v0.41.0 → v0.44.0. In the full
   `go list -m all` graph, x/net v0.57.0 → v0.62.0, x/term v0.45.0 →
   v0.48.0, x/mod v0.38.0 → v0.42.0, x/sync v0.22.0 → v0.25.0 and
-  x/tools v0.48.0 → v0.52.0 also move; those five are not written
-  into `go.mod`/`go.sum`. `github.com/mark3labs/mcp-go` stays at
-  v0.58.0. GO-2026-6911 remains open at module level and is waiting
-  on an mcp-go tag that contains `2f5b9637`, plus a fixed version in
-  the Go vulnerability database.
+  x/tools v0.48.0 → v0.52.0 also move; that change wrote none of
+  those five into `go.mod`/`go.sum` (the mcp-go bump above adds the
+  x/tools checksums). It left `github.com/mark3labs/mcp-go` at v0.58.0;
+  the mcp-go entry above covers GO-2026-6911.
 - `github.com/klauspost/compress` v1.19.2 → v1.20.2 for GO-2026-6865
   (zstd panic on two-block frames; the lab reaches it through the
   `.tar.zst` archive and fixture code in `internal/lab`). Only this module
