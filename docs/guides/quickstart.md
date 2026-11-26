@@ -43,6 +43,14 @@ The default profile runs the gateway in enterprise mode. Clients send a bearer t
 
 The curated tool group lives at `http://<lab-host>:8080/v0/groups/integration/mcp`. Ask labinfo for `endpoints_list` and `connections_list` before you spelunk.
 
+Or use the stdlib CLI. The default (enterprise) profile needs a client token from `secrets/mcp-client-token` (omit the token only in development mode):
+
+```bash
+python3 tools/labctl/labctl.py --url http://127.0.0.1:8080/mcp --token-file secrets/mcp-client-token tools
+```
+
+See [`tools/labctl/README.md`](../../tools/labctl/README.md).
+
 ## Hit a data plane
 
 Today's default profile still publishes residual dests (DNS 10053, LDAPS
