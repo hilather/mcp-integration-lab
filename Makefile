@@ -3,7 +3,7 @@
 SHELL := /bin/bash
 export PROFILE
 
-.PHONY: help up down reset register preflight smoke vendor secrets creds fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down test
+.PHONY: help up down reset register preflight smoke vendor secrets creds fixtures reload labldap-up labldap-down labtacacs-up labtacacs-down test test-labctl
 
 help:
 	@go run ./cmd/mcplab 2>&1 || true
@@ -60,3 +60,7 @@ labtacacs-down:
 test:
 	go vet ./...
 	go test ./...
+
+# Stdlib Python stub tests for tools/labctl (not part of `make test`).
+test-labctl:
+	python3 tools/labctl/test_labctl.py
